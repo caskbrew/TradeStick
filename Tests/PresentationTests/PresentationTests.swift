@@ -1,0 +1,173 @@
+import Domain
+import Foundation
+import Testing
+@testable import Presentation
+
+func dec(_ s: String) -> Decimal { Decimal(string: s, locale: Locale(identifier: "en_US_POSIX"))! }
+let now = Date(timeIntervalSince1970: 1_700_000_000)
+
+@Suite struct DecimalInputTests {
+    @Test func acceptsDotCommaAndSpaces() {
+        #expect(DecimalInput.parse("1.5") == dec("1.5"))
+        #expect(DecimalInput.parse("1,5") == dec("1.5"))
+        #expect(DecimalInput.parse("1 234,56") == dec("1234.56"))
+        #expect(DecimalInput.parse("1\u{00A0}000") == 1000)
+        #expect(DecimalInput.parse(".5") == dec("0.5"))
+        #expect(DecimalInput.parse("5.") == 5)
+        #expect(DecimalInput.parse("0.00000001") == dec("0.00000001"))
+    }
+
+    @Test func rejectsEverythingElse() {
+        for bad in ["", " ", "-1", "+1", "abc", "1e5", "1.2.3", "1,2,3", "1,234.5", ".", ",", "1/2", "٣"] {
+            #expect(DecimalInput.parse(bad) == nil, "\(bad)")
+        }
+    }
+}
+
+@Suite struct NumberFormatTests {
+    @Test func pricesKeepFourSignificantDigitsAndAtLeastTwoDecimals() {
+        #expect(NumberFormat.price(dec("0.0533333333")) == "0.05333")
+        #expect(NumberFormat.price(dec("0.055")) == "0.055")
+        #expect(NumberFormat.price(dec("0.05512")) == "0.05512")
+        #expect(NumberFormat.price(dec("67432.1")) == "67432.10")
+        #expect(NumberFormat.price(dec("67432.12345")) == "67432.12")
+        #expect(NumberFormat.price(dec("1")) == "1.00")
+        #expect(NumberFormat.price(dec("0.5")) == "0.50")
+        #expect(NumberFormat.price(dec("0.000001234567")) == "0.000001235")
+        #expect(NumberFormat.price(dec("0.00000000012345")) == "0.0000000001") // 10 decimals at most
+    }
+
+    @Test func quoteAmountsUseTwoDecimalsOrFourBelowOne() {
+        #expect(NumberFormat.quote(dec("48")) == "48.00")
+        #expect(NumberFormat.quote(dec("9.5")) == "9.50")
+        #expect(NumberFormat.quote(dec("0.5")) == "0.50")
+        #expect(NumberFormat.quote(dec("0.12345")) == "0.1235")
+        #expect(NumberFormat.quote(dec("1234.567")) == "1234.57")
+    }
+
+    @Test func signedAmountsAlwaysCarryASignExceptZero() {
+        #expect(NumberFormat.signedQuote(dec("9.5")) == "+9.50")
+        #expect(NumberFormat.signedQuote(dec("-4.5")) == "\u{2212}4.50")
+        #expect(NumberFormat.signedQuote(0) == "0.00")
+        #expect(NumberFormat.signedQuote(dec("-0.05")) == "\u{2212}0.05")
+    }
+
+    @Test func quantitiesAreGroupedAndTrimmed() {
+        #expect(NumberFormat.quantity(1500) == "1,500")
+        #expect(NumberFormat.quantity(dec("0.5")) == "0.5")
+        #expect(NumberFormat.quantity(dec("1234567.12345678")) == "1,234,567.12345678")
+        #expect(NumberFormat.quantity(dec("0.123456789")) == "0.12345679")
+    }
+
+    @Test func percentsHaveTwoDecimalsAndASign() {
+        #expect(NumberFormat.signedPercent(dec("0.11875")) == "+11.88%")
+        #expect(NumberFormat.signedPercent(dec("-0.012")) == "\u{2212}1.20%")
+        #expect(NumberFormat.signedPercent(0) == "0.00%")
+        #expect(NumberFormat.signedPercent(dec("0.17500")) == "+17.50%")
+    }
+}
+
+@Suite struct TransactionDraftTests {
+    func draft() -> TransactionDraft { TransactionDraft(side: .buy, occurredAt: now) }
+
+    @Test func rateIsComputedFromQuantityAndAmount() {
+        var d = draft()
+        d.edit(.quantity, "500")
+        d.edit(.amount, "30")
+        #expect(d.rateText == "0.06") // 30 / 500, the reference-image error C25
+        #expect(d.isAuto(.rate) && !d.isAuto(.amount))
+        #expect(d.savable(now: now)?.amount == 30)
+    }
+
+    @Test func editingRateMakesAmountComputedAndRoundsToEightDecimals() {
+        var d = draft()
+        d.edit(.quantity, "500")
+        d.edit(.amount, "30")
+        d.edit(.rate, "0.07")
+        #expect(d.amountText == "35")
+        #expect(d.isAuto(.amount) && !d.isAuto(.rate))
+
+        d.edit(.quantity, "3")
+        d.edit(.rate, "0.333333333")
+        #expect(d.amount == dec("1")) // 0.999999999 rounds to 1.00000000
+        #expect(d.savable(now: now)?.amount == 1)
+    }
+
+    @Test func changingQuantityRecomputesTheDerivedField() {
+        var d = draft()
+        d.edit(.quantity, "100")
+        d.edit(.amount, "10")
+        d.edit(.quantity, "200")
+        #expect(d.rateText == "0.05") // amount stays, rate follows
+
+        d.edit(.rate, "0.1")
+        d.edit(.quantity, "50")
+        #expect(d.amountText == "5") // rate stays, amount follows
+    }
+
+    @Test func derivedFieldIsEmptyWhileQuantityIsEmptyOrZero() {
+        var d = draft()
+        d.edit(.amount, "30")
+        #expect(d.rateText == "")
+        d.edit(.quantity, "0")
+        #expect(d.rateText == "")
+        d.edit(.quantity, "500")
+        #expect(d.rateText == "0.06")
+    }
+
+    @Test func commaInputWorks() {
+        var d = draft()
+        d.edit(.quantity, "1 000,5")
+        d.edit(.amount, "55,5")
+        #expect(d.quantity == dec("1000.5"))
+        #expect(d.savable(now: now)?.amount == dec("55.5"))
+    }
+
+    @Test func untouchedFormIsNotSavableButShowsNoError() {
+        let d = draft()
+        #expect(d.savable(now: now) == nil)
+        #expect(d.problems(now: now).isEmpty)
+    }
+
+    @Test func invalidInputIsReportedAndBlocksSaving() {
+        var d = draft()
+        d.edit(.quantity, "abc")
+        d.edit(.amount, "-5")
+        #expect(d.problems(now: now) == [.quantityInvalid, .amountInvalid])
+        #expect(d.savable(now: now) == nil)
+
+        d.edit(.quantity, "10")
+        d.edit(.rate, "0")
+        #expect(d.problems(now: now) == [.rateInvalid])
+
+        d.edit(.rate, "0.0000000001") // 10 × 1e-10 = 1e-9 rounds to 0 at 8 decimals
+        #expect(d.problems(now: now) == [.amountInvalid])
+        #expect(d.savable(now: now) == nil)
+    }
+
+    @Test func rateWithoutQuantityIsNotBlamedOnAmount() {
+        var d = draft()
+        d.edit(.rate, "0.05")
+        #expect(d.problems(now: now).isEmpty)
+        #expect(d.savable(now: now) == nil)
+    }
+
+    @Test func timeMayBeAtMostOneMinuteAhead() {
+        var d = draft()
+        d.edit(.quantity, "1")
+        d.edit(.amount, "1")
+        d.occurredAt = now.addingTimeInterval(59)
+        #expect(d.savable(now: now) != nil)
+        d.occurredAt = now.addingTimeInterval(61)
+        #expect(d.problems(now: now) == [.timeInFuture])
+        #expect(d.savable(now: now) == nil)
+    }
+
+    @Test func closePrefillsWholeQuantityAtCurrentPrice() {
+        let d = TransactionDraft(side: .sell, occurredAt: now, quantity: 900, rate: dec("0.055"))
+        #expect(d.quantityText == "900")
+        #expect(d.rateText == "0.055")
+        #expect(d.amountText == "49.5")
+        #expect(d.savable(now: now)?.amount == dec("49.5"))
+    }
+}
