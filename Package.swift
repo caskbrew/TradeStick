@@ -9,6 +9,7 @@ let package = Package(
         .library(name: "Persistence", targets: ["Persistence"]),
         .library(name: "MarketData", targets: ["MarketData"]),
         .library(name: "Presentation", targets: ["Presentation"]),
+        .library(name: "Widgets", targets: ["Widgets"]),
         .executable(name: "WindowSpike", targets: ["WindowSpike"]),
     ],
     dependencies: [
@@ -24,6 +25,9 @@ let package = Package(
         // UI-independent view logic: number formatting, input parsing, the transaction form model.
         .target(name: "Presentation", dependencies: ["Domain"]),
         .testTarget(name: "PresentationTests", dependencies: ["Presentation", "Domain"]),
+        // Sticker view models and SwiftUI views. No AppKit window code here.
+        .target(name: "Widgets", dependencies: ["Domain", "Persistence", "MarketData", "Presentation"]),
+        .testTarget(name: "WidgetsTests", dependencies: ["Widgets", "Domain", "Persistence", "MarketData", "Presentation"]),
         // Throwaway spike for risk R1 (window behaviour). Not used by any other target.
         .executableTarget(name: "WindowSpike"),
     ]
