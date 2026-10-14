@@ -52,6 +52,16 @@ let now = Date(timeIntervalSince1970: 1_700_000_000)
         #expect(NumberFormat.signedQuote(dec("-0.05")) == "\u{2212}0.05")
     }
 
+    @Test func aTinyValueThatRoundsToZeroHasNoSignAndIsNotColoured() {
+        #expect(NumberFormat.signedQuote(dec("0.00004")) == "0.00")
+        #expect(NumberFormat.signedQuote(dec("-0.00004")) == "0.00")
+        #expect(NumberFormat.displayedQuote(dec("0.00004")) == 0)
+        #expect(NumberFormat.signedQuote(dec("0.0004")) == "+0.0004")
+        #expect(NumberFormat.signedQuote(dec("1234.004")) == "+1234.00")
+        #expect(NumberFormat.displayedPercent(dec("0.00004")) == 0)
+        #expect(NumberFormat.signedPercent(dec("-0.00004")) == "0.00%")
+    }
+
     @Test func quantitiesAreGroupedAndTrimmed() {
         #expect(NumberFormat.quantity(1500) == "1,500")
         #expect(NumberFormat.quantity(dec("0.5")) == "0.5")

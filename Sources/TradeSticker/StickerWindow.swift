@@ -13,7 +13,8 @@ final class StickerPanel: NSPanel {
             styleMask: [.borderless], backing: .buffered, defer: false
         )
         level = .normal
-        collectionBehavior = []
+        // Lives on one desktop, but ordering it front (menu item) pulls it to the desktop you are on.
+        collectionBehavior = [.moveToActiveSpace]
         hidesOnDeactivate = false
         isMovableByWindowBackground = true
         isOpaque = false
@@ -30,12 +31,13 @@ final class StickerWindow: NSObject, NSWindowDelegate {
     let model: StickerModel
     private let panel = StickerPanel()
     private let store: TradeStore
-    private let host: NSHostingController<StickerView>
+    private let host: NSHostingController<AnyView>
     private var observation: NSKeyValueObservation?
     /// Where the user put the top-left corner. Growing/shrinking returns to this, not to a shifted frame.
     private var anchor: NSPoint
     private var isFitting = false
     private var saveTask: Task<Void, Never>?
+    private var shrinkTask: Task<Void, Never>?
     var onHide: (() -> Void)?
     var onDelete: (() -> Void)?
 
@@ -43,22 +45,22 @@ final class StickerWindow: NSObject, NSWindowDelegate {
         self.model = model
         self.store = store
         self.anchor = Self.initialAnchor(for: model.trade.position, index: index)
-        var actions = StickerActions(hide: {}, delete: {})
-        host = NSHostingController(rootView: StickerView(model: model, actions: actions))
+        host = NSHostingController(rootView: AnyView(EmptyView()))
         super.init()
-        actions = StickerActions(hide: { [weak self] in self?.hide() }, delete: { [weak self] in self?.onDelete?() })
-        host.rootView = StickerView(model: model, actions: actions)
+        let actions = StickerActions(hide: { [weak self] in self?.hide() }, delete: { [weak self] in self?.onDelete?() })
+        // Top-aligned, so while the window is taller than the card the card does not move.
+        host.rootView = AnyView(StickerView(model: model, actions: actions).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top))
         host.sizingOptions = [.preferredContentSize]
         panel.contentViewController = host
         panel.delegate = self
         observation = host.observe(\.preferredContentSize, options: [.new]) { [weak self] _, _ in
-            Task { @MainActor in self?.fit(animated: true) }
+            Task { @MainActor in self?.contentHeightChanged() }
         }
-        fit(animated: false)
+        apply(height: host.preferredContentSize.height)
     }
 
     func show(activate: Bool) {
-        fit(animated: false)
+        apply(height: host.preferredContentSize.height)
         if activate {
             NSApp.activate()
             panel.makeKeyAndOrderFront(nil)
@@ -85,8 +87,25 @@ final class StickerWindow: NSObject, NSWindowDelegate {
 
     // MARK: Geometry
 
-    private func fit(animated: Bool) {
-        let height = host.preferredContentSize.height
+    /// Growing: the window takes the new height at once and the content animates inside it.
+    /// Shrinking: wait until the content animation is over, then cut the window. The window frame is never
+    /// animated itself; two competing animations were what made it jitter.
+    private func contentHeightChanged() {
+        let target = host.preferredContentSize.height
+        guard target > 0 else { return }
+        shrinkTask?.cancel()
+        if target >= panel.frame.height - 0.5 {
+            apply(height: target)
+        } else {
+            shrinkTask = Task { [weak self] in
+                try? await Task.sleep(for: .milliseconds(260))
+                guard !Task.isCancelled, let self else { return }
+                self.apply(height: self.host.preferredContentSize.height)
+            }
+        }
+    }
+
+    private func apply(height: CGFloat) {
         guard height > 0 else { return }
         var frame = NSRect(x: anchor.x, y: anchor.y - height, width: StickerView.width, height: height)
         if let visible = (NSScreen.screens.first { $0.frame.contains(anchor) } ?? NSScreen.main)?.visibleFrame {
@@ -95,8 +114,7 @@ final class StickerWindow: NSObject, NSWindowDelegate {
         }
         isFitting = true
         defer { isFitting = false }
-        let animate = animated && panel.isVisible && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
-        panel.setFrame(frame, display: true, animate: animate)
+        panel.setFrame(frame, display: true)
     }
 
     private static func initialAnchor(for stored: WindowPosition?, index: Int) -> NSPoint {

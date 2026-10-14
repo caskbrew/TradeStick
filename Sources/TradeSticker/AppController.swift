@@ -105,19 +105,17 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
             item.target = self
             item.representedObject = trade.id
             item.state = visible ? .on : .off
+            item.toolTip = visible ? "Bring this sticker to the current desktop" : "Show this sticker"
             menu.addItem(item)
         }
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "Quit TradeSticker", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
     }
 
+    /// Shows a hidden sticker, or pulls a visible one to the desktop you are on. Hiding is in the sticker's `⋯` menu.
     @objc private func toggle(_ item: NSMenuItem) {
         guard let id = item.representedObject as? UUID, let trade = try? store.trade(id: id) else { return }
-        if let window = windows[id], window.isVisible {
-            window.hide()
-        } else {
-            open(trade, activate: true)
-        }
+        open(trade, activate: true)
     }
 
     @objc private func showNewTrade() {

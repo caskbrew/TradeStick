@@ -44,7 +44,7 @@ public struct StickerView: View {
                 } else {
                     ActionRow(model: model)
                 }
-                if model.trade.isExpanded { TransactionList(model: model) }
+                if model.trade.isExpanded { TransactionList(model: model).transition(.opacity) }
             }
             .padding(16)
             .frame(width: Self.width)
@@ -136,9 +136,9 @@ struct ChangePill: View {
     let dimmed: Bool
 
     var body: some View {
-        let color = Theme.pnl(change)
+        let color = Theme.pnl(NumberFormat.displayedPercent(change))
         HStack(spacing: 3) {
-            Text(change > 0 ? "▲" : change < 0 ? "▼" : "")
+            Text(NumberFormat.displayedPercent(change) > 0 ? "▲" : NumberFormat.displayedPercent(change) < 0 ? "▼" : "")
             Text(NumberFormat.signedPercent(change)).monospacedDigit()
             Text("24h").foregroundStyle(Theme.secondaryText)
         }
@@ -191,29 +191,23 @@ struct NumbersBlock: View {
                         Text(total.map(NumberFormat.signedQuote) ?? "—").font(.system(size: 24, weight: .semibold, design: .rounded)).monospacedDigit()
                         Text(model.trade.quote).font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.secondaryText)
                     }
-                    .foregroundStyle(Theme.pnl(total))
+                    .foregroundStyle(Theme.pnl(total.map(NumberFormat.displayedQuote)))
                     .opacity(dim ? 0.45 : 1)
                     if let ratio = closed ? finalRatio(summary) : pnl.ratio {
                         HStack(spacing: 3) {
-                            Text(ratio > 0 ? "▲" : ratio < 0 ? "▼" : "")
+                            Text(NumberFormat.displayedPercent(ratio) > 0 ? "▲" : NumberFormat.displayedPercent(ratio) < 0 ? "▼" : "")
                             Text(NumberFormat.signedPercent(ratio)).monospacedDigit()
                             if closed { Text("FINAL").font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.secondaryText) }
                         }
-                        .font(.system(size: 16, weight: .medium)).foregroundStyle(Theme.pnl(ratio)).opacity(dim ? 0.45 : 1)
+                        .font(.system(size: 16, weight: .medium)).foregroundStyle(Theme.pnl(NumberFormat.displayedPercent(ratio))).opacity(dim ? 0.45 : 1)
                     }
                 }
             }
-            VStack(alignment: .trailing, spacing: 3) {
-                HStack(spacing: 10) {
-                    SmallPnL(label: "Realized", value: pnl.realized, dimmed: false)
-                    SmallPnL(label: "Unrealized", value: closed ? nil : pnl.unrealized, dimmed: dim)
-                }
                 if dim, model.currentPrice != nil || model.status == .open {
-                    Label("based on old price", systemImage: "exclamationmark.triangle.fill")
-                        .font(.system(size: 11)).foregroundStyle(Theme.warning)
-                }
+                Label("based on old price", systemImage: "exclamationmark.triangle.fill")
+                    .font(.system(size: 11)).foregroundStyle(Theme.warning)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
             }
-            .frame(maxWidth: .infinity, alignment: .trailing)
         }
     }
 
@@ -233,20 +227,6 @@ struct LabeledValue: View {
     }
 }
 
-struct SmallPnL: View {
-    let label: String
-    let value: Decimal?
-    let dimmed: Bool
-
-    var body: some View {
-        HStack(spacing: 3) {
-            Text(label).foregroundStyle(Theme.secondaryText)
-            Text(value.map(NumberFormat.signedQuote) ?? "—").foregroundStyle(Theme.pnl(value)).monospacedDigit()
-        }
-        .font(.system(size: 11)).lineLimit(1).fixedSize().opacity(dimmed ? 0.45 : 1)
-    }
-}
-
 struct SideTotals: View {
     let summary: TradeSummary
 
@@ -254,11 +234,11 @@ struct SideTotals: View {
         let bought = line("Bought", summary.boughtQuantity, summary.avgBuyRate)
         let sold = line("Sold", summary.soldQuantity, summary.avgSellRate)
         let opening = summary.direction == .buyFirst
-        HStack {
+        VStack(alignment: .leading, spacing: 3) {
             Text(opening ? bought : sold)
-            Spacer()
             Text(opening ? sold : bought)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .font(.system(size: 12)).monospacedDigit().foregroundStyle(Theme.secondaryText)
     }
 
@@ -275,25 +255,18 @@ struct ActionRow: View {
 
     var body: some View {
         let opening = model.trade.direction.openingSide
-        let closing = model.trade.direction.closingSide
         let open = model.summary.openQuantity > 0
         VStack(spacing: 8) {
             HStack(spacing: 8) {
-                switch model.status {
-                case .empty:
-                    pill("Add first transaction") { model.openForm(side: opening) }
-                case .closed:
-                    pill(opening == .buy ? "Buy again" : "Sell again") { model.openForm(side: opening) }
-                case .open:
-                    pill(opening == .buy ? "Buy more" : "Sell more") { model.openForm(side: opening) }
-                    pill(closing == .sell ? "Sell part" : "Buy back", enabled: open) { model.openForm(side: closing) }
+                pill("Add transaction") { model.openForm(side: opening) }
+                if model.status == .open {
                     Button("Close") { model.openCloseForm() }
                         .buttonStyle(PillStyle(fill: Theme.accent)).disabled(!open)
                 }
             }
             if model.status != .empty {
                 Button {
-                    withAnimation(.easeInOut(duration: 0.2)) { model.setExpanded(!model.trade.isExpanded) }
+                    withAnimation(.easeInOut(duration: 0.22)) { model.setExpanded(!model.trade.isExpanded) }
                 } label: {
                     let n = model.transactions.count
                     Text("\(n) transaction\(n == 1 ? "" : "s") \(model.trade.isExpanded ? "⌃" : "⌄")")

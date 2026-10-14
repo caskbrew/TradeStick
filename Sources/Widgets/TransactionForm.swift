@@ -94,10 +94,11 @@ struct TransactionList: View {
             } else {
                 Text(tx.occurredAt.formatted(.dateTime.day(.twoDigits).month(.twoDigits)) + " " + tx.occurredAt.formatted(.dateTime.hour().minute()))
                     .foregroundStyle(Theme.secondaryText).frame(width: 76, alignment: .leading)
-                Text(tx.side == .buy ? "BUY" : "SELL") // neutral pills, text not colour (FR-UI-8)
+                Text(tx.side == .buy ? "BUY" : "SELL") // user's choice: buy green, sell red (word stays, colour is not the only cue)
                     .font(.system(size: 11, weight: .semibold)).fixedSize()
                     .padding(.horizontal, 6).padding(.vertical, 2)
-                    .background(Capsule().fill(Theme.field))
+                    .background(Capsule().fill((tx.side == .buy ? Theme.positive : Theme.negative).opacity(0.18)))
+                    .foregroundStyle(tx.side == .buy ? Theme.positive : Theme.negative)
                 Text(NumberFormat.quantity(tx.quantity)).frame(maxWidth: .infinity, alignment: .trailing)
                     .minimumScaleFactor(0.7)
                 Text(NumberFormat.quote(tx.amount)).frame(width: 54, alignment: .trailing)

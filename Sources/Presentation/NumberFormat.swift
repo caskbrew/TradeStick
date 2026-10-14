@@ -33,9 +33,22 @@ public enum NumberFormat {
         return plain(value, min: 2, max: magnitude < 1 ? 4 : 2)
     }
 
+    /// The value as `quote(_:)` shows it. Signs and colours must follow this, not the raw value, so that a
+    /// tiny `+0.003` never appears as a green `+0.00`.
+    public static func displayedQuote(_ value: Decimal) -> Decimal {
+        let magnitude = value < 0 ? -value : value
+        return value.rounded(scale: magnitude < 1 ? 4 : 2)
+    }
+
+    /// Percent value as `signedPercent(_:)` shows it (in percent, 2 decimals).
+    public static func displayedPercent(_ fraction: Decimal) -> Decimal {
+        (fraction * 100).rounded(scale: 2)
+    }
+
     /// Always signed for non-zero values, zero without a sign (FR-UI-14).
     public static func signedQuote(_ value: Decimal) -> String {
-        sign(value) + quote(value < 0 ? -value : value)
+        let shown = displayedQuote(value)
+        return sign(shown) + quote(shown < 0 ? -shown : shown)
     }
 
     /// Coin quantity: up to 8 decimals, no trailing zeros, thousands separators (FR-FMT-4).
