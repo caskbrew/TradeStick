@@ -205,3 +205,19 @@ let now = Date(timeIntervalSince1970: 1_700_000_000)
         }
     }
 }
+
+@Suite struct ElapsedTests {
+    @Test func formats() {
+        #expect(Elapsed.duration(30) == "<1m")
+        #expect(Elapsed.duration(60) == "1m")
+        #expect(Elapsed.duration(59 * 60 + 59) == "59m")
+        #expect(Elapsed.duration(3600) == "1h")
+        #expect(Elapsed.duration(5 * 3600 + 12 * 60) == "5h 12m")
+        #expect(Elapsed.duration(86400 + 4 * 3600 + 59) == "1d 4h")
+        #expect(Elapsed.duration(86400) == "1d")
+        #expect(Elapsed.duration(-5) == "<1m")
+        let now = Date()
+        #expect(Elapsed.ago(from: now.addingTimeInterval(-10), to: now) == "just now")
+        #expect(Elapsed.ago(from: now.addingTimeInterval(-7200), to: now) == "2h ago")
+    }
+}

@@ -23,7 +23,7 @@ struct TransactionForm: View {
             }
             HStack(spacing: 8) {
                 field("Quantity", .quantity, text: form?.quantityText ?? "", auto: false)
-                field("Amount \(model.trade.quote)", .amount, text: form?.amountText ?? "", auto: form?.isAuto(.amount) ?? false)
+                field("Amount", .amount, text: form?.amountText ?? "", auto: form?.isAuto(.amount) ?? false)
                 field("Rate", .rate, text: form?.rateText ?? "", auto: form?.isAuto(.rate) ?? false)
             }
             if let message = model.formError ?? model.formProblems.first?.message {
@@ -68,6 +68,7 @@ struct TransactionList: View {
             if let error = model.listError {
                 Text(error).font(.system(size: 12)).foregroundStyle(Theme.negative)
             }
+            header
             if rows.count > 8 {
                 ScrollView { rowsStack(rows) }.frame(height: 8 * Self.rowHeight)
             } else {
@@ -78,6 +79,20 @@ struct TransactionList: View {
 
     private func rowsStack(_ rows: [Domain.Transaction]) -> some View {
         VStack(spacing: 0) { ForEach(rows) { tx in row(tx) } }
+    }
+
+    private static let sideWidth: CGFloat = 40, amountWidth: CGFloat = 50, rateWidth: CGFloat = 56, agoWidth: CGFloat = 70
+
+    private var header: some View {
+        HStack(spacing: 6) {
+            Text("When").frame(width: Self.agoWidth, alignment: .leading)
+            Text("Side").frame(width: Self.sideWidth, alignment: .leading)
+            Text("Qty").frame(maxWidth: .infinity, alignment: .trailing)
+            Text("\(model.trade.quote)").frame(width: Self.amountWidth, alignment: .trailing)
+            Text("Rate").frame(width: Self.rateWidth, alignment: .trailing)
+            Color.clear.frame(width: 14, height: 1)
+        }
+        .font(.system(size: 11)).foregroundStyle(Theme.secondaryText.opacity(0.7)).lineLimit(1)
     }
 
     private func row(_ tx: Domain.Transaction) -> some View {
@@ -92,17 +107,21 @@ struct TransactionList: View {
                 }
                 .buttonStyle(.plain).foregroundStyle(Theme.negative)
             } else {
-                Text(tx.occurredAt.formatted(.dateTime.day(.twoDigits).month(.twoDigits)) + " " + tx.occurredAt.formatted(.dateTime.hour().minute()))
-                    .foregroundStyle(Theme.secondaryText).frame(width: 76, alignment: .leading)
+                TimelineView(.periodic(from: .now, by: 30)) { ctx in
+                    Text(Elapsed.ago(from: tx.occurredAt, to: ctx.date))
+                        .help(tx.occurredAt.formatted(date: .abbreviated, time: .shortened))
+                }
+                .foregroundStyle(Theme.secondaryText).frame(width: Self.agoWidth, alignment: .leading).minimumScaleFactor(0.7)
                 Text(tx.side == .buy ? "BUY" : "SELL") // user's choice: buy green, sell red (word stays, colour is not the only cue)
-                    .font(.system(size: 11, weight: .semibold)).fixedSize()
-                    .padding(.horizontal, 6).padding(.vertical, 2)
+                    .font(.system(size: 10, weight: .semibold)).fixedSize()
+                    .padding(.horizontal, 5).padding(.vertical, 2)
                     .background(Capsule().fill((tx.side == .buy ? Theme.positive : Theme.negative).opacity(0.18)))
                     .foregroundStyle(tx.side == .buy ? Theme.positive : Theme.negative)
+                    .frame(width: Self.sideWidth, alignment: .leading)
                 Text(NumberFormat.quantity(tx.quantity)).frame(maxWidth: .infinity, alignment: .trailing)
                     .minimumScaleFactor(0.7)
-                Text(NumberFormat.quote(tx.amount)).frame(width: 54, alignment: .trailing)
-                Text(tx.rate.map(NumberFormat.price) ?? "—").foregroundStyle(Theme.secondaryText).frame(width: 56, alignment: .trailing)
+                Text(NumberFormat.quote(tx.amount)).frame(width: Self.amountWidth, alignment: .trailing)
+                Text(tx.rate.map(NumberFormat.price) ?? "—").foregroundStyle(Theme.secondaryText).frame(width: Self.rateWidth, alignment: .trailing)
                 Button { confirming = tx.id } label: { Image(systemName: "trash") }
                     .buttonStyle(.plain).foregroundStyle(Theme.negative.opacity(0.8))
             }

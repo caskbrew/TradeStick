@@ -37,6 +37,16 @@ struct Fixture {
 }
 
 @MainActor @Suite(.timeLimit(.minutes(1))) struct StickerModelTests {
+    @Test func durationRunsToNowWhileOpenAndStopsAtLastTransactionWhenClosed() throws {
+        let f = try Fixture()
+        #expect(f.model.duration(at: at(50)) == nil)
+        try f.add(.buy, "100", "10", minute: 10)
+        #expect(f.model.duration(at: at(40)) == TimeInterval(30 * 60))
+        try f.add(.sell, "100", "12", minute: 20)
+        #expect(f.model.status == .closed)
+        #expect(f.model.duration(at: at(500)) == TimeInterval(10 * 60))
+    }
+
     @Test func emptyTradeSubscribesAndShowsNoPnL() async throws {
         let f = try Fixture()
         #expect(f.model.status == .empty)

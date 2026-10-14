@@ -54,6 +54,12 @@ public final class StickerModel {
     public var currentPrice: Decimal? { price.tick?.price }
     public var pnl: PnL { summary.pnl(at: currentPrice) }
     public var status: TradeStatus { summary.status }
+
+    /// First transaction to the last one when closed, to `now` while open; nil without transactions.
+    public func duration(at now: Date) -> TimeInterval? {
+        guard let first = transactions.map(\.occurredAt).min(), let last = transactions.map(\.occurredAt).max() else { return nil }
+        return (status == .closed ? last : max(now, first)).timeIntervalSince(first)
+    }
     public var key: MarketDataHub.Key { .init(exchange: trade.exchange, instrument: Instrument(base: trade.base, quote: trade.quote)) }
 
     /// Subscribed only while the window is visible and the trade is EMPTY or OPEN (spec 8.3).
@@ -104,7 +110,7 @@ public final class StickerModel {
 
     public func setExpanded(_ expanded: Bool) {
         if expanded && !trade.isExpanded {
-            onWillGrow?(CGFloat(min(transactions.count, 8)) * Self.listRowHeight + 40)
+            onWillGrow?(CGFloat(min(transactions.count, 8)) * Self.listRowHeight + 64)
         }
         try? store.setExpanded(id: trade.id, expanded)
         trade.isExpanded = expanded
