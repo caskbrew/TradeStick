@@ -44,7 +44,7 @@ public struct StickerView: View {
                 } else {
                     ActionRow(model: model)
                 }
-                if model.trade.isExpanded { TransactionList(model: model).transition(.opacity) }
+                if model.trade.isExpanded { TransactionList(model: model) }
             }
             .padding(16)
             .frame(width: Self.width)
@@ -266,7 +266,7 @@ struct ActionRow: View {
             }
             if model.status != .empty {
                 Button {
-                    withAnimation(.easeInOut(duration: 0.22)) { model.setExpanded(!model.trade.isExpanded) }
+                    model.setExpanded(!model.trade.isExpanded)
                 } label: {
                     let n = model.transactions.count
                     Text("\(n) transaction\(n == 1 ? "" : "s") \(model.trade.isExpanded ? "⌃" : "⌄")")

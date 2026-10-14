@@ -39,6 +39,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         statusItem.menu = menu
 
         for trade in (try? store.trades()) ?? [] where trade.isVisible { open(trade, activate: false) }
+        if CommandLine.arguments.contains("--selftest-window") { Task { await selfTestWindow() } }
     }
 
     private func seedDemo() throws {
@@ -50,6 +51,29 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 occurredAt: t0.addingTimeInterval(Double(i) * 600)
             )
         }
+    }
+
+    /// Developer check for "the window jumps": samples the frame while the list opens and closes and prints
+    /// how far the top edge moved. A steady top edge and a monotonic height mean no jump.
+    private func selfTestWindow() async {
+        guard let window = windows.values.first else { print("selftest: no window"); NSApp.terminate(nil); return }
+        func sample(_ label: String, _ change: () -> Void) async {
+            try? await Task.sleep(for: .milliseconds(600))
+            let start = window.frame
+            var tops: [CGFloat] = [start.maxY], heights: [CGFloat] = [start.height]
+            change()
+            for _ in 0..<150 { // ~1.2 s at 8 ms
+                try? await Task.sleep(for: .milliseconds(8))
+                tops.append(window.frame.maxY); heights.append(window.frame.height)
+            }
+            let steps = Set(heights.map { ($0 * 10).rounded() }).count
+            print("selftest \(label): top moved \((tops.max()! - tops.min()!)) pt, height \(heights.first!) -> \(heights.last!), distinct heights seen \(steps), monotonic \(heights == heights.sorted() || heights == heights.sorted(by: >))")
+        }
+        await sample("expand") { window.model.setExpanded(true) }
+        await sample("collapse") { window.model.setExpanded(false) }
+        await sample("open form") { window.model.openForm(side: .buy) }
+        await sample("close form") { window.model.cancelForm() }
+        NSApp.terminate(nil)
     }
 
     // MARK: Windows

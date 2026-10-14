@@ -24,6 +24,19 @@ final class StickerPanel: NSPanel {
     }
 }
 
+/// SwiftUI host that tells us when the content may have changed size. It is NOT a window content view controller:
+/// those make AppKit resize the window on its own (keeping the bottom-left corner), which made the sticker jump.
+final class StickerHostingView: NSHostingView<AnyView> {
+    var onIntrinsicSizeChange: (() -> Void)?
+
+    /// Runs whenever SwiftUI lays the content out again, including after a state change. (The invalidate
+    /// callback is not reliable for a view positioned by hand.)
+    override func layout() {
+        super.layout()
+        onIntrinsicSizeChange?()
+    }
+}
+
 /// One sticker: panel + model. Owns window geometry: fits the content height, keeps the top edge fixed,
 /// pulls the window up when it would leave the screen, and remembers the position (FR-WIN-6, FR-TX-8).
 @MainActor
@@ -31,13 +44,15 @@ final class StickerWindow: NSObject, NSWindowDelegate {
     let model: StickerModel
     private let panel = StickerPanel()
     private let store: TradeStore
-    private let host: NSHostingController<AnyView>
-    private var observation: NSKeyValueObservation?
+    private let host: StickerHostingView
+    /// Clips the card and pins it to the top while the window frame animates.
+    private let container = NSView()
+    private var targetHeight: CGFloat = 0
+    private var syncPending = false
     /// Where the user put the top-left corner. Growing/shrinking returns to this, not to a shifted frame.
     private var anchor: NSPoint
     private var isFitting = false
     private var saveTask: Task<Void, Never>?
-    private var shrinkTask: Task<Void, Never>?
     var onHide: (() -> Void)?
     var onDelete: (() -> Void)?
 
@@ -45,22 +60,23 @@ final class StickerWindow: NSObject, NSWindowDelegate {
         self.model = model
         self.store = store
         self.anchor = Self.initialAnchor(for: model.trade.position, index: index)
-        host = NSHostingController(rootView: AnyView(EmptyView()))
+        host = StickerHostingView(rootView: AnyView(EmptyView()))
         super.init()
         let actions = StickerActions(hide: { [weak self] in self?.hide() }, delete: { [weak self] in self?.onDelete?() })
-        // Top-aligned, so while the window is taller than the card the card does not move.
-        host.rootView = AnyView(StickerView(model: model, actions: actions).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top))
-        host.sizingOptions = [.preferredContentSize]
-        panel.contentViewController = host
+        host.rootView = AnyView(StickerView(model: model, actions: actions))
+        host.sizingOptions = [.intrinsicContentSize] // no min/max constraints that would drive the window
+        host.onIntrinsicSizeChange = { [weak self] in self?.scheduleSync() }
+        container.wantsLayer = true
+        container.layer?.masksToBounds = true
+        host.autoresizingMask = [.width, .minYMargin] // stays glued to the top edge while the window resizes
+        container.addSubview(host)
+        panel.contentView = container
         panel.delegate = self
-        observation = host.observe(\.preferredContentSize, options: [.new]) { [weak self] _, _ in
-            Task { @MainActor in self?.contentHeightChanged() }
-        }
-        apply(height: host.preferredContentSize.height)
+        sync(animated: false)
     }
 
     func show(activate: Bool) {
-        apply(height: host.preferredContentSize.height)
+        sync(animated: false)
         if activate {
             NSApp.activate()
             panel.makeKeyAndOrderFront(nil)
@@ -79,42 +95,43 @@ final class StickerWindow: NSObject, NSWindowDelegate {
 
     func close() {
         panel.orderOut(nil)
-        panel.contentViewController = nil
+        panel.contentView = nil
+        host.removeFromSuperview()
         Task { await model.setVisible(false) }
     }
 
     var isVisible: Bool { panel.isVisible }
+    var frame: NSRect { panel.frame }
 
     // MARK: Geometry
 
-    /// Growing: the window takes the new height at once and the content animates inside it.
-    /// Shrinking: wait until the content animation is over, then cut the window. The window frame is never
-    /// animated itself; two competing animations were what made it jitter.
-    private func contentHeightChanged() {
-        let target = host.preferredContentSize.height
-        guard target > 0 else { return }
-        shrinkTask?.cancel()
-        if target >= panel.frame.height - 0.5 {
-            apply(height: target)
-        } else {
-            shrinkTask = Task { [weak self] in
-                try? await Task.sleep(for: .milliseconds(260))
-                guard !Task.isCancelled, let self else { return }
-                self.apply(height: self.host.preferredContentSize.height)
-            }
+    /// The content takes its new size at once (no SwiftUI animation); the window frame then animates to it with
+    /// the top edge fixed, so a growing sticker looks like a drop-down and a shrinking one just closes.
+    /// One animation only: two competing ones made the window jitter.
+    private func scheduleSync() {
+        guard !syncPending else { return }
+        syncPending = true
+        Task { @MainActor in
+            syncPending = false
+            sync(animated: true)
         }
     }
 
-    private func apply(height: CGFloat) {
-        guard height > 0 else { return }
+    private func sync(animated: Bool) {
+        let height = host.intrinsicContentSize.height
+        guard height > 0, abs(height - targetHeight) > 0.5 else { return }
+        targetHeight = height
         var frame = NSRect(x: anchor.x, y: anchor.y - height, width: StickerView.width, height: height)
         if let visible = (NSScreen.screens.first { $0.frame.contains(anchor) } ?? NSScreen.main)?.visibleFrame {
             if frame.minY < visible.minY { frame.origin.y = visible.minY } // shift up, never off-screen
             if frame.maxY > visible.maxY { frame.origin.y = visible.maxY - height }
         }
+        // The card takes its final size at once, top-aligned in the (still old-sized) window.
+        host.frame = NSRect(x: 0, y: container.bounds.height - height, width: StickerView.width, height: height)
         isFitting = true
         defer { isFitting = false }
-        panel.setFrame(frame, display: true)
+        let animate = animated && panel.isVisible && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+        panel.setFrame(frame, display: true, animate: animate)
     }
 
     private static func initialAnchor(for stored: WindowPosition?, index: Int) -> NSPoint {
