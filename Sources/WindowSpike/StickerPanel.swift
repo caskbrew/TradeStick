@@ -40,7 +40,12 @@ final class StickerPanel: NSPanel {
 
     var isPinned: Bool {
         get { level == .floating }
-        set { level = newValue ? .floating : .normal; flags.pinned = newValue }
+        set {
+            level = newValue ? .floating : .normal
+            // Pinned stickers follow you across Spaces; unpinned ones stay on their own Space.
+            if newValue { collectionBehavior.insert(.canJoinAllSpaces) } else { collectionBehavior.remove(.canJoinAllSpaces) }
+            flags.pinned = newValue
+        }
     }
 
     var isStationary: Bool {
