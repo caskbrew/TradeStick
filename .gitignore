@@ -1,0 +1,10 @@
+.DS_Store
+.build/
+.swiftpm/
+*.xcodeproj/xcuserdata/
+DerivedData/
+.superpowers/
+
+# Large design reference images stay local for now (about 20 MB).
+docs/*.png
+*.png
