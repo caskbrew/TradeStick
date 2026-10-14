@@ -161,4 +161,16 @@ func at(_ minute: Int) -> Date { Date(timeIntervalSince1970: 1_700_000_000 + Dou
         }
         #expect(orphans == 0)
     }
+
+    @Test func databaseLivesInTradeStickerFolderAndIsCreatedOnDemand() throws {
+        let base = FileManager.default.temporaryDirectory.appendingPathComponent("as-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: base) }
+        try FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
+
+        let url = try TradeStore.databaseURL(inApplicationSupport: base)
+        #expect(url.path == base.appendingPathComponent("TradeSticker/tradesticker.sqlite").path)
+        let store = try TradeStore(path: url.path) // the folder exists, so SQLite can create the file
+        _ = try store.createTrade(exchange: "binance", base: "GRAM", quote: "USDT", direction: .buyFirst)
+        #expect(FileManager.default.fileExists(atPath: url.path))
+    }
 }

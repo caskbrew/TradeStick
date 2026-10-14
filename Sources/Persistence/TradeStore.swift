@@ -12,6 +12,19 @@ public final class TradeStore: Sendable {
         try Schema.migrator().migrate(dbQueue)
     }
 
+    /// `<Application Support>/TradeSticker/tradesticker.sqlite`, creating the directory (FR-STORE-1).
+    public static func databaseURL(inApplicationSupport base: URL) throws -> URL {
+        let dir = base.appendingPathComponent("TradeSticker", isDirectory: true)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir.appendingPathComponent("tradesticker.sqlite")
+    }
+
+    /// The real location for the app: `~/Library/Application Support/TradeSticker/tradesticker.sqlite`.
+    public static func defaultDatabaseURL() throws -> URL {
+        try databaseURL(inApplicationSupport: FileManager.default.url(
+            for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true))
+    }
+
     public static func inMemory() throws -> TradeStore {
         try TradeStore(queue: DatabaseQueue())
     }
