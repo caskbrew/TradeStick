@@ -59,7 +59,7 @@ struct TransactionList: View {
     let model: StickerModel
     @State private var confirming: UUID?
 
-    private static let rowHeight: CGFloat = 30
+    private static let rowHeight = StickerModel.listRowHeight
 
     var body: some View {
         let rows = model.transactions.sorted { ($0.occurredAt, $0.sequence) > ($1.occurredAt, $1.sequence) }

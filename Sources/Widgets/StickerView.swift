@@ -40,17 +40,19 @@ public struct StickerView: View {
                 }
                 Divider().overlay(Theme.divider)
                 if model.form != nil {
-                    TransactionForm(model: model)
+                    TransactionForm(model: model).transition(.opacity)
                 } else {
                     ActionRow(model: model)
                 }
-                if model.trade.isExpanded { TransactionList(model: model) }
+                if model.trade.isExpanded { TransactionList(model: model).transition(.opacity) }
             }
             .padding(16)
             .frame(width: Self.width)
             .background(GlassBackground())
             .foregroundStyle(.white)
             .environment(\.colorScheme, .dark)
+            .animation(.easeInOut(duration: 0.22), value: model.form != nil)
+            .animation(.easeInOut(duration: 0.22), value: model.trade.isExpanded)
             .contextMenu { // same items as the `⋯` menu (FR-WIN-11)
                 Button("Hide Window", action: actions.hide)
                 Divider()
@@ -266,7 +268,7 @@ struct ActionRow: View {
             }
             if model.status != .empty {
                 Button {
-                    model.setExpanded(!model.trade.isExpanded)
+                    withAnimation(.easeInOut(duration: 0.22)) { model.setExpanded(!model.trade.isExpanded) }
                 } label: {
                     let n = model.transactions.count
                     Text("\(n) transaction\(n == 1 ? "" : "s") \(model.trade.isExpanded ? "⌃" : "⌄")")

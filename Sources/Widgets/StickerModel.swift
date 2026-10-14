@@ -17,6 +17,13 @@ public final class StickerModel {
     public private(set) var loadError: String?
     public var form: TransactionDraft?
 
+    /// Height of one transaction row; shared with the view so the window can reserve room before a list opens.
+    public static let listRowHeight: CGFloat = 30
+    static let formExtraHeight: CGFloat = 200
+    /// Called synchronously before a change that makes the card taller, with a generous upper bound of the extra
+    /// height. The window grows first (it is transparent) and the card then animates inside it.
+    @ObservationIgnored public var onWillGrow: ((CGFloat) -> Void)?
+
     @ObservationIgnored private let store: TradeStore
     @ObservationIgnored private let hub: MarketDataHub
     @ObservationIgnored private let clock: @Sendable () -> Date
@@ -92,6 +99,9 @@ public final class StickerModel {
     }
 
     public func setExpanded(_ expanded: Bool) {
+        if expanded && !trade.isExpanded {
+            onWillGrow?(CGFloat(min(transactions.count, 8)) * Self.listRowHeight + 40)
+        }
         try? store.setExpanded(id: trade.id, expanded)
         trade.isExpanded = expanded
     }
@@ -100,6 +110,7 @@ public final class StickerModel {
 
     /// Opens an empty form for a side (`Buy more`, `Sell part`, …). Orders are never sent (FR-TX-1a).
     public func openForm(side: Side) {
+        if form == nil { onWillGrow?(Self.formExtraHeight) }
         form = TransactionDraft(side: side, occurredAt: clock())
         formError = nil
     }
@@ -107,6 +118,7 @@ public final class StickerModel {
     /// `Close`: the closing side, the whole open quantity, the current price when known.
     public func openCloseForm() {
         guard summary.openQuantity > 0 else { return }
+        if form == nil { onWillGrow?(Self.formExtraHeight) }
         let side = trade.direction.closingSide
         if let rate = currentPrice {
             form = TransactionDraft(side: side, occurredAt: clock(), quantity: summary.openQuantity, rate: rate)

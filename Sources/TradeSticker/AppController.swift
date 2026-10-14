@@ -67,7 +67,9 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 tops.append(window.frame.maxY); heights.append(window.frame.height)
             }
             let steps = Set(heights.map { ($0 * 10).rounded() }).count
-            print("selftest \(label): top moved \((tops.max()! - tops.min()!)) pt, height \(heights.first!) -> \(heights.last!), distinct heights seen \(steps), monotonic \(heights == heights.sorted() || heights == heights.sorted(by: >))")
+            var path: [CGFloat] = []
+            for h in heights where path.last != h { path.append(h) }
+            print("selftest \(label): top moved \(tops.max()! - tops.min()!) pt, heights \(path.map { Int($0) }), steps \(steps)")
         }
         await sample("expand") { window.model.setExpanded(true) }
         await sample("collapse") { window.model.setExpanded(false) }

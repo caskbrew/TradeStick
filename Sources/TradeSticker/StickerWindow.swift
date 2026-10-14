@@ -47,8 +47,7 @@ final class StickerWindow: NSObject, NSWindowDelegate {
     private let host: StickerHostingView
     /// Clips the card and pins it to the top while the window frame animates.
     private let container = NSView()
-    private var targetHeight: CGFloat = 0
-    private var syncPending = false
+    private var settleTask: Task<Void, Never>?
     /// Where the user put the top-left corner. Growing/shrinking returns to this, not to a shifted frame.
     private var anchor: NSPoint
     private var isFitting = false
@@ -65,18 +64,20 @@ final class StickerWindow: NSObject, NSWindowDelegate {
         let actions = StickerActions(hide: { [weak self] in self?.hide() }, delete: { [weak self] in self?.onDelete?() })
         host.rootView = AnyView(StickerView(model: model, actions: actions))
         host.sizingOptions = [.intrinsicContentSize] // no min/max constraints that would drive the window
-        host.onIntrinsicSizeChange = { [weak self] in self?.scheduleSync() }
+        host.onIntrinsicSizeChange = { [weak self] in self?.contentLaidOut() }
+        model.onWillGrow = { [weak self] extra in self?.reserve(extra) }
         container.wantsLayer = true
         container.layer?.masksToBounds = true
         host.autoresizingMask = [.width, .minYMargin] // stays glued to the top edge while the window resizes
         container.addSubview(host)
         panel.contentView = container
         panel.delegate = self
-        sync(animated: false)
+        contentLaidOut()
     }
 
     func show(activate: Bool) {
-        sync(animated: false)
+        contentLaidOut()
+        settle()
         if activate {
             NSApp.activate()
             panel.makeKeyAndOrderFront(nil)
@@ -105,33 +106,48 @@ final class StickerWindow: NSObject, NSWindowDelegate {
 
     // MARK: Geometry
 
-    /// The content takes its new size at once (no SwiftUI animation); the window frame then animates to it with
-    /// the top edge fixed, so a growing sticker looks like a drop-down and a shrinking one just closes.
-    /// One animation only: two competing ones made the window jitter.
-    private func scheduleSync() {
-        guard !syncPending else { return }
-        syncPending = true
-        Task { @MainActor in
-            syncPending = false
-            sync(animated: true)
+    // Resizing model: the window frame itself is never animated. A transparent window may be taller than the
+    // card; SwiftUI animates the card inside it. Growing happens first (reserve), trimming after the content
+    // has settled. Animating the frame made the glass flicker and left nothing to animate when closing.
+
+    /// Called just before a change that makes the card taller: make room first.
+    private func reserve(_ extra: CGFloat) {
+        setWindowHeight(panel.frame.height + extra)
+    }
+
+    /// The host laid out its content (also after every state change): size the card, grow if it outgrew the
+    /// window, and schedule trimming once things stop moving.
+    private func contentLaidOut() {
+        let ideal = host.intrinsicContentSize.height
+        guard ideal > 0 else { return }
+        if abs(host.frame.height - ideal) > 0.5 || host.frame.width != StickerView.width {
+            host.frame = NSRect(x: 0, y: container.bounds.height - ideal, width: StickerView.width, height: ideal)
+        }
+        if ideal > panel.frame.height + 0.5 { setWindowHeight(ideal) }
+        settleTask?.cancel()
+        settleTask = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(300))
+            guard !Task.isCancelled else { return }
+            self?.settle()
         }
     }
 
-    private func sync(animated: Bool) {
-        let height = host.intrinsicContentSize.height
-        guard height > 0, abs(height - targetHeight) > 0.5 else { return }
-        targetHeight = height
+    /// Cuts the window to the card's height.
+    private func settle() {
+        let ideal = host.intrinsicContentSize.height
+        if ideal > 0, abs(ideal - panel.frame.height) > 0.5 { setWindowHeight(ideal) }
+    }
+
+    private func setWindowHeight(_ height: CGFloat) {
         var frame = NSRect(x: anchor.x, y: anchor.y - height, width: StickerView.width, height: height)
         if let visible = (NSScreen.screens.first { $0.frame.contains(anchor) } ?? NSScreen.main)?.visibleFrame {
             if frame.minY < visible.minY { frame.origin.y = visible.minY } // shift up, never off-screen
             if frame.maxY > visible.maxY { frame.origin.y = visible.maxY - height }
         }
-        // The card takes its final size at once, top-aligned in the (still old-sized) window.
-        host.frame = NSRect(x: 0, y: container.bounds.height - height, width: StickerView.width, height: height)
         isFitting = true
         defer { isFitting = false }
-        let animate = animated && panel.isVisible && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
-        panel.setFrame(frame, display: true, animate: animate)
+        panel.setFrame(frame, display: true)
+        panel.invalidateShadow()
     }
 
     private static func initialAnchor(for stored: WindowPosition?, index: Int) -> NSPoint {
