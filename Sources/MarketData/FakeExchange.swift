@@ -3,7 +3,7 @@ import Foundation
 
 /// In-memory exchange for tests and previews. Proves a new exchange needs only an adapter (FR-EX-5).
 public final class FakeExchange: ExchangeAdapter, @unchecked Sendable {
-    public struct Dropped: Error {}
+    public struct Dropped: Error { public init() {} }
 
     public let id: String
     private let lock = NSLock()

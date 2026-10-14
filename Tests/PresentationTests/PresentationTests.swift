@@ -171,3 +171,27 @@ let now = Date(timeIntervalSince1970: 1_700_000_000)
         #expect(d.savable(now: now)?.amount == dec("49.5"))
     }
 }
+
+@Suite struct InstrumentParserTests {
+    let gramUsdt = Instrument(base: "GRAM", quote: "USDT")
+
+    @Test func separatorsAndCaseAreFree() {
+        for input in ["GRAM/USDT", "gram/usdt", "GRAM-USDT", "gram_usdt", " gram usdt ", "Gram / Usdt"] {
+            #expect(InstrumentParser.candidates(input) == [gramUsdt], "\(input)")
+        }
+    }
+
+    @Test func symbolWithoutSeparatorSplitsOnKnownQuotes() {
+        #expect(InstrumentParser.candidates("GRAMUSDT") == [gramUsdt])
+        #expect(InstrumentParser.candidates("btceur") == [Instrument(base: "BTC", quote: "EUR")])
+        // Ambiguous: the exchange list decides which candidate exists.
+        #expect(InstrumentParser.candidates("ETHBTC") == [Instrument(base: "ETH", quote: "BTC")])
+        #expect(InstrumentParser.candidates("BNBBTC").count == 1)
+    }
+
+    @Test func garbageGivesNoCandidates() {
+        for input in ["", "   ", "USDT", "GRAM/", "A/B/C", "GR@M/USDT", "GRAMXYZ"] {
+            #expect(InstrumentParser.candidates(input).isEmpty, "\(input)")
+        }
+    }
+}
