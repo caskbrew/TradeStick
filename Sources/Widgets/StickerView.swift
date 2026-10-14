@@ -51,6 +51,11 @@ public struct StickerView: View {
             .background(GlassBackground())
             .foregroundStyle(.white)
             .environment(\.colorScheme, .dark)
+            .contextMenu { // same items as the `⋯` menu (FR-WIN-11)
+                Button("Hide Window", action: actions.hide)
+                Divider()
+                Button("Delete Trade…", role: .destructive, action: actions.delete)
+            }
         }
         .fixedSize(horizontal: false, vertical: true)
     }
@@ -173,29 +178,33 @@ struct NumbersBlock: View {
         let total = closed ? pnl.realized : pnl.total
         let dim = !closed && !usable
 
-        HStack(alignment: .top, spacing: 14) {
-            VStack(alignment: .leading, spacing: 6) {
-                LabeledValue(label: "Entry (avg)", value: summary.entryPrice.map(NumberFormat.price) ?? "—")
-                LabeledValue(label: "Amount", value: closed ? "—" : "\(NumberFormat.quantity(summary.openQuantity)) \(model.trade.base)")
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .top, spacing: 14) {
+                VStack(alignment: .leading, spacing: 6) {
+                    LabeledValue(label: "Entry (avg)", value: summary.entryPrice.map(NumberFormat.price) ?? "—")
+                    LabeledValue(label: "Amount", value: closed ? "—" : "\(NumberFormat.quantity(summary.openQuantity)) \(model.trade.base)")
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
 
-            VStack(alignment: .trailing, spacing: 3) {
-                HStack(alignment: .firstTextBaseline, spacing: 4) {
-                    Text(total.map(NumberFormat.signedQuote) ?? "—").font(.system(size: 24, weight: .semibold, design: .rounded)).monospacedDigit()
-                    Text(model.trade.quote).font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.secondaryText)
-                }
-                .foregroundStyle(Theme.pnl(total))
-                .opacity(dim ? 0.45 : 1)
-                if let ratio = closed ? finalRatio(summary) : pnl.ratio {
-                    HStack(spacing: 3) {
-                        Text(ratio > 0 ? "▲" : ratio < 0 ? "▼" : "")
-                        Text(NumberFormat.signedPercent(ratio)).monospacedDigit()
-                        if closed { Text("FINAL").font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.secondaryText) }
+                VStack(alignment: .trailing, spacing: 3) {
+                    HStack(alignment: .firstTextBaseline, spacing: 4) {
+                        Text(total.map(NumberFormat.signedQuote) ?? "—").font(.system(size: 24, weight: .semibold, design: .rounded)).monospacedDigit()
+                        Text(model.trade.quote).font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.secondaryText)
                     }
-                    .font(.system(size: 16, weight: .medium)).foregroundStyle(Theme.pnl(ratio)).opacity(dim ? 0.45 : 1)
+                    .foregroundStyle(Theme.pnl(total))
+                    .opacity(dim ? 0.45 : 1)
+                    if let ratio = closed ? finalRatio(summary) : pnl.ratio {
+                        HStack(spacing: 3) {
+                            Text(ratio > 0 ? "▲" : ratio < 0 ? "▼" : "")
+                            Text(NumberFormat.signedPercent(ratio)).monospacedDigit()
+                            if closed { Text("FINAL").font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.secondaryText) }
+                        }
+                        .font(.system(size: 16, weight: .medium)).foregroundStyle(Theme.pnl(ratio)).opacity(dim ? 0.45 : 1)
+                    }
                 }
-                HStack(spacing: 6) {
+            }
+            VStack(alignment: .trailing, spacing: 3) {
+                HStack(spacing: 10) {
                     SmallPnL(label: "Realized", value: pnl.realized, dimmed: false)
                     SmallPnL(label: "Unrealized", value: closed ? nil : pnl.unrealized, dimmed: dim)
                 }
@@ -204,6 +213,7 @@ struct NumbersBlock: View {
                         .font(.system(size: 11)).foregroundStyle(Theme.warning)
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .trailing)
         }
     }
 
@@ -233,7 +243,7 @@ struct SmallPnL: View {
             Text(label).foregroundStyle(Theme.secondaryText)
             Text(value.map(NumberFormat.signedQuote) ?? "—").foregroundStyle(Theme.pnl(value)).monospacedDigit()
         }
-        .font(.system(size: 11)).opacity(dimmed ? 0.45 : 1)
+        .font(.system(size: 11)).lineLimit(1).fixedSize().opacity(dimmed ? 0.45 : 1)
     }
 }
 

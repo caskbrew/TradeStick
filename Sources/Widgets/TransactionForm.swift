@@ -68,13 +68,16 @@ struct TransactionList: View {
             if let error = model.listError {
                 Text(error).font(.system(size: 12)).foregroundStyle(Theme.negative)
             }
-            ScrollView {
-                VStack(spacing: 0) {
-                    ForEach(rows) { tx in row(tx) }
-                }
+            if rows.count > 8 {
+                ScrollView { rowsStack(rows) }.frame(height: 8 * Self.rowHeight)
+            } else {
+                rowsStack(rows)
             }
-            .frame(height: min(CGFloat(rows.count), 8) * Self.rowHeight)
         }
+    }
+
+    private func rowsStack(_ rows: [Domain.Transaction]) -> some View {
+        VStack(spacing: 0) { ForEach(rows) { tx in row(tx) } }
     }
 
     private func row(_ tx: Domain.Transaction) -> some View {
@@ -89,20 +92,21 @@ struct TransactionList: View {
                 }
                 .buttonStyle(.plain).foregroundStyle(Theme.negative)
             } else {
-                Text(tx.occurredAt.formatted(.dateTime.month(.twoDigits).day(.twoDigits).hour().minute()))
-                    .foregroundStyle(Theme.secondaryText).frame(width: 78, alignment: .leading)
+                Text(tx.occurredAt.formatted(.dateTime.day(.twoDigits).month(.twoDigits)) + " " + tx.occurredAt.formatted(.dateTime.hour().minute()))
+                    .foregroundStyle(Theme.secondaryText).frame(width: 76, alignment: .leading)
                 Text(tx.side == .buy ? "BUY" : "SELL") // neutral pills, text not colour (FR-UI-8)
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(.system(size: 11, weight: .semibold)).fixedSize()
                     .padding(.horizontal, 6).padding(.vertical, 2)
                     .background(Capsule().fill(Theme.field))
                 Text(NumberFormat.quantity(tx.quantity)).frame(maxWidth: .infinity, alignment: .trailing)
-                Text(NumberFormat.quote(tx.amount)).frame(width: 62, alignment: .trailing)
-                Text(tx.rate.map(NumberFormat.price) ?? "—").foregroundStyle(Theme.secondaryText).frame(width: 62, alignment: .trailing)
+                    .minimumScaleFactor(0.7)
+                Text(NumberFormat.quote(tx.amount)).frame(width: 54, alignment: .trailing)
+                Text(tx.rate.map(NumberFormat.price) ?? "—").foregroundStyle(Theme.secondaryText).frame(width: 56, alignment: .trailing)
                 Button { confirming = tx.id } label: { Image(systemName: "trash") }
                     .buttonStyle(.plain).foregroundStyle(Theme.negative.opacity(0.8))
             }
         }
-        .font(.system(size: 12)).monospacedDigit()
+        .font(.system(size: 12)).monospacedDigit().lineLimit(1)
         .frame(height: Self.rowHeight)
     }
 }
