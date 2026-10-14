@@ -11,6 +11,25 @@ final class SpikeController: NSObject, NSApplicationDelegate {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         statusItem.button?.title = "TS"
         statusItem.menu = makeMenu()
+        NSApp.mainMenu = makeMainMenu()
+    }
+
+    private func makeMainMenu() -> NSMenu {
+        let main = NSMenu()
+        let appItem = NSMenuItem(); main.addItem(appItem)
+        let appMenu = NSMenu(); appItem.submenu = appMenu
+        appMenu.addItem(NSMenuItem(title: "Quit WindowSpike", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
+        let winItem = NSMenuItem(); main.addItem(winItem)
+        let winMenu = NSMenu(title: "Window"); winItem.submenu = winMenu
+        let close = NSMenuItem(title: "Close", action: #selector(closeKeyWindow), keyEquivalent: "w")
+        close.target = self
+        winMenu.addItem(close)
+        return main
+    }
+
+    @objc private func closeKeyWindow() {
+        NSApp.keyWindow?.orderOut(nil)
+        if panels.allSatisfy({ !$0.isVisible }) { NSApp.setActivationPolicy(.accessory) }
     }
 
     private func makeMenu() -> NSMenu {
@@ -35,6 +54,7 @@ final class SpikeController: NSObject, NSApplicationDelegate {
         hosting.layer?.cornerRadius = 18
         hosting.layer?.masksToBounds = true
         panel.contentView = hosting
+        NSApp.setActivationPolicy(.regular) // experiment: gives the app its own menu bar while stickers are visible
         NSApp.activate()
         panel.makeKeyAndOrderFront(nil)
         panels.append(panel)
