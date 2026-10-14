@@ -4,13 +4,10 @@ import Observation
 /// Mirrors panel state for SwiftUI (NSPanel properties are not observable).
 @MainActor @Observable
 final class PanelFlags {
-    var pinned = true
-    var stationary = false
     var expanded = false
 }
 
-/// Borderless floating panel. `canBecomeKey` lets text fields receive typing
-/// even though the panel is non-activating (the app stays in the background).
+/// Borderless note-like window; `canBecomeKey` lets text fields receive typing.
 final class StickerPanel: NSPanel {
     override var canBecomeKey: Bool { true }
 
@@ -23,37 +20,19 @@ final class StickerPanel: NSPanel {
         let offset = CGFloat(index) * 30
         self.init(
             contentRect: NSRect(x: 200 + offset, y: 500 - offset, width: 340, height: Self.collapsedHeight),
-            styleMask: [.borderless, .nonactivatingPanel],
+            styleMask: [.borderless],
             backing: .buffered,
             defer: false
         )
-        isFloatingPanel = true
-        level = .floating
-        collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        // Like Notes/Stickies: normal level, lives only on the Space it was created on.
+        level = .normal
+        collectionBehavior = []
         hidesOnDeactivate = false
         isMovableByWindowBackground = true
         isOpaque = false
         backgroundColor = .clear
         hasShadow = true
         setFrameAutosaveName("spike-sticker-\(index)")
-    }
-
-    var isPinned: Bool {
-        get { level == .floating }
-        set {
-            level = newValue ? .floating : .normal
-            // Pinned stickers follow you across Spaces; unpinned ones stay on their own Space.
-            if newValue { collectionBehavior.insert(.canJoinAllSpaces) } else { collectionBehavior.remove(.canJoinAllSpaces) }
-            flags.pinned = newValue
-        }
-    }
-
-    var isStationary: Bool {
-        get { collectionBehavior.contains(.stationary) }
-        set {
-            if newValue { collectionBehavior.insert(.stationary) } else { collectionBehavior.remove(.stationary) }
-            flags.stationary = newValue
-        }
     }
 
     var isExpanded: Bool { frame.height > Self.collapsedHeight + 1 }

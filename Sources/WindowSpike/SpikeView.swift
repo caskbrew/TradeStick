@@ -14,10 +14,6 @@ struct SpikeView: View {
             TextField("type here (focus test)", text: $text)
                 .textFieldStyle(.roundedBorder)
             HStack {
-                Toggle("Pin", isOn: Binding(get: { flags.pinned }, set: { panel.isPinned = $0 }))
-                Toggle("Stationary", isOn: Binding(get: { flags.stationary }, set: { panel.isStationary = $0 }))
-            }
-            HStack {
                 Button(flags.expanded ? "Collapse" : "Expand") { panel.setExpanded(!flags.expanded) }
                 Button("Close") { panel.orderOut(nil) }
             }

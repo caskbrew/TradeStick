@@ -35,13 +35,14 @@ final class SpikeController: NSObject, NSApplicationDelegate {
         hosting.layer?.cornerRadius = 18
         hosting.layer?.masksToBounds = true
         panel.contentView = hosting
-        panel.orderFrontRegardless()
+        NSApp.activate()
+        panel.makeKeyAndOrderFront(nil)
         panels.append(panel)
     }
 
     @objc private func printState() {
         for (i, p) in panels.enumerated() {
-            print("sticker \(i): pinned=\(p.isPinned) stationary=\(p.isStationary) expanded=\(p.isExpanded) frame=\(p.frame) screen=\(p.screen?.localizedName ?? "none")")
+            print("sticker \(i): expanded=\(p.isExpanded) frame=\(p.frame) screen=\(p.screen?.localizedName ?? "none")")
         }
     }
 }
