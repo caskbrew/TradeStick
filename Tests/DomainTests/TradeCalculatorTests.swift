@@ -120,4 +120,44 @@ import Testing
         #expect(s.openCost == 0)
         #expect(s.realized == 1) // received 2, spent 1
     }
+
+    @Test func identicalTimeAndSequenceGiveInputOrderIndependentResult() {
+        // sequence is not guaranteed unique by the type: the outcome must not depend on array order.
+        let a = tx(.buy, "100", "10", minute: 1, seq: 1)
+        let b = tx(.sell, "50", "6", minute: 1, seq: 1)
+        let forward = Result { () throws(LedgerError) -> TradeSummary in
+            try TradeCalculator.summarize(direction: .buyFirst, transactions: [a, b])
+        }
+        let reversed = Result { () throws(LedgerError) -> TradeSummary in
+            try TradeCalculator.summarize(direction: .buyFirst, transactions: [b, a])
+        }
+        #expect(forward == reversed)
+    }
+
+    @Test func oversellErrorNamesTheOffendingTransaction() {
+        let bad = tx(.sell, "1600", "100", minute: 4, seq: 4)
+        let result = Result { () throws(LedgerError) -> TradeSummary in
+            try TradeCalculator.summarize(direction: .buyFirst, transactions: Self.exampleA + [bad])
+        }
+        #expect(result == .failure(.closingExceedsOpen(transactionID: bad.id, available: 900)))
+    }
+
+    @Test func nonPositiveErrorNamesTheOffendingTransaction() {
+        let bad = tx(.buy, "0", "10", minute: 1, seq: 1)
+        let result = Result { () throws(LedgerError) -> TradeSummary in
+            try TradeCalculator.summarize(direction: .buyFirst, transactions: [bad])
+        }
+        #expect(result == .failure(.nonPositiveValue(transactionID: bad.id)))
+    }
+
+    @Test func sellFirstFullCloseAndOverBuy() throws {
+        let closed = try TradeCalculator.summarize(direction: .sellFirst, transactions: [
+            tx(.sell, "7", "1", minute: 1, seq: 1), tx(.buy, "7", "0.5", minute: 2, seq: 2),
+        ])
+        #expect(closed.status == .closed && closed.openCost == 0 && closed.realized == d("0.5"))
+        let bad = tx(.buy, "8", "1", minute: 2, seq: 2)
+        #expect(throws: LedgerError.self) {
+            try TradeCalculator.summarize(direction: .sellFirst, transactions: [tx(.sell, "7", "1", minute: 1, seq: 1), bad])
+        }
+    }
 }

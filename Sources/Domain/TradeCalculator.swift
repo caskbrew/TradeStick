@@ -9,7 +9,10 @@ public enum LedgerError: Error, Equatable, Sendable {
 public enum TradeCalculator {
     /// Replays transactions chronologically (time, then creation order) using the average-cost method.
     public static func summarize(direction: Direction, transactions: [Transaction]) throws(LedgerError) -> TradeSummary {
-        let ordered = transactions.sorted { ($0.occurredAt, $0.sequence) < ($1.occurredAt, $1.sequence) }
+        let ordered = transactions.sorted {
+            // id is a last-resort tie-break so a duplicated sequence cannot make the result depend on input order.
+            ($0.occurredAt, $0.sequence, $0.id.uuidString) < ($1.occurredAt, $1.sequence, $1.id.uuidString)
+        }
 
         var boughtQuantity: Decimal = 0, boughtAmount: Decimal = 0
         var soldQuantity: Decimal = 0, soldAmount: Decimal = 0
