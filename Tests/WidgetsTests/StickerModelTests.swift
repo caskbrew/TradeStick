@@ -47,6 +47,25 @@ struct Fixture {
         #expect(f.model.duration(at: at(500)) == TimeInterval(10 * 60))
     }
 
+    @Test func editingReplacesTheTransactionAndRejectsBreakingEdits() async throws {
+        let f = try Fixture()
+        try f.add(.buy, "100", "10", minute: 1)
+        try f.add(.sell, "60", "9", minute: 2)
+        let buy = f.model.transactions.first { $0.side == .buy }!
+        f.model.openEditForm(id: buy.id)
+        #expect(f.model.form?.quantityText == "100" && f.model.editingID == buy.id)
+        f.model.edit(.quantity, "50") // sell of 60 would exceed the open quantity
+        await f.model.submit()
+        #expect(f.model.formError != nil && f.model.form != nil)
+        f.model.edit(.quantity, "80")
+        f.model.edit(.amount, "12")
+        await f.model.submit()
+        #expect(f.model.form == nil && f.model.editingID == nil)
+        #expect(f.model.transactions.count == 2)
+        #expect(f.model.transactions.first { $0.id == buy.id }?.amount == 12)
+        #expect(f.model.summary.boughtQuantity == 80)
+    }
+
     @Test func emptyTradeSubscribesAndShowsNoPnL() async throws {
         let f = try Fixture()
         #expect(f.model.status == .empty)

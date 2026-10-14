@@ -38,6 +38,13 @@ public struct TransactionDraft: Equatable, Sendable {
         edit(.rate, Self.text(rate, scale: 10))
     }
 
+    /// Pre-fills the form with an existing transaction; Amount is the input, Rate follows.
+    public init(side: Side, occurredAt: Date, quantity: Decimal, amount: Decimal) {
+        self.init(side: side, occurredAt: occurredAt)
+        edit(.quantity, Self.text(quantity, scale: 8))
+        edit(.amount, Self.text(amount, scale: 8))
+    }
+
     public mutating func edit(_ field: Field, _ text: String) {
         switch field {
         case .quantity: quantityText = text

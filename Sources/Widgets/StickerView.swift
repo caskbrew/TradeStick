@@ -14,7 +14,7 @@ public struct StickerActions {
 }
 
 public struct StickerView: View {
-    public static let width: CGFloat = 340
+    public static let width: CGFloat = 360
 
     let model: StickerModel
     let actions: StickerActions
@@ -302,33 +302,18 @@ struct LabeledValue: View {
     }
 }
 
+/// USDT spent and received so far, opening side first, and how long the trade has run.
 struct SideTotals: View {
     let model: StickerModel
 
     var body: some View {
-        let summary = model.summary
-        let opening = summary.direction == .buyFirst
-        let bought = (title: "Bought", qty: summary.boughtQuantity, rate: summary.avgBuyRate)
-        let sold = (title: "Sold", qty: summary.soldQuantity, rate: summary.avgSellRate)
-        let rows = opening ? [bought, sold] : [sold, bought]
+        let summary = model.summary, quote = model.trade.quote
+        let bought = ("Bought", summary.boughtAmount), sold = ("Sold", summary.soldAmount)
+        let rows = summary.direction == .buyFirst ? [bought, sold] : [sold, bought]
         VStack(alignment: .leading, spacing: 6) {
-            Grid(alignment: .trailing, horizontalSpacing: 16, verticalSpacing: 3) {
-                GridRow {
-                    Text("Total").frame(maxWidth: .infinity, alignment: .leading)
-                    Text("Quantity")
-                    Text("Avg rate")
-                }
-                .font(.system(size: 11)).foregroundStyle(Theme.secondaryText.opacity(0.7))
-                ForEach(rows, id: \.title) { row in
-                    GridRow {
-                        Text(row.title).foregroundStyle(Theme.secondaryText).frame(maxWidth: .infinity, alignment: .leading)
-                        Text(row.qty > 0 ? NumberFormat.quantity(row.qty) : "—")
-                        Text(row.qty > 0 ? row.rate.map(NumberFormat.price) ?? "—" : "—")
-                    }
-                    .font(.system(size: 12)).monospacedDigit().lineLimit(1)
-                }
+            ForEach(rows, id: \.0) { title, amount in
+                LabeledValue(label: "\(title), \(quote)", value: amount > 0 ? NumberFormat.amount(amount) : "—")
             }
-            .frame(maxWidth: .infinity)
             TimelineView(.periodic(from: .now, by: 30)) { ctx in
                 if let span = model.duration(at: ctx.date) { LabeledValue(label: "Duration", value: Elapsed.duration(span)) }
             }

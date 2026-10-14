@@ -26,7 +26,7 @@ let now = Date(timeIntervalSince1970: 1_700_000_000)
 
 @Suite struct NumberFormatTests {
     @Test func pricesKeepFourSignificantDigitsAndAtLeastTwoDecimals() {
-        #expect(NumberFormat.price(dec("0.0533333333")) == "0.05333")
+        #expect(NumberFormat.price(dec("0.0533333333")) == "0.053333") // 6 decimals below 1, like Binance
         #expect(NumberFormat.price(dec("0.055")) == "0.055")
         #expect(NumberFormat.price(dec("0.05512")) == "0.05512")
         #expect(NumberFormat.price(dec("67432.1")) == "67432.10")
@@ -35,6 +35,13 @@ let now = Date(timeIntervalSince1970: 1_700_000_000)
         #expect(NumberFormat.price(dec("0.5")) == "0.50")
         #expect(NumberFormat.price(dec("0.000001234567")) == "0.000001235")
         #expect(NumberFormat.price(dec("0.00000000012345")) == "0.0000000001") // 10 decimals at most
+    }
+
+    @Test func transactionAmountsShowUpToSixDecimals() {
+        #expect(NumberFormat.amount(dec("40")) == "40.00")
+        #expect(NumberFormat.amount(dec("40.123456789")) == "40.123457")
+        #expect(NumberFormat.amount(dec("1234.5")) == "1,234.50")
+        #expect(NumberFormat.amount(dec("0.1")) == "0.10")
     }
 
     @Test func quoteAmountsUseTwoDecimalsOrFourBelowOne() {
@@ -219,5 +226,13 @@ let now = Date(timeIntervalSince1970: 1_700_000_000)
         let now = Date()
         #expect(Elapsed.ago(from: now.addingTimeInterval(-10), to: now) == "just now")
         #expect(Elapsed.ago(from: now.addingTimeInterval(-7200), to: now) == "2h ago")
+    }
+}
+
+@Suite struct DraftEditTests {
+    @Test func prefilledFromTransactionKeepsAmountAndDerivesRate() {
+        let d = TransactionDraft(side: .buy, occurredAt: now, quantity: dec("1000"), amount: dec("50.123456"))
+        #expect(d.quantityText == "1000" && d.amountText == "50.123456" && d.rateText == "0.050123456")
+        #expect(d.driver == .amount)
     }
 }

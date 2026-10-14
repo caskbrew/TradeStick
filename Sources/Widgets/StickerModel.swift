@@ -16,6 +16,8 @@ public final class StickerModel {
     public private(set) var listError: String?
     public private(set) var loadError: String?
     public var form: TransactionDraft?
+    /// Set while the form edits an existing transaction instead of adding one.
+    public private(set) var editingID: UUID?
 
     /// Height of one transaction row; shared with the view so the window can reserve room before a list opens.
     public static let listRowHeight: CGFloat = 30
@@ -122,6 +124,7 @@ public final class StickerModel {
     public func openForm(side: Side) {
         if form == nil { onWillGrow?(Self.formExtraHeight) }
         form = TransactionDraft(side: side, occurredAt: clock())
+        editingID = nil
         formError = nil
     }
 
@@ -140,7 +143,17 @@ public final class StickerModel {
         formError = nil
     }
 
+    /// Edits an existing transaction in the same form (FR-TX-6).
+    public func openEditForm(id: UUID) {
+        guard let tx = transactions.first(where: { $0.id == id }) else { return }
+        if form == nil { onWillGrow?(Self.formExtraHeight) }
+        form = TransactionDraft(side: tx.side, occurredAt: tx.occurredAt, quantity: tx.quantity, amount: tx.amount)
+        editingID = id
+        formError = nil
+    }
+
     public func cancelForm() {
+        editingID = nil
         form = nil
         formError = nil
     }
@@ -156,10 +169,17 @@ public final class StickerModel {
     public func submit() async {
         guard let form, let value = form.savable(now: clock()) else { return }
         do {
-            try store.addTransaction(
-                tradeID: trade.id, side: form.side, quantity: value.quantity, amount: value.amount, occurredAt: form.occurredAt
-            )
+            if let editingID {
+                try store.updateTransaction(
+                    tradeID: trade.id, id: editingID, side: form.side, quantity: value.quantity, amount: value.amount, occurredAt: form.occurredAt
+                )
+            } else {
+                try store.addTransaction(
+                    tradeID: trade.id, side: form.side, quantity: value.quantity, amount: value.amount, occurredAt: form.occurredAt
+                )
+            }
             self.form = nil
+            editingID = nil
             formError = nil
             reload()
             await refreshSubscription()

@@ -13,7 +13,7 @@ public enum NumberFormat {
         return value.formatted(style)
     }
 
-    /// Prices and rates: at least 4 significant digits, at most 10 decimals, trailing zeros dropped but never
+    /// Prices and rates: at least 4 significant digits and 6 decimals below 1 (Binance shows up to 6), at most 10 decimals, trailing zeros dropped but never
     /// fewer than 2 decimals (FR-FMT-2): `0.05333`, `67432.10`.
     public static func price(_ value: Decimal) -> String {
         let magnitude = value < 0 ? -value : value
@@ -22,7 +22,7 @@ public enum NumberFormat {
             var leadingZeros = 0
             var probe = magnitude
             while probe < Decimal(string: "0.1")! { probe *= 10; leadingZeros += 1 }
-            decimals = leadingZeros + 4
+            decimals = max(leadingZeros + 4, 6)
         }
         return plain(value, min: 2, max: min(max(decimals, 2), 10))
     }
@@ -31,6 +31,11 @@ public enum NumberFormat {
     public static func quote(_ value: Decimal) -> String {
         let magnitude = value < 0 ? -value : value
         return plain(value, min: 2, max: magnitude < 1 ? 4 : 2)
+    }
+
+    /// Quote amounts of transactions and totals: up to 6 decimals, trailing zeros dropped but never fewer than 2.
+    public static func amount(_ value: Decimal) -> String {
+        plain(value, min: 2, max: 6, grouping: true)
     }
 
     /// The value as `quote(_:)` shows it. Signs and colours must follow this, not the raw value, so that a

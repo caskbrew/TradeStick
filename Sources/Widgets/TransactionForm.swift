@@ -32,7 +32,7 @@ struct TransactionForm: View {
             HStack(spacing: 8) {
                 Button("Cancel") { model.cancelForm() }
                     .buttonStyle(PillStyle(fill: Theme.field)).keyboardShortcut(measuring ? nil : KeyboardShortcut.cancelAction)
-                Button("Save") { Task { await model.submit() } }
+                Button(model.editingID == nil ? "Save" : "Save changes") { Task { await model.submit() } }
                     .buttonStyle(PillStyle(fill: Theme.accent)).keyboardShortcut(measuring ? nil : KeyboardShortcut.defaultAction).disabled(!model.canSave)
             }
         }
@@ -81,7 +81,7 @@ struct TransactionList: View {
         VStack(spacing: 0) { ForEach(rows) { tx in row(tx) } }
     }
 
-    private static let sideWidth: CGFloat = 40, amountWidth: CGFloat = 50, rateWidth: CGFloat = 56, agoWidth: CGFloat = 70
+    private static let sideWidth: CGFloat = 40, amountWidth: CGFloat = 62, rateWidth: CGFloat = 62, agoWidth: CGFloat = 70
 
     private var header: some View {
         HStack(spacing: 6) {
@@ -90,7 +90,7 @@ struct TransactionList: View {
             Text("Qty").frame(maxWidth: .infinity, alignment: .trailing)
             Text("\(model.trade.quote)").frame(width: Self.amountWidth, alignment: .trailing)
             Text("Rate").frame(width: Self.rateWidth, alignment: .trailing)
-            Color.clear.frame(width: 14, height: 1)
+            Color.clear.frame(width: 33, height: 1)
         }
         .font(.system(size: 11)).foregroundStyle(Theme.secondaryText.opacity(0.7)).lineLimit(1)
     }
@@ -120,8 +120,10 @@ struct TransactionList: View {
                     .frame(width: Self.sideWidth, alignment: .leading)
                 Text(NumberFormat.quantity(tx.quantity)).frame(maxWidth: .infinity, alignment: .trailing)
                     .minimumScaleFactor(0.7)
-                Text(NumberFormat.quote(tx.amount)).frame(width: Self.amountWidth, alignment: .trailing)
+                Text(NumberFormat.amount(tx.amount)).frame(width: Self.amountWidth, alignment: .trailing)
                 Text(tx.rate.map(NumberFormat.price) ?? "—").foregroundStyle(Theme.secondaryText).frame(width: Self.rateWidth, alignment: .trailing)
+                Button { model.openEditForm(id: tx.id) } label: { Image(systemName: "pencil") }
+                    .buttonStyle(.plain).foregroundStyle(Theme.secondaryText)
                 Button { confirming = tx.id } label: { Image(systemName: "trash") }
                     .buttonStyle(.plain).foregroundStyle(Theme.negative.opacity(0.8))
             }
