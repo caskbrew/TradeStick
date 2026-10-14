@@ -17,9 +17,6 @@ final class SpikeController: NSObject, NSApplicationDelegate {
         let menu = NSMenu()
         for (title, action) in [
             ("New Sticker", #selector(newSticker)),
-            ("Toggle Pin (floating / normal)", #selector(togglePin)),
-            ("Toggle Stationary (Mission Control)", #selector(toggleStationary)),
-            ("Toggle Expand (animated)", #selector(toggleExpand)),
             ("Print State", #selector(printState)),
         ] {
             let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
@@ -33,7 +30,7 @@ final class SpikeController: NSObject, NSApplicationDelegate {
 
     @objc private func newSticker() {
         let panel = StickerPanel(index: panels.count)
-        let hosting = NSHostingView(rootView: SpikeView())
+        let hosting = NSHostingView(rootView: SpikeView(panel: panel, flags: panel.flags))
         hosting.wantsLayer = true
         hosting.layer?.cornerRadius = 18
         hosting.layer?.masksToBounds = true
@@ -41,10 +38,6 @@ final class SpikeController: NSObject, NSApplicationDelegate {
         panel.orderFrontRegardless()
         panels.append(panel)
     }
-
-    @objc private func togglePin() { panels.forEach { $0.isPinned.toggle() } }
-    @objc private func toggleStationary() { panels.forEach { $0.isStationary.toggle() } }
-    @objc private func toggleExpand() { panels.forEach { $0.setExpanded(!$0.isExpanded) } }
 
     @objc private func printState() {
         for (i, p) in panels.enumerated() {

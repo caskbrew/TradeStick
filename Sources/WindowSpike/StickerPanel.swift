@@ -1,9 +1,20 @@
 import AppKit
+import Observation
+
+/// Mirrors panel state for SwiftUI (NSPanel properties are not observable).
+@MainActor @Observable
+final class PanelFlags {
+    var pinned = true
+    var stationary = false
+    var expanded = false
+}
 
 /// Borderless floating panel. `canBecomeKey` lets text fields receive typing
 /// even though the panel is non-activating (the app stays in the background).
 final class StickerPanel: NSPanel {
     override var canBecomeKey: Bool { true }
+
+    let flags = PanelFlags()
 
     static let collapsedHeight: CGFloat = 140
     static let expandedHeight: CGFloat = 340
@@ -29,13 +40,14 @@ final class StickerPanel: NSPanel {
 
     var isPinned: Bool {
         get { level == .floating }
-        set { level = newValue ? .floating : .normal }
+        set { level = newValue ? .floating : .normal; flags.pinned = newValue }
     }
 
     var isStationary: Bool {
         get { collectionBehavior.contains(.stationary) }
         set {
             if newValue { collectionBehavior.insert(.stationary) } else { collectionBehavior.remove(.stationary) }
+            flags.stationary = newValue
         }
     }
 
@@ -47,6 +59,7 @@ final class StickerPanel: NSPanel {
         var f = frame
         f.origin.y += f.height - newHeight
         f.size.height = newHeight
+        flags.expanded = expanded
         setFrame(f, display: true, animate: true)
     }
 }
