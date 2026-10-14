@@ -60,16 +60,37 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         func sample(_ label: String, _ change: () -> Void) async {
             try? await Task.sleep(for: .milliseconds(600))
             let start = window.frame
-            var tops: [CGFloat] = [start.maxY], heights: [CGFloat] = [start.height]
+            var tops: [CGFloat] = [start.maxY], heights: [CGFloat] = [start.height], cards: [CGFloat] = [window.currentCardHeight]
             change()
             for _ in 0..<150 { // ~1.2 s at 8 ms
                 try? await Task.sleep(for: .milliseconds(8))
-                tops.append(window.frame.maxY); heights.append(window.frame.height)
+                tops.append(window.frame.maxY); heights.append(window.frame.height); cards.append(window.currentCardHeight)
             }
             let steps = Set(heights.map { ($0 * 10).rounded() }).count
             var path: [CGFloat] = []
             for h in heights where path.last != h { path.append(h) }
+            var cardPath: [CGFloat] = []
+            for c in cards where cardPath.last != c { cardPath.append(c) }
+            print("selftest \(label): card \(cardPath.map { Int($0) })")
             print("selftest \(label): top moved \(tops.max()! - tops.min()!) pt, heights \(path.map { Int($0) }), steps \(steps)")
+        }
+        if let dir = ProcessInfo.processInfo.environment["TRADESTICKER_FRAMES"] {
+            try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+            try? await Task.sleep(for: .milliseconds(800))
+            window.capture(to: URL(fileURLWithPath: dir).appendingPathComponent("expand-0.png"))
+            window.model.setExpanded(true)
+            for i in 1...6 {
+                try? await Task.sleep(for: .milliseconds(35))
+                window.capture(to: URL(fileURLWithPath: dir).appendingPathComponent("expand-\(i).png"))
+            }
+            try? await Task.sleep(for: .milliseconds(600))
+            window.model.setExpanded(false)
+            for i in 1...6 {
+                try? await Task.sleep(for: .milliseconds(35))
+                window.capture(to: URL(fileURLWithPath: dir).appendingPathComponent("collapse-\(i).png"))
+            }
+            NSApp.terminate(nil)
+            return
         }
         await sample("expand") { window.model.setExpanded(true) }
         await sample("collapse") { window.model.setExpanded(false) }

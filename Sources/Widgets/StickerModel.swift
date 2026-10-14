@@ -23,6 +23,8 @@ public final class StickerModel {
     /// Called synchronously before a change that makes the card taller, with a generous upper bound of the extra
     /// height. The window grows first (it is transparent) and the card then animates inside it.
     @ObservationIgnored public var onWillGrow: ((CGFloat) -> Void)?
+    /// The card reports its laid-out height here; the window follows it.
+    @ObservationIgnored public var onCardHeight: ((CGFloat) -> Void)?
 
     @ObservationIgnored private let store: TradeStore
     @ObservationIgnored private let hub: MarketDataHub
@@ -44,6 +46,8 @@ public final class StickerModel {
         self.summary = .empty(trade.direction)
         reload()
     }
+
+    func cardHeightChanged(_ height: CGFloat) { onCardHeight?(height) }
 
     // MARK: Derived values
 

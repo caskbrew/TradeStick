@@ -6,6 +6,7 @@ import SwiftUI
 struct TransactionForm: View {
     let model: StickerModel
     @FocusState private var focus: TransactionDraft.Field?
+    @Environment(\.isMeasuring) private var measuring
 
     var body: some View {
         let form = model.form
@@ -30,12 +31,12 @@ struct TransactionForm: View {
             }
             HStack(spacing: 8) {
                 Button("Cancel") { model.cancelForm() }
-                    .buttonStyle(PillStyle(fill: Theme.field)).keyboardShortcut(.cancelAction)
+                    .buttonStyle(PillStyle(fill: Theme.field)).keyboardShortcut(measuring ? nil : KeyboardShortcut.cancelAction)
                 Button("Save") { Task { await model.submit() } }
-                    .buttonStyle(PillStyle(fill: Theme.accent)).keyboardShortcut(.defaultAction).disabled(!model.canSave)
+                    .buttonStyle(PillStyle(fill: Theme.accent)).keyboardShortcut(measuring ? nil : KeyboardShortcut.defaultAction).disabled(!model.canSave)
             }
         }
-        .onAppear { focus = .quantity }
+        .onAppear { if !measuring { focus = .quantity } }
     }
 
     private func field(_ title: String, _ id: TransactionDraft.Field, text: String, auto: Bool) -> some View {
@@ -64,7 +65,6 @@ struct TransactionList: View {
     var body: some View {
         let rows = model.transactions.sorted { ($0.occurredAt, $0.sequence) > ($1.occurredAt, $1.sequence) }
         VStack(alignment: .leading, spacing: 6) {
-            Divider().overlay(Theme.divider)
             if let error = model.listError {
                 Text(error).font(.system(size: 12)).foregroundStyle(Theme.negative)
             }

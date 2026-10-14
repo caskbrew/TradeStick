@@ -24,19 +24,6 @@ final class StickerPanel: NSPanel {
     }
 }
 
-/// SwiftUI host that tells us when the content may have changed size. It is NOT a window content view controller:
-/// those make AppKit resize the window on its own (keeping the bottom-left corner), which made the sticker jump.
-final class StickerHostingView: NSHostingView<AnyView> {
-    var onIntrinsicSizeChange: (() -> Void)?
-
-    /// Runs whenever SwiftUI lays the content out again, including after a state change. (The invalidate
-    /// callback is not reliable for a view positioned by hand.)
-    override func layout() {
-        super.layout()
-        onIntrinsicSizeChange?()
-    }
-}
-
 /// One sticker: panel + model. Owns window geometry: fits the content height, keeps the top edge fixed,
 /// pulls the window up when it would leave the screen, and remembers the position (FR-WIN-6, FR-TX-8).
 @MainActor
@@ -44,7 +31,8 @@ final class StickerWindow: NSObject, NSWindowDelegate {
     let model: StickerModel
     private let panel = StickerPanel()
     private let store: TradeStore
-    private let host: StickerHostingView
+    private let host: NSHostingView<AnyView>
+    private var cardHeight: CGFloat = 0
     /// Clips the card and pins it to the top while the window frame animates.
     private let container = NSView()
     private var settleTask: Task<Void, Never>?
@@ -59,16 +47,21 @@ final class StickerWindow: NSObject, NSWindowDelegate {
         self.model = model
         self.store = store
         self.anchor = Self.initialAnchor(for: model.trade.position, index: index)
-        host = StickerHostingView(rootView: AnyView(EmptyView()))
+        host = NSHostingView(rootView: AnyView(EmptyView()))
         super.init()
         let actions = StickerActions(hide: { [weak self] in self?.hide() }, delete: { [weak self] in self?.onDelete?() })
-        host.rootView = AnyView(StickerView(model: model, actions: actions))
-        host.sizingOptions = [.intrinsicContentSize] // no min/max constraints that would drive the window
-        host.onIntrinsicSizeChange = { [weak self] in self?.contentLaidOut() }
+        // Fills the window and pins the card to the top, so a card that is still growing is never centred.
+        host.rootView = AnyView(StickerView(model: model, actions: actions).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top))
+        host.sizingOptions = [] // the window is sized by us, never by SwiftUI
+        model.onCardHeight = { [weak self] height in
+            self?.cardHeight = height
+            self?.contentLaidOut()
+        }
         model.onWillGrow = { [weak self] extra in self?.reserve(extra) }
         container.wantsLayer = true
         container.layer?.masksToBounds = true
-        host.autoresizingMask = [.width, .minYMargin] // stays glued to the top edge while the window resizes
+        host.frame = container.bounds
+        host.autoresizingMask = [.width, .height]
         container.addSubview(host)
         panel.contentView = container
         panel.delegate = self
@@ -102,7 +95,16 @@ final class StickerWindow: NSObject, NSWindowDelegate {
     }
 
     var isVisible: Bool { panel.isVisible }
+
+    /// Renders the window's current content to a PNG (developer aid; needs no screen-recording permission).
+    func capture(to url: URL) {
+        guard let rep = container.bitmapImageRepForCachingDisplay(in: container.bounds) else { return }
+        container.cacheDisplay(in: container.bounds, to: rep)
+        try? rep.representation(using: .png, properties: [:])?.write(to: url)
+    }
     var frame: NSRect { panel.frame }
+    /// Card height as SwiftUI currently lays it out (animated while a section opens or closes).
+    var currentCardHeight: CGFloat { cardHeight }
 
     // MARK: Geometry
 
@@ -115,15 +117,10 @@ final class StickerWindow: NSObject, NSWindowDelegate {
         setWindowHeight(panel.frame.height + extra)
     }
 
-    /// The host laid out its content (also after every state change): size the card, grow if it outgrew the
-    /// window, and schedule trimming once things stop moving.
+    /// The card reported a new height: grow the window if it outgrew it, and schedule trimming once things stop moving.
     private func contentLaidOut() {
-        let ideal = host.intrinsicContentSize.height
-        guard ideal > 0 else { return }
-        if abs(host.frame.height - ideal) > 0.5 || host.frame.width != StickerView.width {
-            host.frame = NSRect(x: 0, y: container.bounds.height - ideal, width: StickerView.width, height: ideal)
-        }
-        if ideal > panel.frame.height + 0.5 { setWindowHeight(ideal) }
+        guard cardHeight > 0 else { return }
+        if cardHeight > panel.frame.height + 0.5 { setWindowHeight(cardHeight) }
         settleTask?.cancel()
         settleTask = Task { [weak self] in
             try? await Task.sleep(for: .milliseconds(300))
@@ -134,8 +131,7 @@ final class StickerWindow: NSObject, NSWindowDelegate {
 
     /// Cuts the window to the card's height.
     private func settle() {
-        let ideal = host.intrinsicContentSize.height
-        if ideal > 0, abs(ideal - panel.frame.height) > 0.5 { setWindowHeight(ideal) }
+        if cardHeight > 0, abs(cardHeight - panel.frame.height) > 0.5 { setWindowHeight(cardHeight) }
     }
 
     private func setWindowHeight(_ height: CGFloat) {
