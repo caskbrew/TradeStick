@@ -71,4 +71,53 @@ import Testing
         #expect(pnl.realized == 8)
         #expect(pnl.unrealized == nil && pnl.total == nil && pnl.ratio == nil)
     }
+
+    @Test func exampleD_oversellIsRejected() {
+        let txs = Self.exampleA + [tx(.sell, "1600", "100", minute: 4, seq: 4)]
+        #expect(throws: LedgerError.self) {
+            try TradeCalculator.summarize(direction: .buyFirst, transactions: txs)
+        }
+    }
+
+    @Test func backdatedSellBeforeBuyIsRejectedEvenIfTotalsBalance() {
+        // Sell at minute 0 precedes the only buy at minute 1: invalid at that moment.
+        let txs = [tx(.buy, "100", "10", minute: 1, seq: 1), tx(.sell, "50", "6", minute: 0, seq: 2)]
+        let result = Result { () throws(LedgerError) -> TradeSummary in
+            try TradeCalculator.summarize(direction: .buyFirst, transactions: txs)
+        }
+        guard case .failure(let error) = result, case .closingExceedsOpen(let id, let available) = error else {
+            Issue.record("expected closingExceedsOpen"); return
+        }
+        #expect(id == txs[1].id)
+        #expect(available == 0)
+    }
+
+    @Test func equalTimestampsUseCreationOrder() throws {
+        // Same minute: buy has sequence 1, sell sequence 2, so the sell is valid.
+        let txs = [tx(.sell, "50", "6", minute: 1, seq: 2), tx(.buy, "100", "10", minute: 1, seq: 1)]
+        let s = try TradeCalculator.summarize(direction: .buyFirst, transactions: txs)
+        #expect(s.openQuantity == 50)
+        #expect(s.realized == 1)
+    }
+
+    @Test func nonPositiveValuesAreRejected() {
+        for bad in [tx(.buy, "0", "10", minute: 1, seq: 1), tx(.buy, "10", "0", minute: 1, seq: 1), tx(.buy, "-1", "10", minute: 1, seq: 1)] {
+            #expect(throws: LedgerError.self) {
+                try TradeCalculator.summarize(direction: .buyFirst, transactions: [bad])
+            }
+        }
+    }
+
+    @Test func fullCloseLeavesNoDecimalResidue() throws {
+        // 1/7 is a repeating decimal: without the full-close shortcut openCost ends at 1e-38, not 0.
+        let txs = [
+            tx(.buy, "7", "1", minute: 1, seq: 1),
+            tx(.sell, "1", "1", minute: 2, seq: 2),
+            tx(.sell, "6", "1", minute: 3, seq: 3),
+        ]
+        let s = try TradeCalculator.summarize(direction: .buyFirst, transactions: txs)
+        #expect(s.status == .closed)
+        #expect(s.openCost == 0)
+        #expect(s.realized == 1) // received 2, spent 1
+    }
 }

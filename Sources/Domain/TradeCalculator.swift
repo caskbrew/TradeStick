@@ -7,8 +7,9 @@ public enum LedgerError: Error, Equatable, Sendable {
 }
 
 public enum TradeCalculator {
+    /// Replays transactions chronologically (time, then creation order) using the average-cost method.
     public static func summarize(direction: Direction, transactions: [Transaction]) throws(LedgerError) -> TradeSummary {
-        let ordered = transactions
+        let ordered = transactions.sorted { ($0.occurredAt, $0.sequence) < ($1.occurredAt, $1.sequence) }
 
         var boughtQuantity: Decimal = 0, boughtAmount: Decimal = 0
         var soldQuantity: Decimal = 0, soldAmount: Decimal = 0
@@ -16,6 +17,9 @@ public enum TradeCalculator {
         var realized: Decimal = 0, openingAmount: Decimal = 0
 
         for tx in ordered {
+            guard tx.quantity > 0, tx.amount > 0 else {
+                throw .nonPositiveValue(transactionID: tx.id)
+            }
             switch tx.side {
             case .buy: boughtQuantity += tx.quantity; boughtAmount += tx.amount
             case .sell: soldQuantity += tx.quantity; soldAmount += tx.amount
@@ -26,7 +30,11 @@ public enum TradeCalculator {
                 openCost += tx.amount
                 openingAmount += tx.amount
             } else {
-                let closedCost = openCost * tx.quantity / openQuantity
+                guard tx.quantity <= openQuantity else {
+                    throw .closingExceedsOpen(transactionID: tx.id, available: openQuantity)
+                }
+                // Multiply before dividing, and take the whole cost on a full close, to avoid repeating-decimal residue.
+                let closedCost = tx.quantity == openQuantity ? openCost : openCost * tx.quantity / openQuantity
                 realized += direction == .buyFirst ? tx.amount - closedCost : closedCost - tx.amount
                 openQuantity -= tx.quantity
                 openCost -= closedCost
