@@ -16,8 +16,8 @@ final class StickerPanel: NSPanel {
 
     let flags = PanelFlags()
 
-    static let collapsedHeight: CGFloat = 140
-    static let expandedHeight: CGFloat = 340
+    static let collapsedHeight: CGFloat = 240
+    static let expandedHeight: CGFloat = 440
 
     convenience init(index: Int) {
         let offset = CGFloat(index) * 30
