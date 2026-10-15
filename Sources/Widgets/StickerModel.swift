@@ -68,7 +68,33 @@ public final class StickerModel {
         reload()
     }
 
-    func contentSizeChanged(_ size: CGSize) { onContentSize?(size) }
+    // MARK: Zoom
+
+    /// Whole-sticker zoom (⌘+ / ⌘−): every window scales together, so proportions stay. Shared by all stickers.
+    public private(set) var scale: CGFloat = {
+        let saved = UserDefaults.standard.double(forKey: "stickerScale")
+        return saved > 0 ? min(max(CGFloat(saved), 0.6), 1.8) : 1
+    }()
+    public static let scaleRange: ClosedRange<CGFloat> = 0.6...1.8
+    @ObservationIgnored private var rawContent = CGSize.zero
+    @ObservationIgnored private var rawList: CGFloat = 0
+    @ObservationIgnored private var rawForm: CGFloat = 0
+
+    /// `delta` 0 resets to 100 %.
+    public func zoom(by delta: CGFloat) {
+        let next = delta == 0 ? 1 : min(max((scale + delta).rounded(toPlaces: 2), Self.scaleRange.lowerBound), Self.scaleRange.upperBound)
+        guard next != scale else { return }
+        scale = next
+        UserDefaults.standard.set(Double(next), forKey: "stickerScale")
+        if rawContent.height > 0 { contentSizeChanged(rawContent) }
+        if rawList > 0 { listHeightChanged(rawList) }
+        if rawForm > 0 { formHeightChanged(rawForm) }
+    }
+
+    /// The views report unscaled sizes; the windows get what is on screen.
+    func contentSizeChanged(_ size: CGSize) { rawContent = size; onContentSize?(CGSize(width: size.width * scale, height: size.height * scale)) }
+    func listHeightChanged(_ height: CGFloat) { rawList = height; onListHeight?(height * scale) }
+    func formHeightChanged(_ height: CGFloat) { rawForm = height; onFormHeight?(height * scale) }
 
     // MARK: Derived values
 
@@ -302,4 +328,8 @@ public final class StickerModel {
     private static func time(_ date: Date) -> String {
         date.formatted(.dateTime.hour().minute())
     }
+}
+
+private extension CGFloat {
+    func rounded(toPlaces places: Int) -> CGFloat { let f = pow(10, CGFloat(places)); return (self * f).rounded() / f }
 }

@@ -94,7 +94,7 @@ final class StickerWindow: NSObject, NSWindowDelegate {
         listHost.rootView = AnyView(ListWindowView(model: model))
         listHost.sizingOptions = []
         listPanel.contentView = listHost
-        listPanel.setContentSize(NSSize(width: StickerView.listWidth, height: 300))
+        listPanel.setContentSize(NSSize(width: StickerView.listWidth * model.scale, height: 300))
         formHost.rootView = AnyView(FormWindowView(model: model))
         formHost.sizingOptions = []
         formPanel.contentView = formHost
@@ -189,7 +189,7 @@ final class StickerWindow: NSObject, NSWindowDelegate {
 
     /// The list opens in its own panel under the sticker, or over it when the screen has no room below.
     private func prepareList() {
-        listPanel.setContentSize(NSSize(width: StickerView.listWidth, height: listHeight > 0 ? listHeight : 300))
+        listPanel.setContentSize(NSSize(width: StickerView.listWidth * model.scale, height: listHeight > 0 ? listHeight : 300))
         let screen = NSScreen.screens.first { $0.frame.contains(anchor) } ?? NSScreen.main
         model.listOnTop = panel.frame.minY - listPanel.frame.height < (screen?.visibleFrame.minY ?? -.infinity)
         placeListPanel()
@@ -209,8 +209,8 @@ final class StickerWindow: NSObject, NSWindowDelegate {
     private func listHeightChanged(_ height: CGFloat) {
         guard height > 0 else { return }
         listHeight = height
-        guard listPanel.isVisible, abs(listPanel.frame.height - height) > 0.5 else { return }
-        listPanel.setContentSize(NSSize(width: StickerView.listWidth, height: height))
+        guard listPanel.isVisible, abs(listPanel.frame.height - height) > 0.5 || abs(listPanel.frame.width - StickerView.listWidth * model.scale) > 0.5 else { return }
+        listPanel.setContentSize(NSSize(width: StickerView.listWidth * model.scale, height: height))
         placeListPanel()
     }
 
@@ -224,8 +224,8 @@ final class StickerWindow: NSObject, NSWindowDelegate {
     /// The form opens in its own panel to the left of the sticker, or to the right when the left side has no room.
     private func prepareForm() {
         let screen = NSScreen.screens.first { $0.frame.contains(anchor) } ?? NSScreen.main
-        model.formOnLeft = anchor.x - StickerView.formDrawerWidth >= (screen?.visibleFrame.minX ?? 0) // left by default
-        formPanel.setContentSize(NSSize(width: StickerView.formDrawerWidth, height: formHeight > 0 ? formHeight : 300))
+        model.formOnLeft = anchor.x - StickerView.formDrawerWidth * model.scale >= (screen?.visibleFrame.minX ?? 0) // left by default
+        formPanel.setContentSize(NSSize(width: StickerView.formDrawerWidth * model.scale, height: formHeight > 0 ? formHeight : 300))
         placeFormPanel()
         if formPanel.parent == nil { panel.addChildWindow(formPanel, ordered: .above) }
         formPanel.orderFront(nil)
@@ -246,8 +246,8 @@ final class StickerWindow: NSObject, NSWindowDelegate {
     private func formHeightChanged(_ height: CGFloat) {
         guard height > 0 else { return }
         formHeight = height
-        guard formPanel.isVisible, abs(formPanel.frame.height - height) > 0.5 else { return }
-        formPanel.setContentSize(NSSize(width: StickerView.formDrawerWidth, height: height))
+        guard formPanel.isVisible, abs(formPanel.frame.height - height) > 0.5 || abs(formPanel.frame.width - StickerView.formDrawerWidth * model.scale) > 0.5 else { return }
+        formPanel.setContentSize(NSSize(width: StickerView.formDrawerWidth * model.scale, height: height))
         placeFormPanel()
     }
 

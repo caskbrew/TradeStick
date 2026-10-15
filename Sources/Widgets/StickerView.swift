@@ -54,6 +54,7 @@ public struct StickerView: View {
             card
                 .fixedSize()
                 .onGeometryChange(for: CGSize.self) { $0.size } action: { model.contentSizeChanged($0) }
+                .scaleEffect(model.scale, anchor: .topLeading)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
     }
@@ -68,6 +69,7 @@ public struct FormWindowView: View {
     public var body: some View {
         FormDrawer(model: model)
             .fixedSize()
+            .scaleEffect(model.scale, anchor: model.formOnLeft ? .topTrailing : .topLeading)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: model.formOnLeft ? .topTrailing : .topLeading)
     }
 }
@@ -115,7 +117,7 @@ struct FormDrawer: View {
             TransactionForm(model: model)
                 .padding(10)
                 .frame(width: Self.panelWidth)
-                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { model.onFormHeight?($0) }
+                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { model.formHeightChanged($0) }
                 .background(GlassBackground(radius: 14))
                 .foregroundStyle(.white)
                 .environment(\.colorScheme, .dark)
@@ -140,7 +142,7 @@ struct ListDrawer: View {
         TransactionList(model: model)
             .padding(10)
             .frame(width: Self.width)
-            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { measured = $0; model.onListHeight?($0 + Self.gap) }
+            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { measured = $0; model.listHeightChanged($0 + Self.gap) }
             .background(GlassBackground(radius: 14))
             .foregroundStyle(.white)
             .environment(\.colorScheme, .dark)
@@ -166,6 +168,7 @@ public struct ListWindowView: View {
     public var body: some View {
         ListDrawer(model: model)
             .fixedSize()
+            .scaleEffect(model.scale, anchor: model.listOnTop ? .bottomLeading : .topLeading)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: model.listOnTop ? .bottomLeading : .topLeading)
     }
 }
@@ -223,9 +226,8 @@ struct StickerMenuItems: View {
 
     var body: some View {
         let expanded = model.trade.isExpanded
-        let count = model.transactions.count
         Button("Add transaction") { model.addTransaction() }.keyboardShortcut("b")
-        Button("\(expanded ? "Hide" : "Show") transactions (\(count))") { model.toggleList() }
+        Button("\(expanded ? "Hide" : "Show") transactions ") { model.toggleList() }
             .keyboardShortcut("l").disabled(model.status == .empty)
         if model.status == .open {
             Divider()
@@ -240,6 +242,10 @@ struct StickerMenuItems: View {
                                         .disabled(model.closePlan(recoverInvestment: true) == nil)
             }
         }
+        Divider()
+        Button("Zoom In") { model.zoom(by: 0.1) }.keyboardShortcut("+")
+        Button("Zoom Out") { model.zoom(by: -0.1) }.keyboardShortcut("-")
+        Button("Actual Size") { model.zoom(by: 0) }.keyboardShortcut("0")
         Divider()
         Button("Hide Window", action: actions.hide).keyboardShortcut("w")
         Divider()
@@ -266,6 +272,10 @@ struct ShortcutLayer: View {
             Button("") { model.toggleList() }.keyboardShortcut("l")
             Button("") { Task { await model.requestClose(recoverInvestment: false) } }.keyboardShortcut("e")
             Button("") { Task { await model.requestClose(recoverInvestment: true) } }.keyboardShortcut("r")
+            Button("") { model.zoom(by: 0.1) }.keyboardShortcut("+")
+            Button("") { model.zoom(by: 0.1) }.keyboardShortcut("=")
+            Button("") { model.zoom(by: -0.1) }.keyboardShortcut("-")
+            Button("") { model.zoom(by: 0) }.keyboardShortcut("0")
             Button("") { actions.hide() }.keyboardShortcut("w")
             Button("") { actions.delete() }.keyboardShortcut(.delete, modifiers: [.command, .option])
         }

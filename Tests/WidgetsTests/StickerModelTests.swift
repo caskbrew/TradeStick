@@ -249,3 +249,24 @@ struct Fixture {
         #expect(f.model.recoverQuantity == dec("133.33333334")) // 40 / 0.3 rounded up at 8 decimals
     }
 }
+
+@MainActor @Suite(.timeLimit(.minutes(1))) struct ZoomTests {
+    @Test func zoomScalesReportedSizesAndClamps() throws {
+        let f = try Fixture()
+        let key = "stickerScale", saved = UserDefaults.standard.object(forKey: key)
+        defer { UserDefaults.standard.set(saved, forKey: key) }
+        var sizes: [CGSize] = []
+        f.model.onContentSize = { sizes.append($0) }
+        f.model.zoom(by: 0)
+        f.model.contentSizeChanged(CGSize(width: 330, height: 100))
+        f.model.zoom(by: 0.1)
+        let last = try #require(sizes.last)
+        #expect(f.model.scale == 1.1 && abs(last.width - 363) < 0.001 && abs(last.height - 110) < 0.001)
+        for _ in 0..<20 { f.model.zoom(by: 0.1) }
+        #expect(f.model.scale == 1.8)
+        for _ in 0..<30 { f.model.zoom(by: -0.1) }
+        #expect(f.model.scale == 0.6)
+        f.model.zoom(by: 0)
+        #expect(f.model.scale == 1)
+    }
+}
