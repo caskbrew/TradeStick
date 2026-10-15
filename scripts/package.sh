@@ -1,14 +1,14 @@
 #!/bin/zsh
-# Builds dist/TradeSticker-<version>.zip (an ad-hoc signed .app) and prints its sha256.
+# Builds dist/TradeStickies-<version>.zip (an ad-hoc signed .app) and prints its sha256.
 # Usage: scripts/package.sh 0.1.0
 set -euo pipefail
 cd "${0:A:h}/.."
 V=${1:?usage: package.sh <version>}
 swift build -c release --arch arm64 --arch x86_64
 BIN=$(swift build -c release --arch arm64 --arch x86_64 --show-bin-path)
-APP=dist/TradeSticker.app
+APP=dist/TradeStickies.app
 rm -rf dist && mkdir -p $APP/Contents/{MacOS,Resources}
-cp $BIN/TradeSticker $APP/Contents/MacOS/
+cp $BIN/TradeSticker $APP/Contents/MacOS/TradeStickies
 cp -R $BIN/TradeSticker_TradeSticker.bundle $BIN/GRDB_GRDB.bundle $APP/Contents/Resources/ 2>/dev/null || true
 
 ICONSET=dist/AppIcon.iconset; mkdir -p $ICONSET
@@ -23,9 +23,9 @@ cat > $APP/Contents/Info.plist <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
-  <key>CFBundleName</key><string>TradeSticker</string>
-  <key>CFBundleIdentifier</key><string>com.caskbrew.tradestickers</string>
-  <key>CFBundleExecutable</key><string>TradeSticker</string>
+  <key>CFBundleName</key><string>TradeStickies</string>
+  <key>CFBundleIdentifier</key><string>com.caskbrew.tradestickies</string>
+  <key>CFBundleExecutable</key><string>TradeStickies</string>
   <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>$V</string>
@@ -37,5 +37,5 @@ cat > $APP/Contents/Info.plist <<PLIST
 PLIST
 
 codesign --force --deep --sign - $APP
-ditto -c -k --keepParent $APP dist/TradeSticker-$V.zip
-echo "dist/TradeSticker-$V.zip"; shasum -a 256 dist/TradeSticker-$V.zip
+ditto -c -k --keepParent $APP dist/TradeStickies-$V.zip
+echo "dist/TradeStickies-$V.zip"; shasum -a 256 dist/TradeStickies-$V.zip

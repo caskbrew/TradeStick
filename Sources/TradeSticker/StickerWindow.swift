@@ -173,7 +173,7 @@ final class StickerWindow: NSObject, NSWindowDelegate {
         alert.messageText = plan.recoversInvestment ? "\(verb) \(quantity) to recover the investment?" : "\(verb) all \(quantity) at market?"
         alert.informativeText = "\(plan.side == .sell ? "You receive" : "You pay") ≈ \(amount) at \(NumberFormat.price(plan.rate)) per \(base).\n"
             + (plan.remaining > 0 ? "You keep \(NumberFormat.quantity(plan.remaining)) \(base)." : "The trade will be closed.")
-            + "\nThis records the transaction in TradeSticker only; no order is sent to the exchange."
+            + "\nThis records the transaction in TradeStickies only; no order is sent to the exchange."
         alert.addButton(withTitle: "Yes")
         alert.addButton(withTitle: "No")
         NSApp.activate()

@@ -14,8 +14,8 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var pathMonitor: NWPathMonitor?
     /// Only the installed app (bundle id set by scripts/package.sh) touches the real data. Anything else
     /// (`swift run`, a dev build) uses its own folder, so development never damages the user's trades.
-    static let isInstalled = Bundle.main.bundleIdentifier == "com.caskbrew.tradestickers"
-    static let dataFolder = isInstalled ? "TradeSticker" : "TradeSticker-Dev"
+    static let isInstalled = Bundle.main.bundleIdentifier == "com.caskbrew.tradestickies"
+    static let dataFolder = isInstalled ? "TradeStickies" : "TradeStickies-Dev"
     private let icons = CoinIcons(directory: FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?.appending(path: "\(AppController.dataFolder)/icons"))
     private let adapters: [any ExchangeAdapter] = [BinanceAdapter()]
     private var statusItem: NSStatusItem!
@@ -32,7 +32,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
             if CommandLine.arguments.contains("--seed-demo"), try store.trades().isEmpty { try seedDemo() }
         } catch {
             let alert = NSAlert()
-            alert.messageText = "TradeSticker could not open its database"
+            alert.messageText = "TradeStickies could not open its database"
             alert.informativeText = "\(error)"
             alert.runModal()
             NSApp.terminate(nil)
@@ -47,7 +47,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
             icon.isTemplate = true // black + alpha: macOS tints it for light and dark menu bars
             statusItem.button?.image = icon
         } else {
-            statusItem.button?.image = NSImage(systemSymbolName: "note.text", accessibilityDescription: "TradeSticker")
+            statusItem.button?.image = NSImage(systemSymbolName: "note.text", accessibilityDescription: "TradeStickies")
         }
         if let url = Bundle.module.url(forResource: "AppIcon", withExtension: "png") { NSApp.applicationIconImage = NSImage(contentsOf: url) } // shown in alerts
         if !Self.isInstalled { statusItem.button?.title = " DEV" } // a dev instance is never mistaken for the real one
@@ -79,7 +79,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
             }
             if recovered { Task { await hub.reconnectAll() } }
         }
-        monitor.start(queue: DispatchQueue(label: "tradesticker.network"))
+        monitor.start(queue: DispatchQueue(label: "tradestickies.network"))
         pathMonitor = monitor
     }
 

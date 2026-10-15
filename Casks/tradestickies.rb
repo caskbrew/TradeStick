@@ -1,0 +1,20 @@
+cask "tradestickies" do
+  version "0.1.0"
+  sha256 "5865e5d550b518a09fe8266e325a43546f2b05d79f63cdd603f9f65ce1365208"
+
+  url "https://github.com/caskbrew/TradeStickies/releases/download/v#{version}/TradeStickies-#{version}.zip"
+  name "TradeStickies"
+  desc "Floating sticker windows with live PnL for your crypto trades"
+  homepage "https://github.com/caskbrew/TradeStickies"
+
+  depends_on macos: ">= :sequoia"
+
+  app "TradeStickies.app"
+
+  # The app is ad-hoc signed, not notarized: drop the quarantine flag so Gatekeeper lets it start.
+  postflight do
+    system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{appdir}/TradeStickies.app"]
+  end
+
+  zap trash: "~/Library/Application Support/TradeStickies"
+end
