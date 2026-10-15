@@ -77,8 +77,8 @@ struct TransactionForm: View {
     private func timeField(_ form: TransactionDraft?) -> some View {
         HStack(spacing: 4) {
             TextField(TimeInput.format(.now), text: $timeText)
-                .textFieldStyle(.plain).monospacedDigit().font(.system(size: 12))
-                .lineLimit(1).minimumScaleFactor(0.65)
+                .textFieldStyle(.plain).monospacedDigit().font(.system(size: 11)) // a TextField does not shrink its text, so the font is small
+                .lineLimit(1)
                 .foregroundStyle(form?.timeInvalid == true ? Theme.negative : .primary)
                 .onChange(of: timeText) { _, text in applyTime(text) }
             Button { showPicker = true } label: {

@@ -5,8 +5,12 @@ import Foundation
 public enum TimeInput {
     public static let hint = "Time: HH:mm:ss or dd.MM.yy HH:mm:ss"
 
-    public static func format(_ date: Date, calendar: Calendar = .current) -> String {
+    /// `dd.MM HH:mm:ss`, with `.yy` added when the date is not in the current year (keeps the field short).
+    public static func format(_ date: Date, now: Date = .now, calendar: Calendar = .current) -> String {
         let c = calendar.dateComponents([.day, .month, .year, .hour, .minute, .second], from: date)
+        if c.year == calendar.component(.year, from: now) {
+            return String(format: "%02d.%02d %02d:%02d:%02d", c.day!, c.month!, c.hour!, c.minute!, c.second!)
+        }
         return String(format: "%02d.%02d.%02d %02d:%02d:%02d", c.day!, c.month!, c.year! % 100, c.hour!, c.minute!, c.second!)
     }
 

@@ -271,8 +271,11 @@ let now = Date(timeIntervalSince1970: 1_700_000_000)
 
     @Test func formatRoundTrips() {
         let d = at(2025, 10, 3, 18, 30)
-        #expect(TimeInput.format(d, calendar: cal) == "03.10.25 18:30:00")
-        #expect(TimeInput.parse(TimeInput.format(d, calendar: cal), now: ref, calendar: cal) == d)
+        #expect(TimeInput.format(d, now: ref, calendar: cal) == "03.10.25 18:30:00")
+        #expect(TimeInput.parse(TimeInput.format(d, now: ref, calendar: cal), now: ref, calendar: cal) == d)
+        let thisYear = at(2026, 10, 3, 18, 30)
+        #expect(TimeInput.format(thisYear, now: ref, calendar: cal) == "03.10 18:30:00") // current year: no year shown
+        #expect(TimeInput.parse(TimeInput.format(thisYear, now: ref, calendar: cal), now: ref, calendar: cal) == thisYear)
     }
 
     @Test func invalidTimeBlocksSaving() {
