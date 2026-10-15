@@ -25,11 +25,14 @@ public struct StickerView: View {
         self.actions = actions
     }
 
+    /// Width of the form drawer including the gap to the card.
+    public static let formDrawerWidth: CGFloat = FormDrawer.gap + FormDrawer.panelWidth
+
     public var body: some View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
             let freshness = model.price.freshness(at: context.date)
             let usable = freshness == .fresh && model.price.connection == .connected
-            VStack(alignment: .leading, spacing: 12) {
+            let card = VStack(alignment: .leading, spacing: 12) {
                 StickerHeader(model: model, actions: actions, live: usable)
                 PriceRow(model: model, freshness: freshness, usable: usable)
                 if model.status == .empty {
@@ -41,7 +44,6 @@ public struct StickerView: View {
             }
             .padding(16)
             .frame(width: Self.width)
-            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { model.cardHeightChanged($0) }
             .background(GlassBackground())
             .foregroundStyle(.white)
             .environment(\.colorScheme, .dark)
@@ -50,8 +52,67 @@ public struct StickerView: View {
                 Divider()
                 Button("Delete Trade…", role: .destructive, action: actions.delete)
             }
+            // The card never moves; the form drawer grows out of one side of it. With both the list and
+            // the form open the outline is an "L".
+            HStack(alignment: .top, spacing: 0) {
+                if model.formOnLeft { FormDrawer(model: model) }
+                card
+                if !model.formOnLeft { FormDrawer(model: model) }
+            }
+            .fixedSize()
+            .onGeometryChange(for: CGSize.self) { $0.size } action: { model.contentSizeChanged($0) }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: model.formOnLeft ? .topTrailing : .topLeading)
         }
-        .fixedSize(horizontal: false, vertical: true)
+    }
+}
+
+/// The add/edit form as a separate glass panel that slides out sideways from the card.
+struct FormDrawer: View {
+    static let panelWidth: CGFloat = 300
+    static let gap: CGFloat = 10
+    private static let duration = 0.22
+
+    let model: StickerModel
+    @State private var reveal: CGFloat
+    @State private var rendered: Bool
+
+    init(model: StickerModel) {
+        self.model = model
+        let open = model.form != nil
+        _reveal = State(initialValue: open ? Self.panelWidth + Self.gap : 0)
+        _rendered = State(initialValue: open)
+    }
+
+    var body: some View {
+        let left = model.formOnLeft
+        panel
+            .padding(left ? .trailing : .leading, Self.gap)
+            .frame(width: reveal, alignment: left ? .topTrailing : .topLeading)
+        .clipped()
+        .onChange(of: model.form != nil) { _, open in
+            if open {
+                rendered = true
+                withAnimation(.easeInOut(duration: Self.duration)) { reveal = Self.panelWidth + Self.gap }
+            } else {
+                withAnimation(.easeInOut(duration: Self.duration)) { reveal = 0 }
+                Task {
+                    try? await Task.sleep(for: .milliseconds(Int(Self.duration * 1000) + 20))
+                    if model.form == nil { rendered = false }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var panel: some View {
+        if rendered {
+            TransactionForm(model: model)
+                .padding(16)
+                .frame(width: Self.panelWidth)
+                .background(GlassBackground())
+                .foregroundStyle(.white)
+                .environment(\.colorScheme, .dark)
+        }
     }
 }
 
@@ -73,7 +134,6 @@ struct BottomSection: View {
     let model: StickerModel
 
     private struct Shape: Equatable {
-        var form: Bool
         var expanded: Bool
     }
 
@@ -85,10 +145,10 @@ struct BottomSection: View {
 
     init(model: StickerModel) {
         self.model = model
-        _shown = State(initialValue: Shape(form: model.form != nil, expanded: model.trade.isExpanded))
+        _shown = State(initialValue: Shape(expanded: model.trade.isExpanded))
     }
 
-    private var target: Shape { Shape(form: model.form != nil, expanded: model.trade.isExpanded) }
+    private var target: Shape { Shape(expanded: model.trade.isExpanded) }
 
     var body: some View {
         content(shown)
@@ -107,7 +167,7 @@ struct BottomSection: View {
                 if height == nil { height = new } else { withAnimation(.easeInOut(duration: Self.duration)) { height = new } }
             }
             .onChange(of: target) { old, new in
-                let shrinking = (old.expanded && !new.expanded) || (old.form && !new.form)
+                let shrinking = old.expanded && !new.expanded
                 if shrinking {
                     Task {
                         try? await Task.sleep(for: .milliseconds(Int(Self.duration * 1000) + 20))
@@ -122,7 +182,7 @@ struct BottomSection: View {
     @ViewBuilder
     private func content(_ shape: Shape) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            if shape.form { TransactionForm(model: model) } else { ActionRow(model: model) }
+            ActionRow(model: model)
             if shape.expanded {
                 Divider().overlay(Theme.divider)
                 TransactionList(model: model)

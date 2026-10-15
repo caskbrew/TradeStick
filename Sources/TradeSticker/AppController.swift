@@ -90,6 +90,23 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 try? await Task.sleep(for: .milliseconds(35))
                 window.capture(to: URL(fileURLWithPath: dir).appendingPathComponent("collapse-\(i).png"))
             }
+            window.model.setExpanded(true)
+            try? await Task.sleep(for: .milliseconds(500))
+            window.model.openForm(side: .buy)
+            for i in 1...6 {
+                try? await Task.sleep(for: .milliseconds(35))
+                window.capture(to: URL(fileURLWithPath: dir).appendingPathComponent("form-\(i).png"))
+            }
+            try? await Task.sleep(for: .milliseconds(600))
+            window.capture(to: URL(fileURLWithPath: dir).appendingPathComponent("form-L.png"))
+            print("frame", window.frame)
+            window.model.cancelForm()
+            for i in 1...6 {
+                try? await Task.sleep(for: .milliseconds(35))
+                window.capture(to: URL(fileURLWithPath: dir).appendingPathComponent("formclose-\(i).png"))
+            }
+            try? await Task.sleep(for: .milliseconds(600))
+            print("frame after close", window.frame)
             NSApp.terminate(nil)
             return
         }

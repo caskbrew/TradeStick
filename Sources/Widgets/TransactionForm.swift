@@ -11,14 +11,11 @@ struct TransactionForm: View {
     var body: some View {
         let form = model.form
         VStack(alignment: .leading, spacing: 12) {
-            if model.editingID != nil { Text("Edit transaction").font(.system(size: 13, weight: .semibold)) }
-            HStack(spacing: 12) {
-                sideSwitch(form?.side ?? .buy)
-                Spacer(minLength: 0)
-                DatePicker("", selection: Binding(get: { form?.occurredAt ?? .now }, set: { model.form?.occurredAt = $0 }))
-                    .labelsHidden().datePickerStyle(.compact)
-            }
-            HStack(spacing: 8) {
+            Text(model.editingID == nil ? "New transaction" : "Edit transaction").font(.system(size: 15, weight: .semibold))
+            sideSwitch(form?.side ?? .buy)
+            DatePicker("", selection: Binding(get: { form?.occurredAt ?? .now }, set: { model.form?.occurredAt = $0 }))
+                .labelsHidden().datePickerStyle(.compact)
+            VStack(spacing: 10) {
                 field("Quantity (\(model.trade.base))", .quantity, text: form?.quantityText ?? "", auto: false)
                 field("Amount (\(model.trade.quote))", .amount, text: form?.amountText ?? "", auto: form?.isAuto(.amount) ?? false)
                 field("Rate (\(model.trade.quote))", .rate, text: form?.rateText ?? "", auto: form?.isAuto(.rate) ?? false)
@@ -49,7 +46,7 @@ struct TransactionForm: View {
                 .buttonStyle(.plain)
             }
         }
-        .padding(2).frame(width: 190)
+        .padding(2)
         .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Theme.field))
     }
 

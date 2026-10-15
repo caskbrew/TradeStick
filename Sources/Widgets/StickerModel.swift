@@ -21,12 +21,16 @@ public final class StickerModel {
 
     /// Height of one transaction row; shared with the view so the window can reserve room before a list opens.
     public static let listRowHeight: CGFloat = 30
-    static let formExtraHeight: CGFloat = 240
     /// Called synchronously before a change that makes the card taller, with a generous upper bound of the extra
     /// height. The window grows first (it is transparent) and the card then animates inside it.
     @ObservationIgnored public var onWillGrow: ((CGFloat) -> Void)?
     /// The card reports its laid-out height here; the window follows it.
-    @ObservationIgnored public var onCardHeight: ((CGFloat) -> Void)?
+    @ObservationIgnored public var onContentSize: ((CGSize) -> Void)?
+    /// The add/edit form slides out beside the card, normally to the right. The window sets this to true
+    /// (before the form opens) when there is no room on the right.
+    public var formOnLeft = false
+    /// Called before the form opens so the window can pick a side and make room.
+    @ObservationIgnored public var onFormWillOpen: (() -> Void)?
 
     @ObservationIgnored private let icons: CoinIcons?
     /// PNG of the base coin's logo once it is known; the header shows a monogram until then.
@@ -58,7 +62,7 @@ public final class StickerModel {
         reload()
     }
 
-    func cardHeightChanged(_ height: CGFloat) { onCardHeight?(height) }
+    func contentSizeChanged(_ size: CGSize) { onContentSize?(size) }
 
     // MARK: Derived values
 
@@ -139,7 +143,7 @@ public final class StickerModel {
 
     /// Opens an empty form for a side (`Buy more`, `Sell part`, …). Orders are never sent (FR-TX-1a).
     public func openForm(side: Side) {
-        if form == nil { onWillGrow?(Self.formExtraHeight) }
+        if form == nil { onFormWillOpen?() }
         form = TransactionDraft(side: side, occurredAt: clock())
         editingID = nil
         formError = nil
@@ -148,7 +152,7 @@ public final class StickerModel {
     /// `Close`: the closing side, the whole open quantity, the current price when known.
     public func openCloseForm() {
         guard summary.openQuantity > 0 else { return }
-        if form == nil { onWillGrow?(Self.formExtraHeight) }
+        if form == nil { onFormWillOpen?() }
         let side = trade.direction.closingSide
         if let rate = currentPrice {
             form = TransactionDraft(side: side, occurredAt: clock(), quantity: summary.openQuantity, rate: rate)
@@ -163,7 +167,7 @@ public final class StickerModel {
     /// Edits an existing transaction in the same form (FR-TX-6).
     public func openEditForm(id: UUID) {
         guard let tx = transactions.first(where: { $0.id == id }) else { return }
-        if form == nil { onWillGrow?(Self.formExtraHeight) }
+        if form == nil { onFormWillOpen?() }
         form = TransactionDraft(side: tx.side, occurredAt: tx.occurredAt, quantity: tx.quantity, amount: tx.amount)
         editingID = id
         formError = nil
