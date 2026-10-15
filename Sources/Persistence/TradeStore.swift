@@ -41,7 +41,7 @@ public final class TradeStore: Sendable {
         let now = Date(timeIntervalSince1970: now.timeIntervalSince1970)
         let trade = StoredTrade(
             id: UUID(), exchange: exchange, base: base, quote: quote, direction: direction,
-            createdAt: now, isVisible: true, isExpanded: false, position: nil
+            createdAt: now, isVisible: true, isExpanded: false, isCompact: false, position: nil
         )
         try dbQueue.write { db in
             try db.execute(
@@ -81,6 +81,10 @@ public final class TradeStore: Sendable {
 
     public func setExpanded(id: UUID, _ isExpanded: Bool) throws {
         try updateTrade(id, "isExpanded = ?", [isExpanded])
+    }
+
+    public func setCompact(id: UUID, _ isCompact: Bool) throws {
+        try updateTrade(id, "isCompact = ?", [isCompact])
     }
 
     public func setPosition(id: UUID, _ position: WindowPosition?) throws {
@@ -189,7 +193,7 @@ public final class TradeStore: Sendable {
         return StoredTrade(
             id: id, exchange: row["exchange"], base: row["base"], quote: row["quote"], direction: direction,
             createdAt: Date(timeIntervalSince1970: row["createdAt"]),
-            isVisible: row["isVisible"], isExpanded: row["isExpanded"],
+            isVisible: row["isVisible"], isExpanded: row["isExpanded"], isCompact: row["isCompact"],
             position: x.flatMap { x in topY.map { WindowPosition(x: x, topY: $0) } }
         )
     }

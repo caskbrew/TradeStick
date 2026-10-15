@@ -159,6 +159,15 @@ public final class StickerModel {
         openForm(side: trade.direction.openingSide)
     }
 
+    /// Compact view: price, entry, amount and PnL, no list.
+    public func setCompact(_ compact: Bool) {
+        guard compact != trade.isCompact else { return }
+        try? store.setCompact(id: trade.id, compact)
+        trade.isCompact = compact
+    }
+
+    public func toggleCompact() { setCompact(!trade.isCompact) }
+
     public func toggleList() {
         guard status != .empty else { return }
         setExpanded(!trade.isExpanded)

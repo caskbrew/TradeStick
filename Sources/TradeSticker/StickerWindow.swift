@@ -175,7 +175,7 @@ final class StickerWindow: NSObject, NSWindowDelegate {
     /// The form opens in its own panel to the right of the sticker, or to the left when the right side has no room.
     private func prepareForm() {
         let screen = NSScreen.screens.first { $0.frame.contains(anchor) } ?? NSScreen.main
-        let right = anchor.x + StickerView.width + StickerView.formDrawerWidth
+        let right = anchor.x + panel.frame.width + StickerView.formDrawerWidth
         model.formOnLeft = right > (screen?.visibleFrame.maxX ?? .infinity)
         formPanel.setContentSize(NSSize(width: StickerView.formDrawerWidth, height: max(formHeight, 300)))
         placeFormPanel()
@@ -214,7 +214,7 @@ final class StickerWindow: NSObject, NSWindowDelegate {
     /// The content reported a new size: grow the window if it outgrew it, and schedule trimming once things stop moving.
     private func contentLaidOut() {
         guard content.height > 0 else { return }
-        if content.height > panel.frame.height + 0.5 { setWindowHeight(content.height) }
+        if content.height > panel.frame.height + 0.5 || content.width > panel.frame.width + 0.5 { setWindowHeight(content.height) }
         settleTask?.cancel()
         settleTask = Task { [weak self] in
             try? await Task.sleep(for: .milliseconds(300))
@@ -225,11 +225,11 @@ final class StickerWindow: NSObject, NSWindowDelegate {
 
     /// Cuts the window to the card's height.
     private func settle() {
-        if content.height > 0, abs(content.height - panel.frame.height) > 0.5 { setWindowHeight(content.height) }
+        if content.height > 0, abs(content.height - panel.frame.height) > 0.5 || abs(content.width - panel.frame.width) > 0.5 { setWindowHeight(content.height) }
     }
 
     private func setWindowHeight(_ height: CGFloat) {
-        var frame = NSRect(x: anchor.x, y: anchor.y - height, width: StickerView.width, height: height)
+        var frame = NSRect(x: anchor.x, y: anchor.y - height, width: content.width > 0 ? content.width : StickerView.width, height: height)
         if let visible = (NSScreen.screens.first { $0.frame.contains(anchor) } ?? NSScreen.main)?.visibleFrame {
             if frame.minY < visible.minY { frame.origin.y = visible.minY } // shift up, never off-screen
             if frame.maxY > visible.maxY { frame.origin.y = visible.maxY - height }

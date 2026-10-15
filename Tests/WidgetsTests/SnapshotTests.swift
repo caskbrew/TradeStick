@@ -72,6 +72,11 @@ import Testing
         live.setExpanded(true)
         try render(live, name: "4-list")
 
+        // 4b. Compact view.
+        live.setCompact(true)
+        try render(live, name: "4b-compact")
+        live.setCompact(false)
+
         // 5. Sell-first, loss.
         let (loss, fake2, store2) = try make(direction: .sellFirst)
         try store2.addTransaction(tradeID: loss.trade.id, side: .sell, quantity: 2000, amount: 110, occurredAt: Date().addingTimeInterval(-600))

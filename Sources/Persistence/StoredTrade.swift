@@ -24,6 +24,8 @@ public struct StoredTrade: Identifiable, Equatable, Sendable {
     public let createdAt: Date
     public var isVisible: Bool
     public var isExpanded: Bool
+    /// Compact view: price, entry, amount and PnL only.
+    public var isCompact: Bool
     public var position: WindowPosition?
 }
 

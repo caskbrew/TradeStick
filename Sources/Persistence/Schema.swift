@@ -31,6 +31,10 @@ enum Schema {
             }
         }
 
+        migrator.registerMigration("v2") { db in
+            try db.alter(table: "trade") { t in t.add(column: "isCompact", .boolean).notNull().defaults(to: false) }
+        }
+
         return migrator
     }
 }
