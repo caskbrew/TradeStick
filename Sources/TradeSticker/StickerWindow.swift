@@ -4,8 +4,26 @@ import Presentation
 import SwiftUI
 import Widgets
 
+/// Handles ⌘+ ⌘− ⌘0 on the key window itself, so zoom works from the sticker, the form and the list alike,
+/// whatever the keyboard layout. Keys are matched by key code (main row and keypad).
+class ZoomPanel: NSPanel {
+    var onZoom: ((CGFloat) -> Void)?
+
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        let mods = event.modifierFlags.intersection(.deviceIndependentFlagsMask).subtracting([.numericPad, .capsLock])
+        guard mods == .command || mods == [.command, .shift], let onZoom else { return super.performKeyEquivalent(with: event) }
+        switch event.keyCode {
+        case 24, 69: onZoom(0.1) // = / +, keypad +
+        case 27, 78: onZoom(-0.1) // −, keypad −
+        case 29, 82: onZoom(0) // 0, keypad 0
+        default: return super.performKeyEquivalent(with: event)
+        }
+        return true
+    }
+}
+
 /// Borderless note-like panel (M0 report): normal level, one Space, activating, no title bar.
-final class StickerPanel: NSPanel {
+final class StickerPanel: ZoomPanel {
     override var canBecomeKey: Bool { true }
 
     init() {
@@ -26,7 +44,7 @@ final class StickerPanel: NSPanel {
 }
 
 /// The add/edit form lives in its own transparent panel next to the sticker, so the sticker itself never widens.
-final class FormPanel: NSPanel {
+final class FormPanel: ZoomPanel {
     override var canBecomeKey: Bool { true }
 
     init() {
@@ -94,6 +112,7 @@ final class StickerWindow: NSObject, NSWindowDelegate {
         listHost.rootView = AnyView(ListWindowView(model: model))
         listHost.sizingOptions = []
         listPanel.contentView = listHost
+        for p in [panel, formPanel, listPanel] as [ZoomPanel] { p.onZoom = { [weak model] delta in model?.zoom(by: delta) } }
         listPanel.setContentSize(NSSize(width: StickerView.listWidth * model.scale, height: 300))
         formHost.rootView = AnyView(FormWindowView(model: model))
         formHost.sizingOptions = []

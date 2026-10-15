@@ -272,10 +272,6 @@ struct ShortcutLayer: View {
             Button("") { model.toggleList() }.keyboardShortcut("l")
             Button("") { Task { await model.requestClose(recoverInvestment: false) } }.keyboardShortcut("e")
             Button("") { Task { await model.requestClose(recoverInvestment: true) } }.keyboardShortcut("r")
-            Button("") { model.zoom(by: 0.1) }.keyboardShortcut("+")
-            Button("") { model.zoom(by: 0.1) }.keyboardShortcut("=")
-            Button("") { model.zoom(by: -0.1) }.keyboardShortcut("-")
-            Button("") { model.zoom(by: 0) }.keyboardShortcut("0")
             Button("") { actions.hide() }.keyboardShortcut("w")
             Button("") { actions.delete() }.keyboardShortcut(.delete, modifiers: [.command, .option])
         }
