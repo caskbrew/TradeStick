@@ -18,11 +18,11 @@ struct TransactionForm: View {
             }
             Grid(horizontalSpacing: 6, verticalSpacing: 4) {
                 GridRow {
-                    field("Quantity", unit: model.trade.base.lowercased(), .quantity, text: form?.quantityText ?? "", auto: false)
-                    field("Amount", unit: model.trade.quote.lowercased(), .amount, text: form?.amountText ?? "", auto: form?.isAuto(.amount) ?? false)
+                    field("qty", unit: model.trade.base.lowercased(), .quantity, text: form?.quantityText ?? "", auto: false)
+                    field("amt", unit: model.trade.quote.lowercased(), .amount, text: form?.amountText ?? "", auto: form?.isAuto(.amount) ?? false)
                 }
                 GridRow {
-                    field("Rate", unit: "rate", .rate, text: form?.rateText ?? "", auto: form?.isAuto(.rate) ?? false)
+                    field("rate", unit: "rate", .rate, text: form?.rateText ?? "", auto: form?.isAuto(.rate) ?? false)
                     timeField(form)
                 }
             }
