@@ -214,11 +214,13 @@ struct StickerHeader: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text("\(model.trade.base) / \(model.trade.quote)").font(.system(size: 16, weight: .semibold))
-                Text("\(model.trade.direction == .buyFirst ? "BUY" : "SELL") · Spot · \(model.trade.exchange.capitalized)")
-                    .font(.system(size: 11)).foregroundStyle(Theme.secondaryText)
+                HStack(spacing: 8) {
+                    Text("\(model.trade.direction == .buyFirst ? "BUY" : "SELL") · Spot · \(model.trade.exchange.capitalized)")
+                        .font(.system(size: 11)).foregroundStyle(Theme.secondaryText)
+                    if live { LiveDot() } else if model.wantsPrice { ProgressView().controlSize(.small).scaleEffect(0.6).frame(width: 12, height: 12).help("Connecting to the exchange…") }
+                }
             }
             Spacer(minLength: 4)
-            if live { LiveDot() } else if model.wantsPrice { ProgressView().controlSize(.small).scaleEffect(0.7).help("Connecting to the exchange…") }
             StatusBadge(status: model.status)
             Menu {
                 Button("Hide Window", action: actions.hide)
@@ -345,6 +347,7 @@ struct NumbersBlock: View {
                         }
                         .font(.system(size: 16, weight: .medium)).foregroundStyle(Theme.pnl(NumberFormat.displayedPercent(ratio))).opacity(dim ? 0.45 : 1)
                     }
+                    DurationLabel(model: model).padding(.top, 4)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -361,7 +364,6 @@ struct NumbersBlock: View {
             .padding(12)
             .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Color.white.opacity(0.05)))
             .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Theme.divider, lineWidth: 1))
-            DurationLabel(model: model)
         }
     }
 
