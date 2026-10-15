@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "deny": [
+      "Bash(pkill:*)",
+      "Bash(killall:*)",
+      "Bash(kill:*)",
+      "Bash(*Application Support/TradeStickies/*)",
+      "Bash(*Application\\ Support/TradeStickies/*)",
+      "Bash(*Application Support/TradeStickies\")*",
+      "Bash(brew uninstall*tradestickies*)",
+      "Bash(brew reinstall*tradestickies*)",
+      "Bash(rm */Applications/TradeStickies.app*)",
+      "Read(~/Library/Application Support/TradeStickies/**)",
+      "Edit(~/Library/Application Support/TradeStickies/**)",
+      "Write(~/Library/Application Support/TradeStickies/**)"
+    ]
+  }
+}

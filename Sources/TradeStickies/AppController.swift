@@ -7,6 +7,10 @@ import Persistence
 import SwiftUI
 import Widgets
 
+struct DevGuardError: Error, CustomStringConvertible {
+    var description: String { "A dev build refuses to open the installed app's data (Application Support/TradeStickies)." }
+}
+
 @MainActor
 final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var store: TradeStore!
@@ -28,6 +32,8 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
             // Developer overrides: a separate database file and demo data (spec example A).
             let path: String
             if let override = ProcessInfo.processInfo.environment["TRADESTICKIES_DB"] { path = override } else { path = try TradeStore.defaultDatabaseURL(folder: Self.dataFolder).path }
+            // A dev build must never open the installed app's database, whatever the override says.
+            if !Self.isInstalled, path.contains("/Application Support/TradeStickies/") { throw DevGuardError() }
             store = try TradeStore(path: path)
             if CommandLine.arguments.contains("--seed-demo"), try store.trades().isEmpty { try seedDemo() }
         } catch {

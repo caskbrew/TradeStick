@@ -37,3 +37,12 @@ swift build -c release
 swift test
 scripts/package.sh 0.1.0   # dist/TradeStickies-0.1.0.zip + sha256 for the cask
 ```
+
+## Dev vs installed
+
+The installed app (`/Applications/TradeStickies.app`, bundle id `com.caskbrew.tradestickies`) and a dev build never share anything:
+
+- data: `~/Library/Application Support/TradeStickies/` vs `TradeStickies-Dev/`; a dev build refuses to open the installed folder even via `TRADESTICKIES_DB`;
+- settings: separate `UserDefaults` domains; the dev instance shows "DEV" in the menu bar;
+- processes: run and restart dev only with `scripts/dev.sh`, which stops just the process started from `.build/`. Never `pkill TradeStickies`;
+- `.claude/settings.json` denies Claude Code `pkill`/`killall`/`kill` and any access to the installed app's data folder.
