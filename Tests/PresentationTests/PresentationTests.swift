@@ -183,7 +183,7 @@ let now = Date(timeIntervalSince1970: 1_700_000_000)
     @Test func closePrefillsWholeQuantityAtCurrentPrice() {
         let d = TransactionDraft(side: .sell, occurredAt: now, quantity: 900, rate: dec("0.055"))
         #expect(d.quantityText == "900")
-        #expect(d.rateText == "0.055")
+        #expect(d.rateText == "0.055000")
         #expect(d.amountText == "49.5")
         #expect(d.savable(now: now)?.amount == dec("49.5"))
     }

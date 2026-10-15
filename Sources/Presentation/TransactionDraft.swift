@@ -35,7 +35,7 @@ public struct TransactionDraft: Equatable, Sendable {
     public init(side: Side, occurredAt: Date, quantity: Decimal, rate: Decimal) {
         self.init(side: side, occurredAt: occurredAt)
         edit(.quantity, Self.text(quantity, scale: 8))
-        edit(.rate, Self.text(rate, scale: 8))
+        edit(.rate, NumberFormat.price(rate))
     }
 
     /// Pre-fills the form with an existing transaction; Amount is the input, Rate follows.
