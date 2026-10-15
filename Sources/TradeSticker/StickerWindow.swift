@@ -112,6 +112,8 @@ final class StickerWindow: NSObject, NSWindowDelegate {
         listHost.rootView = AnyView(ListWindowView(model: model))
         listHost.sizingOptions = []
         listPanel.contentView = listHost
+        panel.isMovableByWindowBackground = !model.isPinned
+        model.onPinChange = { [weak panel] pinned in panel?.isMovableByWindowBackground = !pinned }
         for p in [panel, formPanel, listPanel] as [ZoomPanel] { p.onZoom = { [weak model] delta in model?.zoom(by: delta) } }
         listPanel.setContentSize(NSSize(width: StickerView.listWidth * model.scale, height: 300))
         formHost.rootView = AnyView(FormWindowView(model: model))

@@ -208,10 +208,15 @@ struct StickerHeader: View {
             }
             Spacer(minLength: 4)
             if model.status != .open { StatusBadge(status: model.status) }
+            Button { model.togglePin() } label: {
+                Image(systemName: model.isPinned ? "pin.fill" : "pin").frame(width: 20, height: 24)
+            }
+            .buttonStyle(.plain).foregroundStyle(model.isPinned ? Color.accentColor : Theme.secondaryText)
+            .help(model.isPinned ? "Unpin: allow moving the window" : "Pin: lock the window position")
             Menu {
                 StickerMenuItems(model: model, actions: actions)
             } label: {
-                Image(systemName: "ellipsis").offset(y: -8).frame(width: 24, height: 24)
+                Image(systemName: "ellipsis").rotationEffect(.degrees(90)).frame(width: 24, height: 24)
             }
             .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
         }

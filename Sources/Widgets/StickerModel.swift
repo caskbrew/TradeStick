@@ -65,7 +65,20 @@ public final class StickerModel {
         self.throttle = throttle
         self.clock = clock
         self.summary = .empty(trade.direction)
+        self.isPinned = UserDefaults.standard.bool(forKey: "pinned.\(trade.id.uuidString)")
         reload()
+    }
+
+    // MARK: Pin
+
+    /// A pinned sticker cannot be dragged. Remembered per trade.
+    public private(set) var isPinned = false
+    @ObservationIgnored public var onPinChange: ((Bool) -> Void)?
+    private var pinKey: String { "pinned.\(trade.id.uuidString)" }
+    public func togglePin() {
+        isPinned.toggle()
+        UserDefaults.standard.set(isPinned, forKey: pinKey)
+        onPinChange?(isPinned)
     }
 
     // MARK: Zoom
