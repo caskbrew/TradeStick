@@ -66,6 +66,14 @@ public final class StickerModel {
     public var pnl: PnL { summary.pnl(at: currentPrice) }
     public var status: TradeStatus { summary.status }
 
+    /// What one transaction is worth against the current price: a buy gains when the price is above its cost, a sell
+    /// when it is below. Over all transactions these add up to the trade's total PnL. nil without a price.
+    public func pnl(of tx: Transaction) -> Decimal? {
+        guard let price = currentPrice else { return nil }
+        let value = tx.quantity * price
+        return tx.side == .buy ? value - tx.amount : tx.amount - value
+    }
+
     /// First transaction to the last one when closed, to `now` while open; nil without transactions.
     public func duration(at now: Date) -> TimeInterval? {
         guard let first = transactions.map(\.occurredAt).min(), let last = transactions.map(\.occurredAt).max() else { return nil }

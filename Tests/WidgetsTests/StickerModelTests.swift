@@ -186,3 +186,20 @@ struct Fixture {
         #expect(try f.store.trade(id: f.model.trade.id)?.isExpanded == true)
     }
 }
+
+@MainActor @Suite(.timeLimit(.minutes(1))) struct TransactionPnLTests {
+    @Test func perTransactionPnLAddsUpToTheTradeTotal() async throws {
+        let f = try Fixture()
+        try f.add(.buy, "1000", "50", minute: 1)
+        try f.add(.buy, "500", "30", minute: 2)
+        try f.add(.sell, "600", "40", minute: 3)
+        await f.model.refreshSubscription()
+        await waitUntil { f.fake.connectCount == 1 }
+        #expect(f.model.pnl(of: f.model.transactions[0]) == nil)
+        f.fake.emit(PriceTick(price: dec("0.055"), open24h: nil, eventTime: Date()))
+        await waitUntil { f.model.currentPrice != nil }
+        let parts = f.model.transactions.map { f.model.pnl(of: $0)! }
+        #expect(parts == [dec("5"), dec("-2.5"), dec("7")]) // 55-50, 27.5-30, 40-33
+        #expect(parts.reduce(0, +) == f.model.pnl.total)
+    }
+}

@@ -15,7 +15,7 @@ public struct StickerActions {
 }
 
 public struct StickerView: View {
-    public static let width: CGFloat = 380
+    public static let width: CGFloat = 420
 
     let model: StickerModel
     let actions: StickerActions

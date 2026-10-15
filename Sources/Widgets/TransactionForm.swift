@@ -81,18 +81,27 @@ struct TransactionList: View {
         VStack(spacing: 0) { ForEach(rows) { tx in row(tx) } }
     }
 
-    private static let sideWidth: CGFloat = 40, amountWidth: CGFloat = 52, rateWidth: CGFloat = 76, agoWidth: CGFloat = 62
+    private static let sideWidth: CGFloat = 40, amountWidth: CGFloat = 52, rateWidth: CGFloat = 62, agoWidth: CGFloat = 62, pnlWidth: CGFloat = 58, iconWidth: CGFloat = 14
 
     private var header: some View {
         HStack(spacing: 6) {
+            Color.clear.frame(width: Self.iconWidth, height: 1)
             Text("When").frame(width: Self.agoWidth, alignment: .leading)
             Text("Side").frame(width: Self.sideWidth, alignment: .leading)
             Text("Qty").frame(maxWidth: .infinity, alignment: .trailing)
             Text("\(model.trade.quote)").frame(width: Self.amountWidth, alignment: .trailing)
             Text("Rate").frame(width: Self.rateWidth, alignment: .trailing)
-            Color.clear.frame(width: 33, height: 1)
+            Text("PnL").frame(width: Self.pnlWidth, alignment: .trailing)
+            Color.clear.frame(width: Self.iconWidth, height: 1)
         }
         .font(.system(size: 11)).foregroundStyle(Theme.secondaryText.opacity(0.7)).lineLimit(1)
+    }
+
+    /// Profit or loss of one transaction against the current price; "—" while the price is unknown.
+    private func pnl(_ value: Decimal?) -> some View {
+        Text(value.map(NumberFormat.signedQuote) ?? "—")
+            .foregroundStyle(Theme.pnl(value.map(NumberFormat.displayedQuote)))
+            .minimumScaleFactor(0.6).frame(width: Self.pnlWidth, alignment: .trailing)
     }
 
     private func row(_ tx: Domain.Transaction) -> some View {
@@ -107,6 +116,8 @@ struct TransactionList: View {
                 }
                 .buttonStyle(.plain).foregroundStyle(Theme.negative)
             } else {
+                Button { model.openEditForm(id: tx.id) } label: { Image(systemName: "pencil") }
+                    .buttonStyle(.plain).foregroundStyle(Theme.secondaryText).frame(width: Self.iconWidth)
                 TimelineView(.periodic(from: .now, by: 30)) { ctx in
                     Text(Elapsed.ago(from: tx.occurredAt, to: ctx.date))
                         .help(tx.occurredAt.formatted(date: .abbreviated, time: .shortened))
@@ -122,8 +133,7 @@ struct TransactionList: View {
                     .minimumScaleFactor(0.6)
                 Text(NumberFormat.amount(tx.amount)).frame(width: Self.amountWidth, alignment: .trailing)
                 Text(tx.rate.map(NumberFormat.price) ?? "—").foregroundStyle(Theme.secondaryText).minimumScaleFactor(0.6).frame(width: Self.rateWidth, alignment: .trailing)
-                Button { model.openEditForm(id: tx.id) } label: { Image(systemName: "pencil") }
-                    .buttonStyle(.plain).foregroundStyle(Theme.secondaryText)
+                pnl(model.pnl(of: tx))
                 Button { confirming = tx.id } label: { Image(systemName: "trash") }
                     .buttonStyle(.plain).foregroundStyle(Theme.negative.opacity(0.8))
             }
