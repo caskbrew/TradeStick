@@ -98,12 +98,12 @@ public struct BinanceAccountAPI: Sendable {
         guard let id = row["id"] as? Int, let ms = row["time"] as? Double ?? (row["time"] as? Int).map(Double.init), let buyer = row["isBuyer"] as? Bool else {
             throw URLError(.cannotParseResponse)
         }
-        var fee: String?
+        var fees: [String: Decimal] = [:]
         if let c = row["commission"] as? String, let amount = Decimal(string: c, locale: Locale(identifier: "en_US_POSIX")), amount > 0,
-           let asset = row["commissionAsset"] as? String { fee = "\(amount) \(asset)" }
+           let asset = row["commissionAsset"] as? String { fees[asset] = amount }
         return ImportedTrade(
             externalID: String(id), side: buyer ? .buy : .sell, quantity: try decimal("qty"), amount: try decimal("quoteQty"),
-            occurredAt: Date(timeIntervalSince1970: ms / 1000), fee: fee
+            occurredAt: Date(timeIntervalSince1970: ms / 1000), orderID: (row["orderId"] as? Int).map(String.init), fees: fees
         )
     }
 

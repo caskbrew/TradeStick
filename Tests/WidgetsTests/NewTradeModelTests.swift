@@ -148,3 +148,41 @@ struct BrokenExchange: ExchangeAdapter {
         #expect(m.state == .failed("Invalid API-key (-2015)"))
     }
 }
+
+@MainActor @Suite struct ImportGroupingTests {
+    nonisolated func fill(_ id: String, order: String?, _ side: Side = .buy, qty: Decimal = 1, amt: Decimal = 2, t: Double) -> ImportedTrade {
+        ImportedTrade(externalID: id, side: side, quantity: qty, amount: amt, occurredAt: Date(timeIntervalSince1970: t), orderID: order, fees: ["BNB": 1])
+    }
+
+    func model(known: Set<String> = []) -> ImportModel {
+        ImportModel(title: "t", fetch: { [fill] in
+            [fill("1", "10", .buy, 2, 4, 100), fill("2", "10", .buy, 3, 7, 101), fill("3", "11", .sell, 1, 3, 200)]
+        }, existing: { known }, commit: { _ in nil })
+    }
+
+    @Test func fillsOfOneOrderBecomeOneRowWithAveragePrice() async throws {
+        let m = model()
+        await m.load()
+        #expect(m.rows.map(\.id) == ["o11", "o10"])
+        let order = try #require(m.rows.last?.trade)
+        #expect(order.quantity == 5 && order.amount == 11 && order.fillIDs == ["1", "2"] && order.occurredAt == Date(timeIntervalSince1970: 101))
+        #expect(order.rate == dec("2.2") && order.feeText == "2 BNB")
+        m.setGrouped(false)
+        #expect(m.rows.map(\.id) == ["3", "2", "1"])
+    }
+
+    @Test func anOrderImportedAsFillsIsAddedAndHalfImportedIsLocked() async {
+        let all = model(known: ["1", "2"]); await all.load()
+        #expect(all.rows.map(\.alreadyAdded) == [false, true])
+        let half = model(known: ["1"]); await half.load()
+        #expect(half.rows.map(\.partlyAdded) == [false, true] && half.rows.last?.selectable == false)
+        half.selectAll()
+        #expect(half.selection == ["o11"])
+    }
+
+    @Test func aGroupedOrderImportedBeforeShowsItsFillsAsAdded() async {
+        let m = model(known: ["o10"]); await m.load()
+        m.setGrouped(false)
+        #expect(m.rows.map(\.alreadyAdded) == [false, true, true])
+    }
+}

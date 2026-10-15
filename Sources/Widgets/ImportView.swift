@@ -14,7 +14,12 @@ public struct ImportView: View {
 
     public var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text(model.title).font(.headline)
+            HStack {
+                Text(model.title).font(.headline)
+                Spacer()
+                Toggle("Group by order", isOn: Binding(get: { model.grouped }, set: { model.setGrouped($0) })).toggleStyle(.checkbox)
+                    .help("One row per order, like the exchange's web history. Off: one row per fill")
+            }
             content
             if let error = model.error {
                 Label(error, systemImage: "xmark.octagon.fill").foregroundStyle(Theme.negative).font(.callout)
@@ -31,6 +36,10 @@ public struct ImportView: View {
         }
         .padding(16).frame(width: 640, height: 460)
         .task { await model.load() }
+    }
+
+    private func detail(_ trade: ImportedTrade) -> String {
+        [trade.fillIDs.count > 1 ? "\(trade.fillIDs.count) fills" : nil, trade.feeText.map { "fee \($0)" }].compactMap { $0 }.joined(separator: " · ")
     }
 
     @ViewBuilder private var content: some View {
@@ -52,18 +61,18 @@ public struct ImportView: View {
             List(model.rows) { row in
                 HStack(spacing: 10) {
                     Toggle("", isOn: Binding(get: { model.selection.contains(row.id) }, set: { _ in model.toggle(row.id) }))
-                        .labelsHidden().disabled(row.alreadyAdded)
+                        .labelsHidden().disabled(!row.selectable)
                     Text(TimeInput.format(row.trade.occurredAt)).frame(width: 130, alignment: .leading)
                     Text(row.trade.side == .buy ? "BUY" : "SELL").bold()
                         .foregroundStyle(row.trade.side == .buy ? Theme.positive : Theme.negative).frame(width: 36, alignment: .leading)
                     Text(NumberFormat.quantity(row.trade.quantity)).frame(width: 90, alignment: .trailing)
                     Text(NumberFormat.amount(row.trade.amount)).frame(width: 80, alignment: .trailing)
                     Text(row.trade.rate.map(NumberFormat.price) ?? "").frame(width: 80, alignment: .trailing)
-                    Text(row.alreadyAdded ? "added" : (row.trade.fee.map { "fee \($0)" } ?? ""))
+                    Text(row.alreadyAdded ? "added" : row.partlyAdded ? "partly added" : detail(row.trade))
                         .foregroundStyle(.secondary).font(.caption).lineLimit(1)
                 }
                 .font(.system(size: 12).monospacedDigit())
-                .opacity(row.alreadyAdded ? 0.5 : 1)
+                .opacity(row.selectable ? 1 : 0.5)
                 .contentShape(Rectangle())
                 .onTapGesture { model.toggle(row.id) }
             }

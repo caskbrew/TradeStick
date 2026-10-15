@@ -12,19 +12,27 @@ public final class ImportModel {
 
     public struct Row: Identifiable, Equatable {
         public let trade: ImportedTrade
+        /// Imported before: as this row, or (grouped) as all of its fills.
         public let alreadyAdded: Bool
+        /// Grouped order whose fills were imported only in part: not offered again, to avoid double counting.
+        public let partlyAdded: Bool
         public var id: String { trade.externalID }
+        public var selectable: Bool { !alreadyAdded && !partlyAdded }
     }
 
     public let title: String
     public private(set) var state: State = .loading
     public private(set) var rows: [Row] = []
+    /// One row per order (like the exchange's web history) instead of one per fill.
+    public private(set) var grouped = true
     public private(set) var selection: Set<String> = []
     public private(set) var error: String?
     public private(set) var added: Int?
 
     @ObservationIgnored private let fetch: @Sendable () async throws -> [ImportedTrade]
     @ObservationIgnored private let existing: () -> Set<String>
+    @ObservationIgnored private var fills: [ImportedTrade] = []
+    @ObservationIgnored private var known: Set<String> = []
     @ObservationIgnored private let commit: ([ImportedTrade]) -> String?
 
     /// - Parameters:
@@ -46,25 +54,43 @@ public final class ImportModel {
         state = .loading
         error = nil
         do {
-            let known = existing()
-            // Newest first: recent fills are the ones people import.
-            rows = try await fetch().reversed().map { Row(trade: $0, alreadyAdded: known.contains($0.externalID)) }
-            selection = []
+            known = existing()
+            fills = try await fetch()
+            rebuild()
             state = .loaded
         } catch {
             state = .failed("\(error)")
         }
     }
 
-    public var selectableCount: Int { rows.filter { !$0.alreadyAdded }.count }
+    public func setGrouped(_ value: Bool) {
+        guard value != grouped else { return }
+        grouped = value
+        rebuild()
+    }
+
+    /// Newest first: recent fills are the ones people import.
+    private func rebuild() {
+        let items = grouped ? ImportedTrade.groupedByOrder(fills) : fills
+        rows = items.reversed().map { trade in
+            let ids = Set(trade.fillIDs)
+            let direct = known.contains(trade.externalID) || (trade.orderID.map { known.contains("o" + $0) } ?? false)
+            let fillsKnown = ids.intersection(known)
+            let all = direct || (!fillsKnown.isEmpty && fillsKnown == ids)
+            return Row(trade: trade, alreadyAdded: all, partlyAdded: !all && !fillsKnown.isEmpty)
+        }
+        selection = []
+    }
+
+    public var selectableCount: Int { rows.filter(\.selectable).count }
     public var canAdd: Bool { !selection.isEmpty }
 
     public func toggle(_ id: String) {
-        guard let row = rows.first(where: { $0.id == id }), !row.alreadyAdded else { return }
+        guard let row = rows.first(where: { $0.id == id }), row.selectable else { return }
         if selection.contains(id) { selection.remove(id) } else { selection.insert(id) }
     }
 
-    public func selectAll() { selection = Set(rows.filter { !$0.alreadyAdded }.map(\.id)) }
+    public func selectAll() { selection = Set(rows.filter(\.selectable).map(\.id)) }
     public func selectNone() { selection = [] }
 
     /// Adds the selected fills. Returns true when done (the window can close).
