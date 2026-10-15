@@ -209,14 +209,14 @@ struct StickerHeader: View {
             Spacer(minLength: 4)
             if model.status != .open { StatusBadge(status: model.status) }
             Button { model.togglePin() } label: {
-                Image(systemName: model.isPinned ? "pin.fill" : "pin").frame(width: 20, height: 24)
+                Image(systemName: model.isPinned ? "pin.fill" : "pin").rotationEffect(.degrees(-45)).frame(width: 20, height: 24).offset(y: -6)
             }
             .buttonStyle(.plain).foregroundStyle(model.isPinned ? Color.accentColor : Theme.secondaryText)
             .help(model.isPinned ? "Unpin: allow moving the window" : "Pin: lock the window position")
             Menu {
                 StickerMenuItems(model: model, actions: actions)
             } label: {
-                Text("\u{22EE}").font(.system(size: 16, weight: .bold)).frame(width: 24, height: 24)
+                Text("\u{22EE}").font(.system(size: 16, weight: .bold)).frame(width: 24, height: 24).offset(y: -6)
             }
             .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
         }
