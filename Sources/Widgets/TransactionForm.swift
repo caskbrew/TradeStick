@@ -7,6 +7,8 @@ struct TransactionForm: View {
     let model: StickerModel
     @State private var showPicker = false
     @State private var timeText = ""
+    /// The current time shown when the form opens; left untouched, the transaction is stamped when saved.
+    @State private var nowText = ""
     @FocusState private var focus: TransactionDraft.Field?
 
     var body: some View {
@@ -40,7 +42,8 @@ struct TransactionForm: View {
         }
         .background { Button("") { model.toggleForm() }.keyboardShortcut("b").opacity(0).frame(width: 0, height: 0).allowsHitTesting(false) }
         .onAppear {
-            if let f = model.form, !f.isNow { timeText = TimeInput.format(f.occurredAt) }
+            nowText = TimeInput.format(.now)
+            if let f = model.form { timeText = f.isNow ? nowText : TimeInput.format(f.occurredAt) }
             focus = .quantity
         }
     }
@@ -63,10 +66,10 @@ struct TransactionForm: View {
         .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Theme.field))
     }
 
-    /// Empty means "now" (stamped when saved). Type `HH:mm` or `dd.MM.yy HH:mm`, or pick in the calendar popover.
+    /// Opens with the current time (stamped when saved if left alone). Type `HH:mm` or `dd.MM.yy HH:mm`, or pick in the calendar popover.
     private func timeField(_ form: TransactionDraft?) -> some View {
         HStack(spacing: 4) {
-            TextField("now", text: $timeText)
+            TextField(TimeInput.format(.now), text: $timeText)
                 .textFieldStyle(.plain).monospacedDigit().font(.system(size: 12))
                 .lineLimit(1).minimumScaleFactor(0.8)
                 .foregroundStyle(form?.timeInvalid == true ? Theme.negative : .primary)
@@ -81,7 +84,7 @@ struct TransactionForm: View {
                         get: { model.form?.occurredAt ?? .now },
                         set: { timeText = TimeInput.format($0) }
                     ), in: ...Date.now).labelsHidden().datePickerStyle(.graphical)
-                    Button("Now") { timeText = ""; showPicker = false }.disabled(model.form?.isNow ?? true)
+                    Button("Now") { nowText = TimeInput.format(.now); timeText = nowText; showPicker = false }.disabled(model.form?.isNow ?? true)
                 }
                 .padding(12)
             }
@@ -92,7 +95,7 @@ struct TransactionForm: View {
 
     private func applyTime(_ text: String) {
         let trimmed = text.trimmingCharacters(in: .whitespaces)
-        if trimmed.isEmpty {
+        if trimmed.isEmpty || trimmed == nowText {
             model.form?.isNow = true; model.form?.timeInvalid = false
         } else if let date = TimeInput.parse(trimmed, now: .now) {
             model.form?.occurredAt = date; model.form?.isNow = false; model.form?.timeInvalid = false
