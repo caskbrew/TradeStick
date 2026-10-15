@@ -383,7 +383,7 @@ struct CompactNumbers: View {
             .frame(maxHeight: .infinity, alignment: .bottomLeading)
             Rectangle().fill(Theme.divider).frame(width: 1)
             VStack(alignment: .trailing, spacing: 2) {
-                Text(total.map(NumberFormat.signedQuote) ?? "—").font(.system(size: 38, weight: .semibold, design: .rounded)).monospacedDigit()
+                Text(total.map(NumberFormat.signedQuote) ?? "—").font(.system(size: 32, weight: .semibold, design: .rounded)).monospacedDigit()
                     .lineLimit(1).minimumScaleFactor(0.4)
                     .foregroundStyle(Theme.pnl(total.map(NumberFormat.displayedQuote)))
                 HStack(spacing: 6) {
@@ -412,9 +412,9 @@ struct LabeledValue: View {
 
     var body: some View {
         HStack {
-            Text(label).font(.system(size: 10)).foregroundStyle(Theme.secondaryText)
-            Spacer(minLength: 4)
-            Text(value).font(.system(size: 11, weight: .medium)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.7)
+            Text(label).font(.system(size: 11)).foregroundStyle(Theme.secondaryText)
+            Spacer(minLength: 6)
+            Text(value).font(.system(size: 12, weight: .medium)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.7)
         }
     }
 }
