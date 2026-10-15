@@ -12,7 +12,7 @@ struct TransactionForm: View {
         let form = model.form
         VStack(alignment: .leading, spacing: 6) {
             HStack {
-                Text(model.editingID == nil ? "Add" : "Edit transaction").font(.system(size: 12, weight: .semibold))
+                Text(model.editingID == nil ? "Add" : "Edit").font(.system(size: 12, weight: .semibold))
                 Spacer(minLength: 8)
                 sideSwitch(form?.side ?? .buy).frame(width: 64)
             }

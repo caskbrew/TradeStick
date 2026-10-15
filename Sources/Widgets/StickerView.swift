@@ -76,8 +76,8 @@ public struct FormWindowView: View {
 
 /// The add/edit form as a separate glass panel that slides out sideways from the card.
 struct FormDrawer: View {
-    static let panelWidth: CGFloat = 240
-    static let gap: CGFloat = 10
+    static let panelWidth: CGFloat = 290
+    static let gap: CGFloat = 4
     private static let duration = 0.22
 
     let model: StickerModel
@@ -131,7 +131,7 @@ struct FormDrawer: View {
 /// The transaction list as a separate glass panel that slides out under the card (or over it).
 struct ListDrawer: View {
     static let width: CGFloat = 330
-    static let gap: CGFloat = 8
+    static let gap: CGFloat = 4
     private static let duration = 0.22
 
     let model: StickerModel
