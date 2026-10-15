@@ -25,6 +25,9 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var statusItem: NSStatusItem!
     private var windows: [UUID: StickerWindow] = [:]
     private var newTradeWindow: NSWindow?
+    private var apiKeysWindow: NSWindow?
+    /// The installed app and dev builds keep their keys apart, like their data.
+    private let credentials: any CredentialStore = KeychainCredentialStore(service: AppController.isInstalled ? "com.caskbrew.tradestickies" : "com.caskbrew.tradestickies.dev")
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory) // menu bar agent, no Dock icon
@@ -178,6 +181,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let model = StickerModel(trade: trade, store: store, hub: hub, icons: icons)
         let window = StickerWindow(model: model, store: store, index: windows.count)
         window.onDelete = { [weak self] in self?.confirmDelete(trade.id) }
+        window.onOpenAPIKeys = { [weak self] in self?.showAPIKeys() }
         windows[trade.id] = window
         window.show(activate: activate)
         Task { await model.setVisible(true); await model.refreshSubscription() }
@@ -251,6 +255,25 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         window.isReleasedWhenClosed = false
         window.center()
         newTradeWindow = window
+        NSApp.activate()
+        window.makeKeyAndOrderFront(nil)
+    }
+
+    private func showAPIKeys() {
+        if let existing = apiKeysWindow {
+            NSApp.activate()
+            existing.makeKeyAndOrderFront(nil)
+            return
+        }
+        let api = BinanceAccountAPI()
+        let model = APIKeysModel(store: credentials, check: { try await api.check($0) })
+        let view = APIKeysView(model: model, onClose: { [weak self] in self?.apiKeysWindow?.close(); self?.apiKeysWindow = nil })
+        let window = NSWindow(contentViewController: NSHostingController(rootView: view))
+        window.title = "Exchange API Keys"
+        window.styleMask = [.titled, .closable]
+        window.isReleasedWhenClosed = false
+        window.center()
+        apiKeysWindow = window
         NSApp.activate()
         window.makeKeyAndOrderFront(nil)
     }

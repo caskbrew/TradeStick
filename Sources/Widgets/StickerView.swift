@@ -8,9 +8,11 @@ import SwiftUI
 public struct StickerActions {
     public var hide: () -> Void
     public var delete: () -> Void
-    public init(hide: @escaping () -> Void, delete: @escaping () -> Void) {
+    public var openAPIKeys: () -> Void
+    public init(hide: @escaping () -> Void, delete: @escaping () -> Void, openAPIKeys: @escaping () -> Void = {}) {
         self.hide = hide
         self.delete = delete
+        self.openAPIKeys = openAPIKeys
     }
 }
 
@@ -265,6 +267,8 @@ struct StickerMenuItems: View {
         Button("Default") { model.zoom(by: 0) }.keyboardShortcut("0")
         Divider()
         Button(model.isPinned ? "Unpin Window" : "Pin Window") { model.togglePin() }.keyboardShortcut("p")
+        Divider()
+        Button("API Keys…", action: actions.openAPIKeys)
         Divider()
         Button("Hide Window", action: actions.hide).keyboardShortcut("w")
         Divider()

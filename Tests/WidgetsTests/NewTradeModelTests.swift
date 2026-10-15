@@ -1,3 +1,4 @@
+import Persistence
 import Domain
 import MarketData
 import Testing
@@ -55,5 +56,50 @@ struct BrokenExchange: ExchangeAdapter {
         m.pairText = "GRAM/USDT"
         #expect(await m.validate() != nil)
         #expect(m.error == nil)
+    }
+}
+
+@MainActor @Suite struct APIKeysModelTests {
+    func model(_ store: InMemoryCredentialStore, ok: Bool = true) -> APIKeysModel {
+        APIKeysModel(store: store, check: { _ in
+            if ok { return APIKeyCheck(warnings: ["Trading is enabled for this key"]) }
+            throw BinanceAPIError(status: 401, code: -2015, message: "Invalid API-key")
+        })
+    }
+
+    @Test func aWorkingKeyIsSavedAndTheSecretFieldIsCleared() async {
+        let store = InMemoryCredentialStore()
+        let m = model(store)
+        m.keyText = " KEY "; m.secretText = "SEC\n"
+        await m.save()
+        #expect(store.load(exchange: "binance") == APICredentials(key: "KEY", secret: "SEC"))
+        #expect(m.secretText == "" && m.hasSavedKey)
+        #expect(m.status == .ok("Saved", warnings: ["Trading is enabled for this key"]))
+    }
+
+    @Test func aRejectedKeyIsNotSaved() async {
+        let store = InMemoryCredentialStore()
+        let m = model(store, ok: false)
+        m.keyText = "K"; m.secretText = "S"
+        await m.save()
+        #expect(store.load(exchange: "binance") == nil)
+        #expect(m.status == .failed("Not saved: Invalid API-key (-2015)"))
+    }
+
+    @Test func savedSecretIsReusedWhileTheKeyIsUnchanged() async throws {
+        let store = InMemoryCredentialStore()
+        try store.save(APICredentials(key: "K", secret: "S"), exchange: "binance")
+        let m = model(store)
+        #expect(m.keyText == "K" && m.hasSavedKey && m.canSubmit) // empty secret field: keep the saved one
+        m.keyText = "OTHER"
+        #expect(!m.canSubmit) // a different key needs its own secret
+    }
+
+    @Test func removeForgetsTheKey() async throws {
+        let store = InMemoryCredentialStore()
+        try store.save(APICredentials(key: "K", secret: "S"), exchange: "binance")
+        let m = model(store)
+        m.remove()
+        #expect(store.load(exchange: "binance") == nil && !m.hasSavedKey && m.keyText == "")
     }
 }

@@ -175,3 +175,17 @@ func at(_ minute: Int) -> Date { Date(timeIntervalSince1970: 1_700_000_000 + Dou
         #expect(FileManager.default.fileExists(atPath: url.path))
     }
 }
+
+@Suite struct KeychainCredentialStoreTests {
+    @Test func roundTripsThroughTheRealKeychain() throws {
+        let store = KeychainCredentialStore(service: "com.caskbrew.tradestickies.tests.\(UUID().uuidString)")
+        defer { try? store.remove(exchange: "binance") }
+        #expect(store.load(exchange: "binance") == nil)
+        try store.save(APICredentials(key: "K1", secret: "S1"), exchange: "binance")
+        try store.save(APICredentials(key: "K2", secret: "S2"), exchange: "binance") // replaces
+        #expect(store.load(exchange: "binance") == APICredentials(key: "K2", secret: "S2"))
+        try store.remove(exchange: "binance")
+        #expect(store.load(exchange: "binance") == nil)
+        try store.remove(exchange: "binance") // removing nothing is fine
+    }
+}
