@@ -85,3 +85,25 @@ final class LockedBox<T>: @unchecked Sendable {
         set { lock.withLock { _value = newValue } }
     }
 }
+
+@Suite struct CoinIconsTests {
+    final class Calls: @unchecked Sendable { var urls: [String] = [] }
+
+    @Test func fetchesOnceThenServesFromDiskAndSurvivesFailures() async throws {
+        let dir = FileManager.default.temporaryDirectory.appending(path: "icons-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let calls = Calls()
+        let catalog = #"{"data":[{"assetCode":"GRAM","logoUrl":"https://x/gram.png"},{"assetCode":"NOLOGO"}]}"#
+        let fetch: CoinIcons.Fetch = { url in
+            calls.urls.append(url.absoluteString)
+            return url.lastPathComponent == "gram.png" ? (Data([1, 2, 3]), 200) : (Data(catalog.utf8), 200)
+        }
+        let icons = CoinIcons(directory: dir, fetch: fetch)
+        #expect(await icons.data(for: "gram") == Data([1, 2, 3]))
+        #expect(await CoinIcons(directory: dir, fetch: { _ in throw URLError(.notConnectedToInternet) }).data(for: "GRAM") == Data([1, 2, 3]))
+        #expect(await icons.data(for: "NOLOGO") == nil)
+        #expect(await icons.data(for: "UNKNOWN") == nil)
+        #expect(calls.urls.count == 2) // catalog once + the image once
+        #expect(await CoinIcons(directory: nil, fetch: { _ in throw URLError(.timedOut) }).data(for: "BTC") == nil)
+    }
+}

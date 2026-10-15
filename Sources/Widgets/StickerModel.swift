@@ -28,6 +28,14 @@ public final class StickerModel {
     /// The card reports its laid-out height here; the window follows it.
     @ObservationIgnored public var onCardHeight: ((CGFloat) -> Void)?
 
+    @ObservationIgnored private let icons: CoinIcons?
+    /// PNG of the base coin's logo once it is known; the header shows a monogram until then.
+    public private(set) var iconData: Data?
+
+    public func loadIcon() async {
+        if iconData == nil { iconData = await icons?.data(for: trade.base) }
+    }
+
     @ObservationIgnored private let store: TradeStore
     @ObservationIgnored private let hub: MarketDataHub
     @ObservationIgnored private let clock: @Sendable () -> Date
@@ -38,8 +46,9 @@ public final class StickerModel {
     /// `throttle` limits how often the UI is updated, not how fast data is received (FR-PRICE-7).
     public init(
         trade: StoredTrade, store: TradeStore, hub: MarketDataHub,
-        throttle: Duration = .milliseconds(250), clock: @escaping @Sendable () -> Date = { Date() }
+        throttle: Duration = .milliseconds(250), clock: @escaping @Sendable () -> Date = { Date() }, icons: CoinIcons? = nil
     ) {
+        self.icons = icons
         self.trade = trade
         self.store = store
         self.hub = hub

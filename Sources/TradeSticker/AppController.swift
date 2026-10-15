@@ -9,6 +9,7 @@ import Widgets
 final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var store: TradeStore!
     private var hub: MarketDataHub!
+    private let icons = CoinIcons(directory: FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?.appending(path: "TradeSticker/icons"))
     private let adapters: [any ExchangeAdapter] = [BinanceAdapter()]
     private var statusItem: NSStatusItem!
     private var windows: [UUID: StickerWindow] = [:]
@@ -107,7 +108,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
             Task { await existing.model.setVisible(true) }
             return
         }
-        let model = StickerModel(trade: trade, store: store, hub: hub)
+        let model = StickerModel(trade: trade, store: store, hub: hub, icons: icons)
         let window = StickerWindow(model: model, store: store, index: windows.count)
         window.onDelete = { [weak self] in self?.confirmDelete(trade.id) }
         windows[trade.id] = window

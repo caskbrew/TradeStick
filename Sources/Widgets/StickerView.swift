@@ -1,3 +1,4 @@
+import AppKit
 import Domain
 import MarketData
 import Presentation
@@ -142,10 +143,15 @@ struct StickerHeader: View {
     var body: some View {
         HStack(spacing: 10) {
             ZStack {
-                Circle().fill(Theme.monogram(model.trade.base))
-                Text(String(model.trade.base.prefix(1))).font(.system(size: 18, weight: .semibold)).foregroundStyle(.white)
+                if let data = model.iconData, let image = NSImage(data: data) {
+                    Image(nsImage: image).resizable().scaledToFit().clipShape(Circle())
+                } else {
+                    Circle().fill(Theme.monogram(model.trade.base))
+                    Text(String(model.trade.base.prefix(1))).font(.system(size: 18, weight: .semibold)).foregroundStyle(.white)
+                }
             }
             .frame(width: 38, height: 38)
+            .task { await model.loadIcon() }
 
             VStack(alignment: .leading, spacing: 2) {
                 Text("\(model.trade.base) / \(model.trade.quote)").font(.system(size: 16, weight: .semibold))
