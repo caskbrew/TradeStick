@@ -81,7 +81,7 @@ struct TransactionList: View {
         VStack(spacing: 0) { ForEach(rows) { tx in row(tx) } }
     }
 
-    private static let sideWidth: CGFloat = 40, amountWidth: CGFloat = 62, rateWidth: CGFloat = 62, agoWidth: CGFloat = 70
+    private static let sideWidth: CGFloat = 40, amountWidth: CGFloat = 52, rateWidth: CGFloat = 76, agoWidth: CGFloat = 62
 
     private var header: some View {
         HStack(spacing: 6) {
@@ -119,9 +119,9 @@ struct TransactionList: View {
                     .foregroundStyle(tx.side == .buy ? Theme.positive : Theme.negative)
                     .frame(width: Self.sideWidth, alignment: .leading)
                 Text(NumberFormat.quantity(tx.quantity)).frame(maxWidth: .infinity, alignment: .trailing)
-                    .minimumScaleFactor(0.7)
+                    .minimumScaleFactor(0.6)
                 Text(NumberFormat.amount(tx.amount)).frame(width: Self.amountWidth, alignment: .trailing)
-                Text(tx.rate.map(NumberFormat.price) ?? "—").foregroundStyle(Theme.secondaryText).frame(width: Self.rateWidth, alignment: .trailing)
+                Text(tx.rate.map(NumberFormat.price) ?? "—").foregroundStyle(Theme.secondaryText).minimumScaleFactor(0.6).frame(width: Self.rateWidth, alignment: .trailing)
                 Button { model.openEditForm(id: tx.id) } label: { Image(systemName: "pencil") }
                     .buttonStyle(.plain).foregroundStyle(Theme.secondaryText)
                 Button { confirming = tx.id } label: { Image(systemName: "trash") }

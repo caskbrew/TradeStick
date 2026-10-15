@@ -25,14 +25,14 @@ let now = Date(timeIntervalSince1970: 1_700_000_000)
 }
 
 @Suite struct NumberFormatTests {
-    @Test func pricesShowUpToEightDecimalsTrimmedToAtLeastTwo() {
+    @Test func pricesArePaddedToAFixedScaleAndShowMoreWhenSignificant() {
+        #expect(NumberFormat.price(dec("1.34")) == "1.3400")
+        #expect(NumberFormat.price(dec("0.055")) == "0.055000")
         #expect(NumberFormat.price(dec("0.0533333333")) == "0.05333333")
-        #expect(NumberFormat.price(dec("0.055")) == "0.055")
-        #expect(NumberFormat.price(dec("1.36")) == "1.36")
         #expect(NumberFormat.price(dec("67432.1")) == "67432.10")
-        #expect(NumberFormat.price(dec("67432.12345")) == "67432.12345")
-        #expect(NumberFormat.price(dec("1")) == "1.00")
-        #expect(NumberFormat.price(dec("0.5")) == "0.50")
+        #expect(NumberFormat.price(dec("1.123456789")) == "1.12345679")
+        #expect(NumberFormat.price(dec("1")) == "1.0000")
+        #expect(NumberFormat.price(dec("0.5")) == "0.500000")
         #expect(NumberFormat.price(dec("0.000001234567")) == "0.000001235")
         #expect(NumberFormat.price(dec("0.00000000012345")) == "0.0000000001") // 10 decimals at most
     }
@@ -70,8 +70,8 @@ let now = Date(timeIntervalSince1970: 1_700_000_000)
     }
 
     @Test func quantitiesAreGroupedAndTrimmed() {
-        #expect(NumberFormat.quantity(1500) == "1,500")
-        #expect(NumberFormat.quantity(dec("0.5")) == "0.5")
+        #expect(NumberFormat.quantity(1500) == "1,500.00")
+        #expect(NumberFormat.quantity(dec("0.5")) == "0.50")
         #expect(NumberFormat.quantity(dec("1234567.12345678")) == "1,234,567.12345678")
         #expect(NumberFormat.quantity(dec("0.123456789")) == "0.12345679")
     }

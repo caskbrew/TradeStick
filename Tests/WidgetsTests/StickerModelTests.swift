@@ -147,7 +147,7 @@ struct Fixture {
         f.model.edit(.amount, "15")
         await f.model.submit()
         #expect(f.model.form != nil)
-        #expect(f.model.formError == "Not enough open quantity: only 100 available")
+        #expect(f.model.formError == "Not enough open quantity: only 100.00 available")
         #expect(f.model.transactions.count == 1)
 
         f.model.edit(.quantity, "50")

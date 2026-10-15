@@ -13,18 +13,20 @@ public enum NumberFormat {
         return value.formatted(style)
     }
 
-    /// Prices and rates: up to 8 decimals like Binance's own price feed (more for tiny values, at most 10), trailing zeros dropped but never
-    /// fewer than 2 decimals (FR-FMT-2): `0.05333`, `67432.10`.
+    /// Prices and rates are zero-padded to a fixed scale by magnitude so columns keep their width
+    /// (`1.3400`, `0.055000`, `67432.10`), and show up to 8 decimals (10 for tiny values) when more are significant.
     public static func price(_ value: Decimal) -> String {
         let magnitude = value < 0 ? -value : value
-        var decimals = 8
+        var padded = magnitude >= 1000 ? 2 : 4
+        var most = 8
         if magnitude > 0 && magnitude < 1 {
             var leadingZeros = 0
             var probe = magnitude
             while probe < Decimal(string: "0.1")! { probe *= 10; leadingZeros += 1 }
-            decimals = max(leadingZeros + 4, 8)
+            padded = max(leadingZeros + 4, 6)
+            most = max(padded, 8)
         }
-        return plain(value, min: 2, max: min(max(decimals, 2), 10))
+        return plain(value, min: min(padded, 10), max: min(most, 10))
     }
 
     /// Quote-currency amounts: 2 decimals, up to 4 when |x| < 1 (FR-FMT-3).
@@ -56,9 +58,9 @@ public enum NumberFormat {
         return sign(shown) + quote(shown < 0 ? -shown : shown)
     }
 
-    /// Coin quantity: up to 8 decimals, no trailing zeros, thousands separators (FR-FMT-4).
+    /// Coin quantity: at least 2 and up to 8 decimals, thousands separators (FR-FMT-4).
     public static func quantity(_ value: Decimal) -> String {
-        plain(value, min: 0, max: 8, grouping: true)
+        plain(value, min: 2, max: 8, grouping: true)
     }
 
     /// `fraction` 0.1188 becomes `+11.88%` (FR-FMT-5).
