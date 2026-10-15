@@ -15,8 +15,7 @@ public struct StickerActions {
 }
 
 public struct StickerView: View {
-    public static let width: CGFloat = 380
-    public static let compactWidth: CGFloat = 310
+    public static let width: CGFloat = 310
 
     let model: StickerModel
     let actions: StickerActions
@@ -34,24 +33,21 @@ public struct StickerView: View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
             let freshness = model.price.freshness(at: context.date)
             let usable = freshness == .fresh && model.price.connection == .connected
-            let compact = model.trade.isCompact
             let card = VStack(alignment: .leading, spacing: 0) {
-              VStack(alignment: .leading, spacing: compact ? 6 : 10) {
+              VStack(alignment: .leading, spacing: 6) {
                 StickerHeader(model: model, actions: actions, live: usable)
                 PriceRow(model: model, freshness: freshness, usable: usable)
                 if model.status == .empty {
                     Button { model.addTransaction() } label: { Label("Add first transaction", systemImage: "plus").frame(maxWidth: .infinity) }
                         .buttonStyle(PillStyle(fill: Theme.field))
-                } else if model.trade.isCompact {
-                    CompactNumbers(model: model, usable: usable)
                 } else {
-                    NumbersBlock(model: model, usable: usable)
+                    CompactNumbers(model: model, usable: usable)
                 }
               }
             }
-            .padding(compact ? 10 : 12)
-            .frame(width: model.trade.isCompact ? Self.compactWidth : Self.width)
-            .background(GlassBackground(radius: compact ? 14 : 22))
+            .padding(10)
+            .frame(width: Self.width)
+            .background(GlassBackground(radius: 14))
             .foregroundStyle(.white)
             .environment(\.colorScheme, .dark)
             .contextMenu { StickerMenuItems(model: model, actions: actions) } // same items as the `⋯` menu (FR-WIN-11)
@@ -229,7 +225,6 @@ struct StickerMenuItems: View {
         let expanded = model.trade.isExpanded
         let count = model.transactions.count
         Button("Add transaction\t⌘B") { model.addTransaction() }
-        Button("\(model.trade.isCompact ? "Full" : "Compact") view\t⌘D") { model.toggleCompact() }
         Button("\(expanded ? "Hide" : "Show") transactions (\(count))\t⌘L") { model.toggleList() }
             .disabled(model.status == .empty)
         if model.status == .open {
@@ -268,7 +263,6 @@ struct ShortcutLayer: View {
         Group {
             Button("") { model.toggleForm() }.keyboardShortcut("b")
             Button("") { model.toggleList() }.keyboardShortcut("l")
-            Button("") { model.toggleCompact() }.keyboardShortcut("d")
             Button("") { Task { await model.requestClose(recoverInvestment: false) } }.keyboardShortcut("e")
             Button("") { Task { await model.requestClose(recoverInvestment: true) } }.keyboardShortcut("r")
             Button("") { actions.hide() }.keyboardShortcut("w")
@@ -361,56 +355,6 @@ struct FreshnessLabel: View {
 
 // MARK: Numbers
 
-struct NumbersBlock: View {
-    let model: StickerModel
-    let usable: Bool
-
-    var body: some View {
-        let summary = model.summary, pnl = model.pnl
-        let closed = model.status == .closed
-        let total = closed ? pnl.realized : pnl.total
-        let dim = !closed && !usable
-
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .top, spacing: 12) {
-                VStack(alignment: .leading, spacing: 3) {
-                    HStack(alignment: .firstTextBaseline, spacing: 4) {
-                        Text(total.map(NumberFormat.signedQuote) ?? "—").font(.system(size: 20, weight: .semibold, design: .rounded)).monospacedDigit()
-                            .lineLimit(1).minimumScaleFactor(0.5) // a 4-digit PnL used to wrap its last digit
-                        Text(model.trade.quote).font(.system(size: 11, weight: .medium)).foregroundStyle(Theme.secondaryText)
-                            .lineLimit(1).fixedSize()
-                    }
-                    .foregroundStyle(Theme.pnl(total.map(NumberFormat.displayedQuote)))
-                    .opacity(dim ? 0.45 : 1)
-                    if let ratio = closed ? finalRatio(summary) : pnl.ratio {
-                        HStack(spacing: 3) {
-                            Text(NumberFormat.displayedPercent(ratio) > 0 ? "▲" : NumberFormat.displayedPercent(ratio) < 0 ? "▼" : "")
-                            Text(NumberFormat.signedPercent(ratio)).monospacedDigit()
-                            if closed { Text("FINAL").font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.secondaryText) }
-                        }
-                        .font(.system(size: 13, weight: .medium)).foregroundStyle(Theme.pnl(NumberFormat.displayedPercent(ratio))).opacity(dim ? 0.45 : 1)
-                    }
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
-
-                Rectangle().fill(Theme.divider).frame(width: 1)
-
-                VStack(alignment: .leading, spacing: 4) {
-                    LabeledValue(label: "Rate", value: summary.entryPrice.map(NumberFormat.price) ?? "—")
-                    LabeledValue(label: model.trade.base, value: closed ? "—" : NumberFormat.quantity(summary.openQuantity))
-                    LabeledValue(label: model.trade.quote, value: closed ? "—" : NumberFormat.amount(summary.openCost))
-                    LabeledValue(label: "Value", value: closed ? "—" : model.currentPrice.map { NumberFormat.amount(summary.openQuantity * $0) } ?? "—")
-                }
-                .frame(width: 150, alignment: .bottom)
-                .frame(maxHeight: .infinity, alignment: .bottom)
-            }
-            .fixedSize(horizontal: false, vertical: true)
-        }
-    }
-
-    private func finalRatio(_ s: TradeSummary) -> Decimal? { s.openingAmount > 0 ? s.realized / s.openingAmount : nil }
-}
-
 /// Compact view: entry and amount on the left, PnL on the right, no frame and no extras.
 struct CompactNumbers: View {
     let model: StickerModel
@@ -428,12 +372,12 @@ struct CompactNumbers: View {
                 LabeledValue(label: model.trade.base, value: closed ? "—" : NumberFormat.quantity(summary.openQuantity))
                 LabeledValue(label: model.trade.quote, value: closed ? "—" : NumberFormat.amount(summary.openCost))
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+            .frame(maxHeight: .infinity, alignment: .bottomLeading)
             Rectangle().fill(Theme.divider).frame(width: 1)
             VStack(alignment: .trailing, spacing: 2) {
                 HStack(alignment: .firstTextBaseline, spacing: 4) {
-                    Text(total.map(NumberFormat.signedQuote) ?? "—").font(.system(size: 18, weight: .semibold, design: .rounded)).monospacedDigit()
-                        .lineLimit(1).minimumScaleFactor(0.5)
+                    Text(total.map(NumberFormat.signedQuote) ?? "—").font(.system(size: 32, weight: .semibold, design: .rounded)).monospacedDigit()
+                        .lineLimit(1).minimumScaleFactor(0.4)
                     Text(model.trade.quote).font(.system(size: 11, weight: .medium)).foregroundStyle(Theme.secondaryText).lineLimit(1).fixedSize()
                 }
                 .foregroundStyle(Theme.pnl(total.map(NumberFormat.displayedQuote)))
@@ -442,9 +386,10 @@ struct CompactNumbers: View {
                         Text(NumberFormat.displayedPercent(ratio) > 0 ? "▲" : NumberFormat.displayedPercent(ratio) < 0 ? "▼" : "")
                         Text(NumberFormat.signedPercent(ratio)).monospacedDigit()
                     }
-                    .font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.pnl(NumberFormat.displayedPercent(ratio)))
+                    .font(.system(size: 14, weight: .medium)).foregroundStyle(Theme.pnl(NumberFormat.displayedPercent(ratio)))
                 }
             }
+            .layoutPriority(1)
             .opacity(dim ? 0.45 : 1)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
         }
