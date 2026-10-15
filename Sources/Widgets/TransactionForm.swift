@@ -11,6 +11,7 @@ struct TransactionForm: View {
     var body: some View {
         let form = model.form
         VStack(alignment: .leading, spacing: 10) {
+            Text(model.editingID == nil ? "New transaction" : "Edit transaction").font(.system(size: 13, weight: .semibold))
             HStack {
                 Picker("", selection: Binding(get: { form?.side ?? .buy }, set: { model.form?.side = $0 })) {
                     Text("Buy").tag(Side.buy)
@@ -59,6 +60,7 @@ struct TransactionForm: View {
 struct TransactionList: View {
     let model: StickerModel
     @State private var confirming: UUID?
+    @State private var hovering: UUID?
 
     private static let rowHeight = StickerModel.listRowHeight
 
@@ -118,6 +120,7 @@ struct TransactionList: View {
             } else {
                 Button { model.openEditForm(id: tx.id) } label: { Image(systemName: "pencil") }
                     .buttonStyle(.plain).foregroundStyle(Theme.secondaryText).frame(width: Self.iconWidth)
+                    .opacity(hovering == tx.id ? 1 : 0)
                 TimelineView(.periodic(from: .now, by: 30)) { ctx in
                     Text(Elapsed.ago(from: tx.occurredAt, to: ctx.date))
                         .help(tx.occurredAt.formatted(date: .abbreviated, time: .shortened))
@@ -135,8 +138,16 @@ struct TransactionList: View {
                 Text(tx.rate.map(NumberFormat.price) ?? "—").foregroundStyle(Theme.secondaryText).minimumScaleFactor(0.6).frame(width: Self.rateWidth, alignment: .trailing)
                 pnl(model.pnl(of: tx))
                 Button { confirming = tx.id } label: { Image(systemName: "trash") }
-                    .buttonStyle(.plain).foregroundStyle(Theme.negative.opacity(0.8))
+                    .buttonStyle(.plain).foregroundStyle(Theme.negative.opacity(0.8)).opacity(hovering == tx.id ? 1 : 0)
             }
+        }
+        .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(.white.opacity(hovering == tx.id && confirming == nil ? 0.06 : 0)))
+        .contentShape(Rectangle())
+        .onHover { inside in if inside { hovering = tx.id } else if hovering == tx.id { hovering = nil } }
+        .onTapGesture(count: 2) { model.openEditForm(id: tx.id) }
+        .contextMenu {
+            Button("Edit…") { model.openEditForm(id: tx.id) }
+            Button("Delete…", role: .destructive) { confirming = tx.id }
         }
         .font(.system(size: 12)).monospacedDigit().lineLimit(1)
         .frame(height: Self.rowHeight)

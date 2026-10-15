@@ -37,7 +37,6 @@ public struct StickerView: View {
                     Text("Add first transaction").font(.system(size: 13)).foregroundStyle(Theme.secondaryText)
                 } else {
                     NumbersBlock(model: model, usable: usable)
-                    SideTotals(model: model)
                 }
                 BottomSection(model: model)
             }
@@ -239,7 +238,7 @@ struct FreshnessLabel: View {
                 Text("Live").font(.system(size: 11)).foregroundStyle(Theme.secondaryText)
             }
         } else if let received = state.receivedAt {
-            Label("Price from " + received.formatted(.dateTime.hour().minute().second()), systemImage: "clock")
+            Label("Price \(Elapsed.duration(Date().timeIntervalSince(received))) old", systemImage: "exclamationmark.triangle.fill")
                 .font(.system(size: 11)).foregroundStyle(Theme.warning).lineLimit(1).fixedSize()
         } else {
             Text("Waiting for price…").font(.system(size: 11)).foregroundStyle(Theme.secondaryText)
@@ -278,13 +277,15 @@ struct NumbersBlock: View {
                         }
                         .font(.system(size: 16, weight: .medium)).foregroundStyle(Theme.pnl(NumberFormat.displayedPercent(ratio))).opacity(dim ? 0.45 : 1)
                     }
+                    DurationLabel(model: model).padding(.top, 4)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
 
                 VStack(alignment: .leading, spacing: 6) {
                     LabeledValue(label: "Entry (avg)", value: summary.entryPrice.map(NumberFormat.price) ?? "—")
                     LabeledValue(label: "Amount", value: closed ? "—" : "\(NumberFormat.quantity(summary.openQuantity)) \(model.trade.base)")
-                    LabeledValue(label: "Total", value: closed ? "—" : "\(NumberFormat.amount(summary.openCost)) \(model.trade.quote)")
+                    LabeledValue(label: "Cost", value: closed ? "—" : "\(NumberFormat.amount(summary.openCost)) \(model.trade.quote)")
+                    LabeledValue(label: "Value", value: closed ? "—" : model.currentPrice.map { "\(NumberFormat.amount(summary.openQuantity * $0)) \(model.trade.quote)" } ?? "—")
                 }
                 .frame(width: 168)
             }
@@ -312,12 +313,15 @@ struct LabeledValue: View {
     }
 }
 
-struct SideTotals: View {
+/// Elapsed trade time, shown under the PnL as trade metadata.
+struct DurationLabel: View {
     let model: StickerModel
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 30)) { ctx in
-            if let span = model.duration(at: ctx.date) { LabeledValue(label: "Duration", value: Elapsed.duration(span)) }
+            if let span = model.duration(at: ctx.date) {
+                Label(Elapsed.duration(span), systemImage: "clock").font(.system(size: 12)).foregroundStyle(Theme.secondaryText)
+            }
         }
     }
 }
@@ -332,9 +336,9 @@ struct ActionRow: View {
         let open = model.summary.openQuantity > 0
         let expanded = model.trade.isExpanded
         HStack(spacing: 8) {
-            Button { model.openForm(side: opening) } label: { Label("Add", systemImage: "plus").frame(maxWidth: .infinity) }
+            Button { model.openForm(side: opening) } label: { Label("Transaction", systemImage: "plus").frame(maxWidth: .infinity) }
                 .buttonStyle(PillStyle(fill: Theme.field))
-                .help("Add transaction")
+                .help("Add a buy or sell record (no order is sent)")
             if model.status == .open {
                 Button { model.openCloseForm() } label: { Label("Close", systemImage: "checkmark").frame(maxWidth: .infinity) }
                     .buttonStyle(PillStyle(fill: Theme.accent)).disabled(!open)
