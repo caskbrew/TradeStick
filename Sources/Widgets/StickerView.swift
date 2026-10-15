@@ -32,7 +32,8 @@ public struct StickerView: View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
             let freshness = model.price.freshness(at: context.date)
             let usable = freshness == .fresh && model.price.connection == .connected
-            let card = VStack(alignment: .leading, spacing: 12) {
+            let card = VStack(alignment: .leading, spacing: 0) {
+              VStack(alignment: .leading, spacing: 12) {
                 StickerHeader(model: model, actions: actions, live: usable)
                 PriceRow(model: model, freshness: freshness, usable: usable)
                 if model.status == .empty {
@@ -41,7 +42,8 @@ public struct StickerView: View {
                 } else {
                     NumbersBlock(model: model, usable: usable)
                 }
-                BottomSection(model: model).padding(.top, -12)
+              }
+                BottomSection(model: model)
             }
             .padding(16)
             .frame(width: Self.width)
@@ -192,7 +194,7 @@ struct BottomSection: View {
                 TransactionList(model: model)
             }
         }
-        .padding(.top, 12) // cancels the negative padding below, which removes the card's spacing while closed
+        .padding(.top, shape.expanded ? 12 : 0) // the card VStack has no spacing before this section: it supplies its own
     }
 }
 
