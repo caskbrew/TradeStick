@@ -7,7 +7,7 @@ V=${1:?usage: package.sh <version>}
 swift build -c release --arch arm64 --arch x86_64
 BIN=$(swift build -c release --arch arm64 --arch x86_64 --show-bin-path)
 APP=dist/TradeStickies.app
-rm -rf dist && mkdir -p $APP/Contents/{MacOS,Resources}
+rm -rf $APP dist/*.zip dist/AppIcon.iconset && mkdir -p $APP/Contents/{MacOS,Resources}
 cp $BIN/TradeSticker $APP/Contents/MacOS/TradeStickies
 cp -R $BIN/TradeSticker_TradeSticker.bundle $BIN/GRDB_GRDB.bundle $APP/Contents/Resources/ 2>/dev/null || true
 
