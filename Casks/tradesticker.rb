@@ -1,12 +1,11 @@
 cask "tradesticker" do
   version "0.1.0"
-  sha256 "18f06f3294f73c2f419f75fefb7e1dbdc4806fad362800a7e055b5a6b079bac2"
+  sha256 "48d61aeb177f7e855b71927278420d945ac3670f99756fec7d501119eda019c3"
 
-  # TODO: replace OWNER/REPO with the real GitHub repository.
-  url "https://github.com/OWNER/REPO/releases/download/v#{version}/TradeSticker-#{version}.zip"
+  url "https://github.com/caskbrew/TradeStickers/releases/download/v#{version}/TradeSticker-#{version}.zip"
   name "TradeSticker"
   desc "Floating sticker windows with live PnL for your crypto trades"
-  homepage "https://github.com/OWNER/REPO"
+  homepage "https://github.com/caskbrew/TradeStickers"
 
   depends_on macos: ">= :sequoia"
 
