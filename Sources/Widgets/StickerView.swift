@@ -49,9 +49,9 @@ public struct StickerView: View {
                 }
               }
             }
-            .padding(compact ? 8 : 12)
+            .padding(compact ? 10 : 12)
             .frame(width: model.trade.isCompact ? Self.compactWidth : Self.width)
-            .background(GlassBackground())
+            .background(GlassBackground(radius: compact ? 14 : 22))
             .foregroundStyle(.white)
             .environment(\.colorScheme, .dark)
             .contextMenu { StickerMenuItems(model: model, actions: actions) } // same items as the `⋯` menu (FR-WIN-11)
