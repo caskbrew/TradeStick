@@ -217,7 +217,7 @@ struct TransactionList: View {
                 pnl(model.pnl(of: tx))
                 Text(NumberFormat.quantity(tx.quantity)).frame(maxWidth: .infinity, alignment: .trailing)
                     .minimumScaleFactor(0.6)
-                Text(NumberFormat.amount(tx.amount)).frame(width: Self.amountWidth, alignment: .trailing)
+                Text(NumberFormat.quote(tx.amount)).frame(width: Self.amountWidth, alignment: .trailing)
                 Text(tx.rate.map(NumberFormat.price) ?? "—").foregroundStyle(Theme.secondaryText).minimumScaleFactor(0.6).frame(width: Self.rateWidth, alignment: .trailing)
             }
         }

@@ -207,7 +207,6 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let model = StickerModel(trade: trade, store: store, hub: hub, icons: icons)
         let window = StickerWindow(model: model, store: store, index: windows.count)
         window.onDelete = { [weak self] in self?.confirmDelete(trade.id) }
-        window.onOpenAPIKeys = { [weak self] in self?.showAPIKeys() }
         model.onImportHistory = { [weak self, weak model] in
             if let model { self?.showImport(for: model) }
         }
@@ -257,6 +256,10 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
             menu.addItem(item)
         }
         menu.addItem(.separator())
+        let keys = NSMenuItem(title: "API Keys…", action: #selector(openAPIKeysWindow), keyEquivalent: ",")
+        keys.target = self
+        menu.addItem(keys)
+        menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "Quit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
     }
 
@@ -288,6 +291,8 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         window.makeKeyAndOrderFront(nil)
     }
 
+    @objc private func openAPIKeysWindow() { showAPIKeys() }
+
     private func showAPIKeys() {
         if let existing = apiKeysWindow {
             NSApp.activate()
@@ -298,7 +303,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let model = APIKeysModel(store: credentials, check: { try await api.check($0) })
         let view = APIKeysView(model: model, onClose: { [weak self] in self?.apiKeysWindow?.close(); self?.apiKeysWindow = nil })
         let window = NSWindow(contentViewController: NSHostingController(rootView: view))
-        window.title = "Exchange API Keys"
+        window.title = "API Keys"
         window.styleMask = [.titled, .closable]
         window.isReleasedWhenClosed = false
         window.center()

@@ -8,11 +8,9 @@ import SwiftUI
 public struct StickerActions {
     public var hide: () -> Void
     public var delete: () -> Void
-    public var openAPIKeys: () -> Void
-    public init(hide: @escaping () -> Void, delete: @escaping () -> Void, openAPIKeys: @escaping () -> Void = {}) {
+    public init(hide: @escaping () -> Void, delete: @escaping () -> Void) {
         self.hide = hide
         self.delete = delete
-        self.openAPIKeys = openAPIKeys
     }
 }
 
@@ -245,7 +243,9 @@ struct StickerMenuItems: View {
 
     var body: some View {
         let expanded = model.trade.isExpanded
-        Button("Add Tx") { model.addTransaction() }.keyboardShortcut("b")
+        Button("Add Tx manual") { model.addTransaction() }.keyboardShortcut("b")
+        Button("Add Tx from Binance") { model.importHistory() }.keyboardShortcut("b", modifiers: [.command, .shift])
+            .disabled(model.trade.exchange != "binance")
         Button("\(expanded ? "Hide" : "Show") history") { model.toggleList() }
             .keyboardShortcut("l").disabled(model.status == .empty)
         if model.status == .open {
@@ -267,8 +267,6 @@ struct StickerMenuItems: View {
         Button("Default") { model.zoom(by: 0) }.keyboardShortcut("0")
         Divider()
         Button(model.isPinned ? "Unpin Window" : "Pin Window") { model.togglePin() }.keyboardShortcut("p")
-        Divider()
-        Button("API Keys…", action: actions.openAPIKeys)
         Divider()
         Button("Hide Window", action: actions.hide).keyboardShortcut("w")
         Divider()
@@ -292,6 +290,7 @@ struct ShortcutLayer: View {
     var body: some View {
         Group {
             Button("") { model.toggleForm() }.keyboardShortcut("b")
+            Button("") { model.importHistory() }.keyboardShortcut("b", modifiers: [.command, .shift])
             Button("") { model.toggleList() }.keyboardShortcut("l")
             Button("") { Task { await model.requestClose(recoverInvestment: false) } }.keyboardShortcut("e")
             Button("") { Task { await model.requestClose(recoverInvestment: true) } }.keyboardShortcut("r")

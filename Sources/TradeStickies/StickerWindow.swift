@@ -87,7 +87,6 @@ final class StickerWindow: NSObject, NSWindowDelegate {
     private var saveTask: Task<Void, Never>?
     var onHide: (() -> Void)?
     var onDelete: (() -> Void)?
-    var onOpenAPIKeys: (() -> Void)?
 
     init(model: StickerModel, store: TradeStore, index: Int) {
         self.model = model
@@ -95,7 +94,7 @@ final class StickerWindow: NSObject, NSWindowDelegate {
         self.anchor = Self.initialAnchor(for: model.trade.position, index: index)
         host = NSHostingView(rootView: AnyView(EmptyView()))
         super.init()
-        let actions = StickerActions(hide: { [weak self] in self?.hide() }, delete: { [weak self] in self?.onDelete?() }, openAPIKeys: { [weak self] in self?.onOpenAPIKeys?() })
+        let actions = StickerActions(hide: { [weak self] in self?.hide() }, delete: { [weak self] in self?.onDelete?() })
         // Fills the window and pins the card to the top, so a card that is still growing is never centred.
         host.rootView = AnyView(StickerView(model: model, actions: actions))
         host.sizingOptions = [] // the window is sized by us, never by SwiftUI
