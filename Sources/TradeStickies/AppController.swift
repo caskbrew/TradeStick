@@ -304,7 +304,12 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let view = APIKeysView(model: model, onClose: { [weak self] in self?.apiKeysWindow?.close(); self?.apiKeysWindow = nil })
         let window = NSWindow(contentViewController: NSHostingController(rootView: view))
         window.title = "API Keys"
-        window.styleMask = [.titled, .closable]
+        window.styleMask = [.titled, .closable, .fullSizeContentView]
+        window.titlebarAppearsTransparent = true
+        window.titleVisibility = .hidden
+        window.isMovableByWindowBackground = true
+        window.appearance = NSAppearance(named: .darkAqua)
+        window.backgroundColor = NSColor(red: 0.10, green: 0.11, blue: 0.14, alpha: 1)
         window.isReleasedWhenClosed = false
         window.center()
         apiKeysWindow = window
