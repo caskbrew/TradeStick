@@ -25,12 +25,12 @@ let now = Date(timeIntervalSince1970: 1_700_000_000)
 }
 
 @Suite struct NumberFormatTests {
-    @Test func pricesArePaddedToAFixedScaleAndShowMoreWhenSignificant() {
+    @Test func pricesHaveAFixedScalePerMagnitude() {
         #expect(NumberFormat.price(dec("1.34")) == "1.3400")
         #expect(NumberFormat.price(dec("0.055")) == "0.055000")
-        #expect(NumberFormat.price(dec("0.0533333333")) == "0.05333333")
+        #expect(NumberFormat.price(dec("0.0533333333")) == "0.053333")
         #expect(NumberFormat.price(dec("67432.1")) == "67432.10")
-        #expect(NumberFormat.price(dec("1.123456789")) == "1.12345679")
+        #expect(NumberFormat.price(dec("1.123456789")) == "1.1235")
         #expect(NumberFormat.price(dec("1")) == "1.0000")
         #expect(NumberFormat.price(dec("0.5")) == "0.500000")
         #expect(NumberFormat.price(dec("0.000001234567")) == "0.000001235")
@@ -232,7 +232,7 @@ let now = Date(timeIntervalSince1970: 1_700_000_000)
 @Suite struct DraftEditTests {
     @Test func prefilledFromTransactionKeepsAmountAndDerivesRate() {
         let d = TransactionDraft(side: .buy, occurredAt: now, quantity: dec("1000"), amount: dec("50.123456"))
-        #expect(d.quantityText == "1000" && d.amountText == "50.123456" && d.rateText == "0.05012346")
+        #expect(d.quantityText == "1000" && d.amountText == "50.123456" && d.rateText == "0.050123")
         #expect(d.driver == .amount)
     }
 }

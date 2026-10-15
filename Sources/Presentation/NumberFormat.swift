@@ -13,20 +13,18 @@ public enum NumberFormat {
         return value.formatted(style)
     }
 
-    /// Prices and rates are zero-padded to a fixed scale by magnitude so columns keep their width
-    /// (`1.3400`, `0.055000`, `67432.10`), and show up to 8 decimals (10 for tiny values) when more are significant.
+    /// Prices and rates always have the same number of decimals for the same magnitude, everywhere on screen
+    /// (`1.3400`, `0.055000`, `67432.10`), so a rate never looks longer than the price next to it.
     public static func price(_ value: Decimal) -> String {
         let magnitude = value < 0 ? -value : value
-        var padded = magnitude >= 1000 ? 2 : 4
-        var most = 8
+        var decimals = magnitude >= 1000 ? 2 : 4
         if magnitude > 0 && magnitude < 1 {
             var leadingZeros = 0
             var probe = magnitude
             while probe < Decimal(string: "0.1")! { probe *= 10; leadingZeros += 1 }
-            padded = max(leadingZeros + 4, 6)
-            most = max(padded, 8)
+            decimals = min(max(leadingZeros + 4, 6), 10)
         }
-        return plain(value, min: min(padded, 10), max: min(most, 10))
+        return plain(value, min: decimals, max: decimals)
     }
 
     /// Quote-currency amounts: 2 decimals, up to 4 when |x| < 1 (FR-FMT-3).
