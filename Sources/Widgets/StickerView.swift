@@ -32,7 +32,6 @@ public struct StickerView: View {
             VStack(alignment: .leading, spacing: 12) {
                 StickerHeader(model: model, actions: actions)
                 PriceRow(model: model, freshness: freshness, usable: usable)
-                Divider().overlay(Theme.divider)
                 if model.status == .empty {
                     Text("Add first transaction").font(.system(size: 13)).foregroundStyle(Theme.secondaryText)
                 } else {
@@ -123,7 +122,6 @@ struct BottomSection: View {
     @ViewBuilder
     private func content(_ shape: Shape) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            Divider().overlay(Theme.divider)
             if shape.form { TransactionForm(model: model) } else { ActionRow(model: model) }
             if shape.expanded {
                 Divider().overlay(Theme.divider)
@@ -258,9 +256,10 @@ struct NumbersBlock: View {
         let total = closed ? pnl.realized : pnl.total
         let dim = !closed && !usable
 
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .top, spacing: 14) {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top, spacing: 12) {
                 VStack(alignment: .leading, spacing: 3) {
+                    Text("PnL").font(.system(size: 12)).foregroundStyle(Theme.secondaryText)
                     HStack(alignment: .firstTextBaseline, spacing: 4) {
                         Text(total.map(NumberFormat.signedQuote) ?? "—").font(.system(size: 24, weight: .semibold, design: .rounded)).monospacedDigit()
                             .lineLimit(1).minimumScaleFactor(0.5) // a 4-digit PnL used to wrap its last digit
@@ -277,9 +276,10 @@ struct NumbersBlock: View {
                         }
                         .font(.system(size: 16, weight: .medium)).foregroundStyle(Theme.pnl(NumberFormat.displayedPercent(ratio))).opacity(dim ? 0.45 : 1)
                     }
-                    DurationLabel(model: model).padding(.top, 4)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
+
+                Rectangle().fill(Theme.divider).frame(width: 1)
 
                 VStack(alignment: .leading, spacing: 6) {
                     LabeledValue(label: "Entry (avg)", value: summary.entryPrice.map(NumberFormat.price) ?? "—")
@@ -289,6 +289,10 @@ struct NumbersBlock: View {
                 }
                 .frame(width: 168)
             }
+            .padding(12)
+            .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Color.white.opacity(0.05)))
+            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Theme.divider, lineWidth: 1))
+            DurationLabel(model: model)
                 if dim, model.currentPrice != nil || model.status == .open {
                 Label("based on old price", systemImage: "exclamationmark.triangle.fill")
                     .font(.system(size: 11)).foregroundStyle(Theme.warning)
@@ -336,7 +340,7 @@ struct ActionRow: View {
         let open = model.summary.openQuantity > 0
         let expanded = model.trade.isExpanded
         HStack(spacing: 8) {
-            Button { model.openForm(side: opening) } label: { Label("Transaction", systemImage: "plus").frame(maxWidth: .infinity) }
+            Button { model.openForm(side: opening) } label: { Label("Add", systemImage: "plus").frame(maxWidth: .infinity) }
                 .buttonStyle(PillStyle(fill: Theme.field))
                 .help("Add a buy or sell record (no order is sent)")
             if model.status == .open {
@@ -347,7 +351,7 @@ struct ActionRow: View {
                 Button { model.setExpanded(!expanded) } label: {
                     HStack(spacing: 5) {
                         Image(systemName: "list.bullet")
-                        Text("\(model.transactions.count)").monospacedDigit()
+                        Text("\(model.transactions.count) transaction\(model.transactions.count == 1 ? "" : "s")").monospacedDigit().lineLimit(1).fixedSize()
                         Image(systemName: "chevron.down").font(.system(size: 9, weight: .bold)).rotationEffect(.degrees(expanded ? 180 : 0))
                     }
                     .padding(.horizontal, 6)

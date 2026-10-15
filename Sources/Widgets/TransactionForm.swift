@@ -23,9 +23,9 @@ struct TransactionForm: View {
                     .labelsHidden().datePickerStyle(.compact)
             }
             HStack(spacing: 8) {
-                field("Quantity", .quantity, text: form?.quantityText ?? "", auto: false)
-                field("Amount", .amount, text: form?.amountText ?? "", auto: form?.isAuto(.amount) ?? false)
-                field("Rate", .rate, text: form?.rateText ?? "", auto: form?.isAuto(.rate) ?? false)
+                field("Quantity (\(model.trade.base))", .quantity, text: form?.quantityText ?? "", auto: false)
+                field("Amount (\(model.trade.quote))", .amount, text: form?.amountText ?? "", auto: form?.isAuto(.amount) ?? false)
+                field("Rate (\(model.trade.quote))", .rate, text: form?.rateText ?? "", auto: form?.isAuto(.rate) ?? false)
             }
             if let message = model.formError ?? model.formProblems.first?.message {
                 Text(message).font(.system(size: 12)).foregroundStyle(Theme.negative) // errors may be red (FR-UI-8)
