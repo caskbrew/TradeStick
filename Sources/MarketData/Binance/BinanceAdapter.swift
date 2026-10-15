@@ -53,12 +53,21 @@ public final class BinanceAdapter: ExchangeAdapter, Sendable {
                 do {
                     task.resume()
                     // A successful ping means the socket is open.
-                    try await withCheckedThrowingContinuation { (c: CheckedContinuation<Void, any Error>) in
-                        task.sendPing { error in
-                            if let error { c.resume(throwing: error) } else { c.resume() }
+                    try await Self.ping(task, timeout: .seconds(10))
+                    continuation.yield(.connected)
+                    // A socket that died silently (sleep, Wi-Fi change) never errors on its own: keep pinging, and
+                    // end the stream when a ping goes unanswered so the hub reconnects.
+                    let keepalive = Task {
+                        while !Task.isCancelled {
+                            try await Task.sleep(for: .seconds(15))
+                            try await Self.ping(task, timeout: .seconds(10))
                         }
                     }
-                    continuation.yield(.connected)
+                    defer { keepalive.cancel() }
+                    let watcher = Task {
+                        do { try await keepalive.value } catch is CancellationError { return } catch { continuation.finish(throwing: error) }
+                    }
+                    defer { watcher.cancel() }
                     while true {
                         let data: Data
                         switch try await task.receive() {
@@ -76,6 +85,26 @@ public final class BinanceAdapter: ExchangeAdapter, Sendable {
                 reader.cancel()
                 task.cancel(with: .goingAway, reason: nil)
             }
+        }
+    }
+
+    /// A ping answered within `timeout`, else a `URLError.timedOut`.
+    private static func ping(_ task: URLSessionWebSocketTask, timeout: Duration) async throws {
+        try await withThrowingTaskGroup(of: Void.self) { group in
+            group.addTask {
+                try await withCheckedThrowingContinuation { (c: CheckedContinuation<Void, any Error>) in
+                    task.sendPing { error in
+                        if let error { c.resume(throwing: error) } else { c.resume() }
+                    }
+                }
+            }
+            group.addTask {
+                try await Task.sleep(for: timeout)
+                task.cancel(with: .goingAway, reason: nil) // fails the pending ping, so the group can finish
+                throw URLError(.timedOut)
+            }
+            defer { group.cancelAll() }
+            try await group.next()
         }
     }
 }

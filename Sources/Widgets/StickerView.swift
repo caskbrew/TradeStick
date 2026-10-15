@@ -218,7 +218,7 @@ struct StickerHeader: View {
                     .font(.system(size: 11)).foregroundStyle(Theme.secondaryText)
             }
             Spacer(minLength: 4)
-            if live { LiveDot() }
+            if live { LiveDot() } else if model.wantsPrice { ProgressView().controlSize(.small).scaleEffect(0.7).help("Connecting to the exchange…") }
             StatusBadge(status: model.status)
             Menu {
                 Button("Hide Window", action: actions.hide)
@@ -362,11 +362,6 @@ struct NumbersBlock: View {
             .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Color.white.opacity(0.05)))
             .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Theme.divider, lineWidth: 1))
             DurationLabel(model: model)
-                if dim, model.currentPrice != nil || model.status == .open {
-                Label("based on old price", systemImage: "exclamationmark.triangle.fill")
-                    .font(.system(size: 11)).foregroundStyle(Theme.warning)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
-            }
         }
     }
 

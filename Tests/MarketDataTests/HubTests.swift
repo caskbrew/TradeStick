@@ -45,6 +45,20 @@ struct DownExchange: ExchangeAdapter {
         )
     }
 
+    @Test func reconnectAllReplacesAnOpenSocketAtOnce() async throws {
+        let fake = FakeExchange(id: "fake")
+        let hub = makeHub([fake])
+        let sub = try await hub.subscribe(key)
+        await waitUntil { fake.connectCount == 1 }
+        _ = await next(sub) { $0.connection == .connected }
+        await hub.reconnectAll() // e.g. after the Mac woke up: the old socket is dead but silent
+        await waitUntil { fake.connectCount == 2 }
+        fake.emit(tick("1.36", t: 10))
+        let state = await next(sub) { $0.tick != nil && $0.connection == .connected }
+        #expect(state?.tick?.price == dec("1.36"))
+        await hub.unsubscribe(sub)
+    }
+
     @Test func twentySubscribersShareOneFeed() async throws {
         let fake = FakeExchange(id: "fake")
         let hub = makeHub([fake])

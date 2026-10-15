@@ -48,6 +48,7 @@ public actor MarketDataHub {
         var lastEventTime: Date?
         var subscribers: [UUID: AsyncStream<PriceState>.Continuation] = [:]
         var tasks: [Task<Void, Never>] = []
+        var runTask: Task<Void, Never>?
     }
 
     private let adapters: [String: any ExchangeAdapter]
@@ -97,11 +98,22 @@ public actor MarketDataHub {
     private func startFeed(_ key: Key) -> Feed {
         let feed = Feed()
         feeds[key] = feed
-        feed.tasks = [
-            Task { await self.fetchSnapshot(key, feed) },
-            Task { await self.run(key, feed) },
-        ]
+        let run = Task { await self.run(key, feed) }
+        feed.runTask = run
+        feed.tasks = [Task { await self.fetchSnapshot(key, feed) }, run]
         return feed
+    }
+
+    /// Drops the current connection of every feed and connects again at once, resetting the retry delay.
+    /// Called after the Mac wakes up or the network comes back: a socket that was open before the sleep is
+    /// dead but does not know it yet.
+    public func reconnectAll() {
+        for (key, feed) in feeds {
+            feed.runTask?.cancel()
+            let run = Task { await self.run(key, feed) }
+            feed.runTask = run
+            feed.tasks.append(run)
+        }
     }
 
     private func remove(_ id: UUID, _ key: Key) {

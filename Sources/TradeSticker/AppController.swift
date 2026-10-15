@@ -1,4 +1,6 @@
 import AppKit
+import Network
+import os
 import Domain
 import MarketData
 import Persistence
@@ -9,6 +11,7 @@ import Widgets
 final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var store: TradeStore!
     private var hub: MarketDataHub!
+    private var pathMonitor: NWPathMonitor?
     private let icons = CoinIcons(directory: FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?.appending(path: "TradeSticker/icons"))
     private let adapters: [any ExchangeAdapter] = [BinanceAdapter()]
     private var statusItem: NSStatusItem!
@@ -32,6 +35,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
             return
         }
         hub = MarketDataHub(adapters: adapters)
+        watchConnectivity()
 
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         statusItem.button?.image = NSImage(systemSymbolName: "note.text", accessibilityDescription: "TradeSticker")
@@ -41,6 +45,30 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         for trade in (try? store.trades()) ?? [] where trade.isVisible { open(trade, activate: false) }
         if CommandLine.arguments.contains("--selftest-window") { Task { await selfTestWindow() } }
+    }
+
+    /// Sockets die silently when the Mac sleeps or the network changes: reconnect on wake and when the
+    /// network comes back after being gone.
+    private func watchConnectivity() {
+        let hub = hub!
+        NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { _ in
+            Task {
+                try? await Task.sleep(for: .seconds(2)) // let Wi-Fi come up
+                await hub.reconnectAll()
+            }
+        }
+        let monitor = NWPathMonitor()
+        let wasOffline = OSAllocatedUnfairLock(initialState: false)
+        monitor.pathUpdateHandler = { path in
+            let online = path.status == .satisfied
+            let recovered = wasOffline.withLock { offline -> Bool in
+                defer { offline = !online }
+                return offline && online
+            }
+            if recovered { Task { await hub.reconnectAll() } }
+        }
+        monitor.start(queue: DispatchQueue(label: "tradesticker.network"))
+        pathMonitor = monitor
     }
 
     private func seedDemo() throws {
