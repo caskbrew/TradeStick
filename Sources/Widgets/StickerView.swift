@@ -208,24 +208,26 @@ struct StickerHeader: View {
             }
             Spacer(minLength: 4)
             if model.status != .open { StatusBadge(status: model.status) }
-            HStack(spacing: -2) {
+            // Each button is a 26pt circle centred on its glyph: the click area is the circle, not the glyph.
+            HStack(spacing: -3) {
             Button { model.togglePin() } label: {
-                Image(systemName: model.isPinned ? "pin.fill" : "pin").rotationEffect(.degrees(-45)).frame(width: 20, height: 24).offset(y: -6)
+                Image(systemName: model.isPinned ? "pin.fill" : "pin").rotationEffect(.degrees(-45))
+                    .frame(width: 26, height: 26).contentShape(Circle()).offset(y: -6)
             }
             .buttonStyle(.plain).foregroundStyle(model.isPinned ? Color.accentColor : Theme.secondaryText)
             .help(model.isPinned ? "Unpin: allow moving the window" : "Pin: lock the window position")
             ZStack {
-                // The glyph is a plain view (same offset as the pin); the menu on top only catches the click.
-                Text("\u{22EE}").font(.system(size: 16, weight: .bold)).offset(y: -6).allowsHitTesting(false)
+                // The glyph is a plain view; the menu on top only catches the click.
+                Text("\u{22EE}").font(.system(size: 16, weight: .bold)).allowsHitTesting(false)
                 Menu {
                     StickerMenuItems(model: model, actions: actions)
                 } label: {
-                    Color.clear.frame(width: 30, height: 34).contentShape(Rectangle())
+                    Color.clear.frame(width: 26, height: 26).contentShape(Circle())
                 }
                 .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
-                .offset(x: 3, y: -3) // click area is larger than the 24pt layout box, centred on the glyph
+                .clipShape(Circle())
             }
-            .frame(width: 24, height: 24)
+            .frame(width: 26, height: 26).offset(y: -6)
             }
             .padding(.trailing, -8)
         }
