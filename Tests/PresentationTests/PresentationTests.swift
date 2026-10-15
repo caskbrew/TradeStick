@@ -173,11 +173,20 @@ let now = Date(timeIntervalSince1970: 1_700_000_000)
         var d = draft()
         d.edit(.quantity, "1")
         d.edit(.amount, "1")
+        d.isNow = false
         d.occurredAt = now.addingTimeInterval(59)
         #expect(d.savable(now: now) != nil)
         d.occurredAt = now.addingTimeInterval(61)
         #expect(d.problems(now: now) == [.timeInFuture])
         #expect(d.savable(now: now) == nil)
+    }
+
+    @Test func nowIsStampedAtSaveTimeUntilATimeIsPicked() {
+        var d = draft() // opened an hour ago
+        #expect(d.isNow && d.time(at: now) == now)
+        d.isNow = false
+        d.occurredAt = now.addingTimeInterval(-3600)
+        #expect(d.time(at: now) == now.addingTimeInterval(-3600))
     }
 
     @Test func closePrefillsWholeQuantityAtCurrentPrice() {

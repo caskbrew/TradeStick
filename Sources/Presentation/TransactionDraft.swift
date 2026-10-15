@@ -20,6 +20,8 @@ public struct TransactionDraft: Equatable, Sendable {
 
     public var side: Side
     public var occurredAt: Date
+    /// True until the user picks a time: the transaction is stamped when it is saved, not when the form opened.
+    public var isNow = true
     public private(set) var quantityText = ""
     public private(set) var amountText = ""
     public private(set) var rateText = ""
@@ -41,6 +43,7 @@ public struct TransactionDraft: Equatable, Sendable {
     /// Pre-fills the form with an existing transaction; Amount is the input, Rate follows.
     public init(side: Side, occurredAt: Date, quantity: Decimal, amount: Decimal) {
         self.init(side: side, occurredAt: occurredAt)
+        isNow = false
         edit(.quantity, Self.text(quantity, scale: 8))
         edit(.amount, Self.text(amount, scale: 8))
     }
@@ -60,6 +63,9 @@ public struct TransactionDraft: Equatable, Sendable {
     }
 
     public var quantity: Decimal? { DecimalInput.parse(quantityText) }
+
+    /// The time to store: the moment of saving while "Now" is selected.
+    public func time(at now: Date) -> Date { isNow ? now : occurredAt }
 
     /// The value that would be saved: typed Amount, or `Quantity × Rate` rounded to 8 decimals (FR-TX-2a).
     public var amount: Decimal? {
@@ -86,7 +92,7 @@ public struct TransactionDraft: Equatable, Sendable {
                 found.append(.rateInvalid)
             }
         }
-        if occurredAt > now.addingTimeInterval(60) { found.append(.timeInFuture) } // FR-TX-3
+        if !isNow, occurredAt > now.addingTimeInterval(60) { found.append(.timeInFuture) } // FR-TX-3
         return found
     }
 

@@ -5,29 +5,33 @@ import SwiftUI
 /// Form embedded in the card (FR-UI-15): Enter saves, Esc cancels, Tab moves between fields (FR-UI-6).
 struct TransactionForm: View {
     let model: StickerModel
+    @State private var showPicker = false
     @FocusState private var focus: TransactionDraft.Field?
     @Environment(\.isMeasuring) private var measuring
 
     var body: some View {
         let form = model.form
-        VStack(alignment: .leading, spacing: 12) {
-            Text(model.editingID == nil ? "New transaction" : "Edit transaction").font(.system(size: 15, weight: .semibold))
+        VStack(alignment: .leading, spacing: 10) {
+            Text(model.editingID == nil ? "New transaction" : "Edit transaction").font(.system(size: 14, weight: .semibold))
             sideSwitch(form?.side ?? .buy)
-            DatePicker("", selection: Binding(get: { form?.occurredAt ?? .now }, set: { model.form?.occurredAt = $0 }))
-                .labelsHidden().datePickerStyle(.compact)
-            VStack(spacing: 10) {
-                field("Quantity (\(model.trade.base))", .quantity, text: form?.quantityText ?? "", auto: false)
-                field("Amount (\(model.trade.quote))", .amount, text: form?.amountText ?? "", auto: form?.isAuto(.amount) ?? false)
-                field("Rate (\(model.trade.quote))", .rate, text: form?.rateText ?? "", auto: form?.isAuto(.rate) ?? false)
+            Grid(horizontalSpacing: 8, verticalSpacing: 8) {
+                GridRow {
+                    field("Quantity (\(model.trade.base))", .quantity, text: form?.quantityText ?? "", auto: false)
+                    field("Amount (\(model.trade.quote))", .amount, text: form?.amountText ?? "", auto: form?.isAuto(.amount) ?? false)
+                }
+                GridRow {
+                    field("Rate (\(model.trade.quote))", .rate, text: form?.rateText ?? "", auto: form?.isAuto(.rate) ?? false)
+                    timeField(form)
+                }
             }
             if let message = model.formError ?? model.formProblems.first?.message {
                 Text(message).font(.system(size: 12)).foregroundStyle(Theme.negative) // errors may be red (FR-UI-8)
             }
             HStack(spacing: 10) {
                 Button("Cancel") { model.cancelForm() }
-                    .buttonStyle(PillStyle(fill: Theme.field, minHeight: 40)).keyboardShortcut(measuring ? nil : KeyboardShortcut.cancelAction)
+                    .buttonStyle(PillStyle(fill: Theme.field, minHeight: 34)).keyboardShortcut(measuring ? nil : KeyboardShortcut.cancelAction)
                 Button(model.editingID == nil ? "Save" : "Save changes") { Task { await model.submit() } }
-                    .buttonStyle(PillStyle(fill: Theme.accent, minHeight: 40)).keyboardShortcut(measuring ? nil : KeyboardShortcut.defaultAction).disabled(!model.canSave)
+                    .buttonStyle(PillStyle(fill: Theme.accent, minHeight: 34)).keyboardShortcut(measuring ? nil : KeyboardShortcut.defaultAction).disabled(!model.canSave)
             }
         }
         .background { Button("") { model.toggleForm() }.keyboardShortcut("b").opacity(0).frame(width: 0, height: 0).allowsHitTesting(false) }
@@ -51,15 +55,44 @@ struct TransactionForm: View {
         .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Theme.field))
     }
 
+    /// "Now" until the user picks a time; the popover has a calendar and a "Now" button to go back.
+    private func timeField(_ form: TransactionDraft?) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Time").font(.system(size: 11)).foregroundStyle(Theme.secondaryText)
+            Button { showPicker = true } label: {
+                HStack {
+                    Text(form?.isNow ?? true ? "Now" : (form?.occurredAt ?? .now).formatted(.dateTime.day().month().hour().minute()))
+                        .font(.system(size: 14)).lineLimit(1).minimumScaleFactor(0.7)
+                    Spacer(minLength: 0)
+                    Image(systemName: "calendar").foregroundStyle(Theme.secondaryText)
+                }
+                .padding(.horizontal, 10).frame(height: 36)
+                .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Theme.field))
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .popover(isPresented: $showPicker, arrowEdge: .bottom) {
+                VStack(spacing: 8) {
+                    DatePicker("", selection: Binding(
+                        get: { model.form?.occurredAt ?? .now },
+                        set: { model.form?.occurredAt = $0; model.form?.isNow = false }
+                    ), in: ...Date.now).labelsHidden().datePickerStyle(.graphical)
+                    Button("Now") { model.form?.isNow = true; showPicker = false }.disabled(model.form?.isNow ?? true)
+                }
+                .padding(12)
+            }
+        }
+    }
+
     private func field(_ title: String, _ id: TransactionDraft.Field, text: String, auto: Bool) -> some View {
-        VStack(alignment: .leading, spacing: 5) {
+        VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 4) {
-                Text(title).font(.system(size: 11)).foregroundStyle(Theme.secondaryText).lineLimit(1)
+                Text(title).font(.system(size: 11)).foregroundStyle(Theme.secondaryText).lineLimit(1).minimumScaleFactor(0.8)
                 if auto { Text("auto").font(.system(size: 11)).foregroundStyle(Theme.secondaryText.opacity(0.7)) }
             }
             TextField("0", text: Binding(get: { text }, set: { model.edit(id, $0) }))
-                .textFieldStyle(.plain).monospacedDigit().font(.system(size: 15))
-                .padding(.horizontal, 10).padding(.vertical, 10)
+                .textFieldStyle(.plain).monospacedDigit().font(.system(size: 14))
+                .padding(.horizontal, 10).frame(height: 36)
                 .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Theme.field))
                 .opacity(auto ? 0.6 : 1)
                 .focused($focus, equals: id)

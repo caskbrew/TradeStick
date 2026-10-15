@@ -33,8 +33,9 @@ public struct StickerView: View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
             let freshness = model.price.freshness(at: context.date)
             let usable = freshness == .fresh && model.price.connection == .connected
+            let compact = model.trade.isCompact
             let card = VStack(alignment: .leading, spacing: 0) {
-              VStack(alignment: .leading, spacing: 12) {
+              VStack(alignment: .leading, spacing: compact ? 6 : 12) {
                 StickerHeader(model: model, actions: actions, live: usable)
                 PriceRow(model: model, freshness: freshness, usable: usable)
                 if model.status == .empty {
@@ -48,7 +49,7 @@ public struct StickerView: View {
               }
                 if !model.trade.isCompact { BottomSection(model: model) }
             }
-            .padding(16)
+            .padding(compact ? 10 : 16)
             .frame(width: model.trade.isCompact ? Self.compactWidth : Self.width)
             .background(GlassBackground())
             .foregroundStyle(.white)

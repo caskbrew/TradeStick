@@ -259,11 +259,11 @@ public final class StickerModel {
         do {
             if let editingID {
                 try store.updateTransaction(
-                    tradeID: trade.id, id: editingID, side: form.side, quantity: value.quantity, amount: value.amount, occurredAt: form.occurredAt
+                    tradeID: trade.id, id: editingID, side: form.side, quantity: value.quantity, amount: value.amount, occurredAt: form.time(at: clock())
                 )
             } else {
                 try store.addTransaction(
-                    tradeID: trade.id, side: form.side, quantity: value.quantity, amount: value.amount, occurredAt: form.occurredAt
+                    tradeID: trade.id, side: form.side, quantity: value.quantity, amount: value.amount, occurredAt: form.time(at: clock())
                 )
             }
             self.form = nil
