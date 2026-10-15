@@ -55,7 +55,7 @@ final class Recorder: @unchecked Sendable {
         let readOnly = try await api(Recorder()) { r in
             r.url!.path.contains("apiRestrictions") ? (#"{"enableWithdrawals":false,"enableSpotAndMarginTrading":false}"#, 200) : ("{}", 200)
         }.check(creds)
-        #expect(readOnly.warnings.isEmpty)
+        #expect(readOnly.warnings.isEmpty && readOnly.readOnly == true && result.readOnly == false)
     }
 
     @Test func aFailedPermissionLookupDoesNotFailTheCheck() async throws {

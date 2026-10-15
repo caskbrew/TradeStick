@@ -62,8 +62,8 @@ struct BrokenExchange: ExchangeAdapter {
 
 @MainActor @Suite struct APIKeysModelTests {
     func model(_ store: InMemoryCredentialStore, ok: Bool = true) -> APIKeysModel {
-        APIKeysModel(store: store, check: { _ in
-            if ok { return APIKeyCheck(warnings: ["Trading is enabled for this key"]) }
+        APIKeysModel(store: store, defaults: UserDefaults(suiteName: UUID().uuidString)!, check: { _ in
+            if ok { return APIKeyCheck(warnings: ["Trading is enabled for this key"], readOnly: false) }
             throw BinanceAPIError(status: 401, code: -2015, message: "Invalid API-key")
         })
     }
@@ -75,7 +75,8 @@ struct BrokenExchange: ExchangeAdapter {
         await m.save()
         #expect(store.load(exchange: "binance") == APICredentials(key: "KEY", secret: "SEC"))
         #expect(m.secretText == "" && m.hasSavedKey)
-        #expect(m.status == .ok("Saved", warnings: ["Trading is enabled for this key"]))
+        #expect(m.status == .ok("Saved") && m.connected && m.readOnly == false && m.lastChecked != nil)
+        #expect(m.warnings == ["Trading is enabled for this key"])
     }
 
     @Test func aRejectedKeyIsNotSaved() async {
@@ -84,7 +85,7 @@ struct BrokenExchange: ExchangeAdapter {
         m.keyText = "K"; m.secretText = "S"
         await m.save()
         #expect(store.load(exchange: "binance") == nil)
-        #expect(m.status == .failed("Not saved: Invalid API-key (-2015)"))
+        #expect(m.status == .failed("Not saved: Invalid API-key (-2015)") && !m.connected)
     }
 
     @Test func savedSecretIsReusedWhileTheKeyIsUnchanged() async throws {
@@ -184,5 +185,35 @@ struct BrokenExchange: ExchangeAdapter {
         let m = model(known: ["o10"]); await m.load()
         m.setGrouped(false)
         #expect(m.rows.map(\.alreadyAdded) == [false, true, true])
+    }
+}
+
+@MainActor @Suite struct ImportTableTests {
+    nonisolated func fill(_ id: String, amt: Decimal) -> ImportedTrade {
+        ImportedTrade(externalID: id, side: .buy, quantity: 1, amount: amt, occurredAt: Date(timeIntervalSince1970: Double(Int(id)!)))
+    }
+
+    func model() -> ImportModel {
+        ImportModel(title: "t", pair: "GRAM / USDT", quote: "USDT", fetch: { [fill] in [fill("1", 10), fill("2", 20), fill("3", 30)] },
+                    existing: { ["2"] }, commit: { _ in nil })
+    }
+
+    @Test func filterAndSortChangeWhatIsShown() async {
+        let m = model(); await m.load()
+        #expect(m.visibleRows.map(\.id) == ["3", "2", "1"])
+        m.newestFirst = false
+        #expect(m.visibleRows.map(\.id) == ["1", "2", "3"])
+        m.filter = .newOnly
+        #expect(m.visibleRows.map(\.id) == ["1", "3"])
+    }
+
+    @Test func selectedAmountAndSelectAllToggle() async {
+        let m = model(); await m.load()
+        #expect(!m.allSelected)
+        m.toggleAll()
+        #expect(m.selection == ["1", "3"] && m.allSelected && m.selectedAmount == 40)
+        m.toggleAll()
+        #expect(m.selection.isEmpty && m.selectedAmount == 0)
+        #expect(m.fixedQuote)
     }
 }

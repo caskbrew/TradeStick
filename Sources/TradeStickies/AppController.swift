@@ -11,6 +11,22 @@ struct DevGuardError: Error, CustomStringConvertible {
     var description: String { "A dev build refuses to open the installed app's data (Application Support/TradeStickies)." }
 }
 
+/// Frameless dialog like the stickers (the card draws its own glass); a borderless window must opt in to taking keys.
+final class DialogWindow: NSWindow {
+    override var canBecomeKey: Bool { true }
+
+    convenience init(content: NSViewController) {
+        self.init(contentViewController: content)
+        styleMask = [.borderless]
+        isOpaque = false
+        backgroundColor = .clear
+        hasShadow = true
+        isMovableByWindowBackground = true
+        isReleasedWhenClosed = false
+        appearance = NSAppearance(named: .darkAqua)
+    }
+}
+
 @MainActor
 final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var store: TradeStore!
@@ -302,15 +318,8 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let api = BinanceAccountAPI()
         let model = APIKeysModel(store: credentials, check: { try await api.check($0) })
         let view = APIKeysView(model: model, onClose: { [weak self] in self?.apiKeysWindow?.close(); self?.apiKeysWindow = nil })
-        let window = NSWindow(contentViewController: NSHostingController(rootView: view))
+        let window = DialogWindow(content: NSHostingController(rootView: view))
         window.title = "API Keys"
-        window.styleMask = [.titled, .closable, .fullSizeContentView]
-        window.titlebarAppearsTransparent = true
-        window.titleVisibility = .hidden
-        window.isMovableByWindowBackground = true
-        window.appearance = NSAppearance(named: .darkAqua)
-        window.backgroundColor = NSColor(red: 0.10, green: 0.11, blue: 0.14, alpha: 1)
-        window.isReleasedWhenClosed = false
         window.center()
         apiKeysWindow = window
         NSApp.activate()
@@ -328,18 +337,16 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let instrument = Instrument(base: trade.base, quote: trade.quote)
         let store = self.store!
         let model = ImportModel(
-            title: "Import from Binance · \(trade.base)/\(trade.quote)", quote: trade.quote,
+            title: "Import from Binance", pair: "\(trade.base) / \(trade.quote)", quote: trade.quote,
             fetch: { try await api.myTrades(keys, instrument) },
             existing: { (try? store.externalIDs(tradeID: trade.id)) ?? [] },
             commit: { sticker.importTrades($0) }
         )
-        let window = NSWindow(contentViewController: NSHostingController(rootView: ImportView(model: model, onClose: { [weak self] in
+        let window = DialogWindow(content: NSHostingController(rootView: ImportView(model: model, onClose: { [weak self] in
             self?.importWindows[trade.id]?.close()
             self?.importWindows[trade.id] = nil
         })))
-        window.title = "Import trade history"
-        window.styleMask = [.titled, .closable]
-        window.isReleasedWhenClosed = false
+        window.title = "Import from Binance"
         window.center()
         importWindows[trade.id] = window
         NSApp.activate()

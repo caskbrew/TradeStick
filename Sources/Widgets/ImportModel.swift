@@ -1,3 +1,4 @@
+import Foundation
 import Domain
 import Observation
 import Presentation
@@ -21,7 +22,14 @@ public final class ImportModel {
         public var selectable: Bool { !alreadyAdded && !partlyAdded }
     }
 
+    public enum Filter: String, CaseIterable, Sendable { case all = "All trades", newOnly = "New only" }
+
     public let title: String
+    /// "GRAM / USDT".
+    public let pair: String
+    public var filter: Filter = .all
+    /// Time column order: newest first by default.
+    public var newestFirst = true
     /// Show amounts with exactly 2 decimals (USDT and alike).
     public let fixedQuote: Bool
     public private(set) var state: State = .loading
@@ -43,12 +51,14 @@ public final class ImportModel {
     ///   - commit: adds the trades; returns nil on success or a message.
     public init(
         title: String,
+        pair: String = "",
         quote: String = "",
         fetch: @escaping @Sendable () async throws -> [ImportedTrade],
         existing: @escaping () -> Set<String>,
         commit: @escaping ([ImportedTrade]) -> String?
     ) {
         self.title = title
+        self.pair = pair
         self.fixedQuote = NumberFormat.isTwoDecimalCurrency(quote)
         self.fetch = fetch
         self.existing = existing
@@ -87,7 +97,18 @@ public final class ImportModel {
         selection = []
     }
 
-    public var selectableCount: Int { rows.filter(\.selectable).count }
+    /// Rows as shown: filtered, then in the chosen time order.
+    public var visibleRows: [Row] {
+        let shown = filter == .newOnly ? rows.filter(\.selectable) : rows
+        return newestFirst ? shown : shown.reversed()
+    }
+
+    public var selectableCount: Int { visibleRows.filter(\.selectable).count }
+    /// Sum of the selected rows' amounts, in the quote currency.
+    public var selectedAmount: Decimal { rows.filter { selection.contains($0.id) }.reduce(0) { $0 + $1.trade.amount } }
+    public var allSelected: Bool { selectableCount > 0 && visibleRows.filter(\.selectable).allSatisfy { selection.contains($0.id) } }
+
+    public func toggleAll() { if allSelected { selection.subtract(visibleRows.map(\.id)) } else { selectAll() } }
     public var canAdd: Bool { !selection.isEmpty }
 
     public func toggle(_ id: String) {
@@ -95,7 +116,7 @@ public final class ImportModel {
         if selection.contains(id) { selection.remove(id) } else { selection.insert(id) }
     }
 
-    public func selectAll() { selection = Set(rows.filter(\.selectable).map(\.id)) }
+    public func selectAll() { selection.formUnion(visibleRows.filter(\.selectable).map(\.id)) }
     public func selectNone() { selection = [] }
 
     /// Adds the selected fills. Returns true when done (the window can close).

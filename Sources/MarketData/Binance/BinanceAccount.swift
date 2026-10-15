@@ -5,7 +5,9 @@ import Foundation
 /// What a key check found. `warnings` lists permissions the app does not need; the key should be read-only.
 public struct APIKeyCheck: Equatable, Sendable {
     public var warnings: [String]
-    public init(warnings: [String] = []) { self.warnings = warnings }
+    /// True when the key can neither trade nor withdraw; nil when that could not be determined.
+    public var readOnly: Bool?
+    public init(warnings: [String] = [], readOnly: Bool? = nil) { self.warnings = warnings; self.readOnly = readOnly }
 }
 
 public struct BinanceAPIError: Error, Equatable, CustomStringConvertible, Sendable {
@@ -68,8 +70,9 @@ public struct BinanceAccountAPI: Sendable {
         var warnings: [String] = []
         if json["enableWithdrawals"] as? Bool == true { warnings.append("Withdrawals are enabled for this key") }
         if json["enableSpotAndMarginTrading"] as? Bool == true { warnings.append("Trading is enabled for this key") }
-        if !warnings.isEmpty { warnings.append("TradeStickies only reads trade history: create a read-only key") }
-        return APIKeyCheck(warnings: warnings)
+        let readOnly = warnings.isEmpty
+        if !readOnly { warnings.append("TradeStickies only reads trade history: create a read-only key") }
+        return APIKeyCheck(warnings: warnings, readOnly: readOnly)
     }
 
     /// The user's fills for a pair, oldest first (`GET /api/v3/myTrades`, 1000 per page, up to 20 pages).
