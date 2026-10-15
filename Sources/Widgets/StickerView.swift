@@ -217,7 +217,7 @@ struct StickerHeader: View {
             Menu {
                 StickerMenuItems(model: model, actions: actions)
             } label: {
-                Text("\u{22EE}").font(.system(size: 16, weight: .bold)).offset(y: -8).frame(width: 24, height: 24)
+                Text("\u{22EE}").font(.system(size: 16, weight: .bold)).offset(y: -14).frame(width: 24, height: 24)
             }
             .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
             }
