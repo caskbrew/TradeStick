@@ -30,7 +30,7 @@ public struct StickerView: View {
             let freshness = model.price.freshness(at: context.date)
             let usable = freshness == .fresh && model.price.connection == .connected
             VStack(alignment: .leading, spacing: 12) {
-                StickerHeader(model: model, actions: actions)
+                StickerHeader(model: model, actions: actions, live: usable)
                 PriceRow(model: model, freshness: freshness, usable: usable)
                 if model.status == .empty {
                     Text("Add first transaction").font(.system(size: 13)).foregroundStyle(Theme.secondaryText)
@@ -136,6 +136,8 @@ struct BottomSection: View {
 struct StickerHeader: View {
     let model: StickerModel
     let actions: StickerActions
+    /// Connected and the price is fresh.
+    let live: Bool
 
     var body: some View {
         HStack(spacing: 10) {
@@ -152,10 +154,11 @@ struct StickerHeader: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text("\(model.trade.base) / \(model.trade.quote)").font(.system(size: 16, weight: .semibold))
-                Text("\(model.trade.direction == .buyFirst ? "BUY-FIRST" : "SELL-FIRST") · Spot · \(model.trade.exchange.capitalized)")
+                Text("\(model.trade.direction == .buyFirst ? "BUY" : "SELL") · Spot · \(model.trade.exchange.capitalized)")
                     .font(.system(size: 11)).foregroundStyle(Theme.secondaryText)
             }
             Spacer(minLength: 4)
+            if live { LiveDot() }
             StatusBadge(status: model.status)
             Menu {
                 Button("Hide Window", action: actions.hide)
@@ -225,16 +228,22 @@ struct ChangePill: View {
     }
 }
 
+struct LiveDot: View {
+    var body: some View {
+        HStack(spacing: 5) {
+            Circle().fill(Theme.positive).frame(width: 7, height: 7)
+            Text("Live").font(.system(size: 11)).foregroundStyle(Theme.secondaryText)
+        }
+    }
+}
+
 struct FreshnessLabel: View {
     let state: PriceState
     let freshness: Freshness
 
     var body: some View {
         if freshness == .fresh && state.connection == .connected {
-            HStack(spacing: 5) {
-                Circle().fill(Theme.positive).frame(width: 7, height: 7)
-                Text("Live").font(.system(size: 11)).foregroundStyle(Theme.secondaryText)
-            }
+            EmptyView() // shown as the dot in the header
         } else if let received = state.receivedAt {
             Label("Price \(Elapsed.duration(Date().timeIntervalSince(received))) old", systemImage: "exclamationmark.triangle.fill")
                 .font(.system(size: 11)).foregroundStyle(Theme.warning).lineLimit(1).fixedSize()
