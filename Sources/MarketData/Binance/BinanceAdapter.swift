@@ -1,5 +1,6 @@
 import Domain
 import Foundation
+import os
 
 /// Binance spot via the public market-data endpoints (no API key).
 public final class BinanceAdapter: ExchangeAdapter, Sendable {
@@ -93,7 +94,10 @@ public final class BinanceAdapter: ExchangeAdapter, Sendable {
         try await withThrowingTaskGroup(of: Void.self) { group in
             group.addTask {
                 try await withCheckedThrowingContinuation { (c: CheckedContinuation<Void, any Error>) in
+                    // URLSession can call this handler twice when the task is cancelled; resuming twice traps.
+                    let done = OSAllocatedUnfairLock(initialState: false)
                     task.sendPing { error in
+                        guard done.withLock({ let was = $0; $0 = true; return !was }) else { return }
                         if let error { c.resume(throwing: error) } else { c.resume() }
                     }
                 }
