@@ -371,7 +371,6 @@ struct NumbersBlock: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .top, spacing: 12) {
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("PnL").font(.system(size: 12)).foregroundStyle(Theme.secondaryText)
                     HStack(alignment: .firstTextBaseline, spacing: 4) {
                         Text(total.map(NumberFormat.signedQuote) ?? "—").font(.system(size: 24, weight: .semibold, design: .rounded)).monospacedDigit()
                             .lineLimit(1).minimumScaleFactor(0.5) // a 4-digit PnL used to wrap its last digit
