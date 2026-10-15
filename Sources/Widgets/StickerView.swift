@@ -220,9 +220,10 @@ struct StickerHeader: View {
                 Menu {
                     StickerMenuItems(model: model, actions: actions)
                 } label: {
-                    Color.clear.frame(width: 24, height: 24).contentShape(Rectangle())
+                    Color.clear.frame(width: 30, height: 34).contentShape(Rectangle())
                 }
                 .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
+                .offset(x: 3, y: -3) // click area is larger than the 24pt layout box, centred on the glyph
             }
             .frame(width: 24, height: 24)
             }
