@@ -31,6 +31,10 @@ public final class StickerModel {
     public var formOnLeft = false
     /// Called before the form opens so the window can pick a side and make room.
     @ObservationIgnored public var onFormWillOpen: (() -> Void)?
+    /// Called when the form was dismissed (cancelled or saved); the window hides its panel after the slide-out.
+    @ObservationIgnored public var onFormClosed: (() -> Void)?
+    /// The form reports its laid-out height so its window can fit it.
+    @ObservationIgnored public var onFormHeight: ((CGFloat) -> Void)?
 
     @ObservationIgnored private let icons: CoinIcons?
     /// PNG of the base coin's logo once it is known; the header shows a monogram until then.
@@ -214,6 +218,7 @@ public final class StickerModel {
     public func cancelForm() {
         editingID = nil
         form = nil
+        onFormClosed?()
         formError = nil
     }
 
@@ -239,6 +244,7 @@ public final class StickerModel {
             }
             self.form = nil
             editingID = nil
+            onFormClosed?()
             formError = nil
             reload()
             await refreshSubscription()

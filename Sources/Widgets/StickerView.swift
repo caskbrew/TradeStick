@@ -49,17 +49,24 @@ public struct StickerView: View {
             .foregroundStyle(.white)
             .environment(\.colorScheme, .dark)
             .contextMenu { StickerMenuItems(model: model, actions: actions) } // same items as the `⋯` menu (FR-WIN-11)
-            // The card never moves; the form drawer grows out of one side of it. With both the list and
-            // the form open the outline is an "L".
-            HStack(alignment: .top, spacing: 0) {
-                if model.formOnLeft { FormDrawer(model: model) }
-                card
-                if !model.formOnLeft { FormDrawer(model: model) }
-            }
-            .fixedSize()
-            .onGeometryChange(for: CGSize.self) { $0.size } action: { model.contentSizeChanged($0) }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: model.formOnLeft ? .topTrailing : .topLeading)
+            card
+                .fixedSize()
+                .onGeometryChange(for: CGSize.self) { $0.size } action: { model.contentSizeChanged($0) }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
+    }
+}
+
+/// Root of the form's own window: the drawer pinned to the edge that touches the card.
+public struct FormWindowView: View {
+    let model: StickerModel
+
+    public init(model: StickerModel) { self.model = model }
+
+    public var body: some View {
+        FormDrawer(model: model)
+            .fixedSize()
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: model.formOnLeft ? .topTrailing : .topLeading)
     }
 }
 
@@ -106,6 +113,7 @@ struct FormDrawer: View {
             TransactionForm(model: model)
                 .padding(16)
                 .frame(width: Self.panelWidth)
+                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { model.onFormHeight?($0) }
                 .background(GlassBackground())
                 .foregroundStyle(.white)
                 .environment(\.colorScheme, .dark)

@@ -127,7 +127,8 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
             }
             try? await Task.sleep(for: .milliseconds(600))
             window.capture(to: URL(fileURLWithPath: dir).appendingPathComponent("form-L.png"))
-            print("frame", window.frame)
+            window.captureForm(to: URL(fileURLWithPath: dir).appendingPathComponent("form-panel.png"))
+            print("frame", window.frame, "form", window.formFrame)
             window.model.cancelForm()
             for i in 1...6 {
                 try? await Task.sleep(for: .milliseconds(35))
