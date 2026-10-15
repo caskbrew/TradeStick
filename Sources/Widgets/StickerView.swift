@@ -142,10 +142,10 @@ struct ListDrawer: View {
     var body: some View {
         let top = model.listOnTop
         TransactionList(model: model)
-            .padding(12)
+            .padding(10)
             .frame(width: Self.width)
             .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { measured = $0; model.onListHeight?($0 + Self.gap) }
-            .background(GlassBackground())
+            .background(GlassBackground(radius: 14))
             .foregroundStyle(.white)
             .environment(\.colorScheme, .dark)
             .padding(top ? .bottom : .top, Self.gap)
@@ -424,6 +424,7 @@ struct CompactNumbers: View {
             VStack(alignment: .leading, spacing: 6) {
                 LabeledValue(label: "Entry", value: summary.entryPrice.map(NumberFormat.price) ?? "—")
                 LabeledValue(label: "Amount", value: closed ? "—" : NumberFormat.quantity(summary.openQuantity))
+                LabeledValue(label: "Cost", value: closed ? "—" : "\(NumberFormat.amount(summary.openCost)) \(model.trade.quote)")
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
             Rectangle().fill(Theme.divider).frame(width: 1)
@@ -441,6 +442,7 @@ struct CompactNumbers: View {
                     }
                     .font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.pnl(NumberFormat.displayedPercent(ratio)))
                 }
+                DurationLabel(model: model)
             }
             .opacity(dim ? 0.45 : 1)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)

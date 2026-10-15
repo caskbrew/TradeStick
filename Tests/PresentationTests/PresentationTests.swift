@@ -232,9 +232,8 @@ let now = Date(timeIntervalSince1970: 1_700_000_000)
         #expect(Elapsed.duration(86400 + 4 * 3600 + 59) == "1d 4h")
         #expect(Elapsed.duration(86400) == "1d")
         #expect(Elapsed.duration(-5) == "<1m")
-        let now = Date()
-        #expect(Elapsed.ago(from: now.addingTimeInterval(-10), to: now) == "just now")
-        #expect(Elapsed.ago(from: now.addingTimeInterval(-7200), to: now) == "2h ago")
+        #expect(Elapsed.age(30) == "<1m" && Elapsed.age(90 * 60) == "90m" && Elapsed.age(91 * 60) == "1h")
+        #expect(Elapsed.age(73 * 3600 + 59) == "73h" && Elapsed.age(74 * 3600) == "3d" && Elapsed.age(10 * 86400) == "10d")
     }
 }
 

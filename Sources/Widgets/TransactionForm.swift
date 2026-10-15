@@ -130,7 +130,7 @@ struct TransactionList: View {
         VStack(spacing: 0) { ForEach(rows) { tx in row(tx) } }
     }
 
-    private static let sideWidth: CGFloat = 36, amountWidth: CGFloat = 48, rateWidth: CGFloat = 56, agoWidth: CGFloat = 54, pnlWidth: CGFloat = 50, iconWidth: CGFloat = 14
+    private static let sideWidth: CGFloat = 26, amountWidth: CGFloat = 48, rateWidth: CGFloat = 56, agoWidth: CGFloat = 36, pnlWidth: CGFloat = 50, iconWidth: CGFloat = 14
 
     private var header: some View {
         HStack(spacing: 4) {
@@ -142,7 +142,7 @@ struct TransactionList: View {
             Text("Rate").frame(width: Self.rateWidth, alignment: .trailing)
             Color.clear.frame(width: Self.iconWidth, height: 1)
         }
-        .font(.system(size: 11)).foregroundStyle(Theme.secondaryText.opacity(0.7)).lineLimit(1)
+        .font(.system(size: 10)).foregroundStyle(Theme.secondaryText.opacity(0.7)).lineLimit(1)
     }
 
     /// Profit or loss of one transaction against the current price; "—" while the price is unknown.
@@ -165,13 +165,13 @@ struct TransactionList: View {
                 .buttonStyle(.plain).foregroundStyle(Theme.negative)
             } else {
                 TimelineView(.periodic(from: .now, by: 30)) { ctx in
-                    Text(Elapsed.duration(ctx.date.timeIntervalSince(tx.occurredAt)))
+                    Text(Elapsed.age(ctx.date.timeIntervalSince(tx.occurredAt)))
                         .help(tx.occurredAt.formatted(date: .complete, time: .standard) + "\nDouble-click the row to edit")
                 }
                 .foregroundStyle(Theme.secondaryText).frame(width: Self.agoWidth, alignment: .leading).minimumScaleFactor(0.7)
-                Text(tx.side == .buy ? "BUY" : "SELL") // user's choice: buy green, sell red (word stays, colour is not the only cue)
-                    .font(.system(size: 9, weight: .semibold)).fixedSize()
-                    .padding(.horizontal, 4).padding(.vertical, 2)
+                Text(tx.side == .buy ? "B" : "S") // buy green, sell red; the letter keeps colour from being the only cue
+                    .font(.system(size: 10, weight: .bold)).fixedSize()
+                    .padding(.horizontal, 5).padding(.vertical, 1)
                     .background(Capsule().fill((tx.side == .buy ? Theme.positive : Theme.negative).opacity(0.18)))
                     .foregroundStyle(tx.side == .buy ? Theme.positive : Theme.negative)
                     .frame(width: Self.sideWidth, alignment: .leading)
@@ -192,7 +192,7 @@ struct TransactionList: View {
             Button("Edit…") { model.openEditForm(id: tx.id) }
             Button("Delete…", role: .destructive) { confirming = tx.id }
         }
-        .font(.system(size: 11)).monospacedDigit().lineLimit(1)
+        .font(.system(size: 10.5)).monospacedDigit().lineLimit(1)
         .frame(height: Self.rowHeight)
     }
 }

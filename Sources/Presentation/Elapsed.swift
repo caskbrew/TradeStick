@@ -12,7 +12,12 @@ public enum Elapsed {
         }
     }
 
-    public static func ago(from date: Date, to now: Date) -> String {
-        now.timeIntervalSince(date) < 60 ? "just now" : duration(now.timeIntervalSince(date)) + " ago"
+    /// Age of a transaction in one unit: minutes up to 90m, hours up to 73h, then days.
+    public static func age(_ seconds: TimeInterval) -> String {
+        let minutes = Int(max(0, seconds) / 60)
+        if minutes < 1 { return "<1m" }
+        if minutes <= 90 { return "\(minutes)m" }
+        if minutes <= 73 * 60 { return "\(minutes / 60)h" }
+        return "\(minutes / 1440)d"
     }
 }
