@@ -73,9 +73,9 @@ public final class StickerModel {
     /// Whole-sticker zoom (⌘+ / ⌘−): every window scales together, so proportions stay. Shared by all stickers.
     public private(set) var scale: CGFloat = {
         let saved = UserDefaults.standard.double(forKey: "stickerScale")
-        return saved > 0 ? min(max(CGFloat(saved), 0.6), 1.8) : 1
+        return saved > 0 ? min(max(CGFloat(saved), 1), 2) : 1
     }()
-    public static let scaleRange: ClosedRange<CGFloat> = 0.6...1.8
+    public static let scaleRange: ClosedRange<CGFloat> = 1...2
     /// Unscaled height of the card; the form panel matches it.
     public private(set) var cardHeight: CGFloat = 0
     @ObservationIgnored private var rawContent = CGSize.zero

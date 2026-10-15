@@ -263,9 +263,9 @@ struct Fixture {
         let last = try #require(sizes.last)
         #expect(f.model.scale == 1.1 && abs(last.width - 363) < 0.001 && abs(last.height - 110) < 0.001)
         for _ in 0..<20 { f.model.zoom(by: 0.1) }
-        #expect(f.model.scale == 1.8)
+        #expect(f.model.scale == 2)
         for _ in 0..<30 { f.model.zoom(by: -0.1) }
-        #expect(f.model.scale == 0.6)
+        #expect(f.model.scale == 1)
         f.model.zoom(by: 0)
         #expect(f.model.scale == 1)
     }
