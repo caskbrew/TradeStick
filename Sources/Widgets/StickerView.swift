@@ -349,13 +349,13 @@ struct ActionRow: View {
         let open = model.summary.openQuantity > 0
         let expanded = model.trade.isExpanded
         HStack(spacing: 8) {
-            Button { model.openForm(side: opening) } label: { Label("Add", systemImage: "plus").frame(maxWidth: .infinity) }
-                .buttonStyle(PillStyle(fill: Theme.field))
-                .help("Add a buy or sell record (no order is sent)")
             if model.status == .open {
                 Button { model.openCloseForm() } label: { Label("Close", systemImage: "checkmark").frame(maxWidth: .infinity) }
                     .buttonStyle(PillStyle(fill: Theme.accent)).disabled(!open)
             }
+            Button { model.openForm(side: opening) } label: { Label("Add", systemImage: "plus").frame(maxWidth: .infinity) }
+                .buttonStyle(PillStyle(fill: Theme.field))
+                .help("Add a buy or sell record (no order is sent)")
             if model.status != .empty {
                 Button { model.setExpanded(!expanded) } label: {
                     HStack(spacing: 5) {
@@ -375,12 +375,13 @@ struct ActionRow: View {
 struct PillStyle: ButtonStyle {
     let fill: Color
     var flexible = true
+    var minHeight: CGFloat = 32
     @Environment(\.isEnabled) private var isEnabled
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.system(size: 13, weight: .medium))
-            .frame(maxWidth: flexible ? .infinity : nil, minHeight: 32)
+            .frame(maxWidth: flexible ? .infinity : nil, minHeight: minHeight)
             .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(fill.opacity(configuration.isPressed ? 0.7 : 1)))
             .foregroundStyle(.white.opacity(isEnabled ? 1 : 0.35))
     }

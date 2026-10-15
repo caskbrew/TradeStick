@@ -10,15 +10,11 @@ struct TransactionForm: View {
 
     var body: some View {
         let form = model.form
-        VStack(alignment: .leading, spacing: 10) {
-            Text(model.editingID == nil ? "New transaction" : "Edit transaction").font(.system(size: 13, weight: .semibold))
-            HStack {
-                Picker("", selection: Binding(get: { form?.side ?? .buy }, set: { model.form?.side = $0 })) {
-                    Text("Buy").tag(Side.buy)
-                    Text("Sell").tag(Side.sell)
-                }
-                .pickerStyle(.segmented).labelsHidden().frame(width: 120)
-                Spacer()
+        VStack(alignment: .leading, spacing: 12) {
+            if model.editingID != nil { Text("Edit transaction").font(.system(size: 13, weight: .semibold)) }
+            HStack(spacing: 12) {
+                sideSwitch(form?.side ?? .buy)
+                Spacer(minLength: 0)
                 DatePicker("", selection: Binding(get: { form?.occurredAt ?? .now }, set: { model.form?.occurredAt = $0 }))
                     .labelsHidden().datePickerStyle(.compact)
             }
@@ -30,26 +26,43 @@ struct TransactionForm: View {
             if let message = model.formError ?? model.formProblems.first?.message {
                 Text(message).font(.system(size: 12)).foregroundStyle(Theme.negative) // errors may be red (FR-UI-8)
             }
-            HStack(spacing: 8) {
+            HStack(spacing: 10) {
                 Button("Cancel") { model.cancelForm() }
-                    .buttonStyle(PillStyle(fill: Theme.field)).keyboardShortcut(measuring ? nil : KeyboardShortcut.cancelAction)
+                    .buttonStyle(PillStyle(fill: Theme.field, minHeight: 40)).keyboardShortcut(measuring ? nil : KeyboardShortcut.cancelAction)
                 Button(model.editingID == nil ? "Save" : "Save changes") { Task { await model.submit() } }
-                    .buttonStyle(PillStyle(fill: Theme.accent)).keyboardShortcut(measuring ? nil : KeyboardShortcut.defaultAction).disabled(!model.canSave)
+                    .buttonStyle(PillStyle(fill: Theme.accent, minHeight: 40)).keyboardShortcut(measuring ? nil : KeyboardShortcut.defaultAction).disabled(!model.canSave)
             }
         }
         .onAppear { if !measuring { focus = .quantity } }
     }
 
+    /// Buy / Sell switch; the chosen side is filled with the accent colour.
+    private func sideSwitch(_ side: Side) -> some View {
+        HStack(spacing: 0) {
+            ForEach([Side.buy, Side.sell], id: \.self) { option in
+                Button { model.form?.side = option } label: {
+                    Text(option == .buy ? "Buy" : "Sell").font(.system(size: 13, weight: .medium))
+                        .frame(maxWidth: .infinity, minHeight: 30)
+                        .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(side == option ? Theme.accent : .clear))
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(2).frame(width: 190)
+        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Theme.field))
+    }
+
     private func field(_ title: String, _ id: TransactionDraft.Field, text: String, auto: Bool) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
+        VStack(alignment: .leading, spacing: 5) {
             HStack(spacing: 4) {
                 Text(title).font(.system(size: 11)).foregroundStyle(Theme.secondaryText).lineLimit(1)
                 if auto { Text("auto").font(.system(size: 11)).foregroundStyle(Theme.secondaryText.opacity(0.7)) }
             }
             TextField("0", text: Binding(get: { text }, set: { model.edit(id, $0) }))
-                .textFieldStyle(.plain).monospacedDigit().font(.system(size: 13))
-                .padding(.horizontal, 8).padding(.vertical, 6)
-                .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Theme.field))
+                .textFieldStyle(.plain).monospacedDigit().font(.system(size: 15))
+                .padding(.horizontal, 10).padding(.vertical, 10)
+                .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Theme.field))
                 .opacity(auto ? 0.6 : 1)
                 .focused($focus, equals: id)
         }
@@ -87,12 +100,12 @@ struct TransactionList: View {
 
     private var header: some View {
         HStack(spacing: 6) {
-            Text("When").frame(width: Self.agoWidth, alignment: .leading)
+            Text("Ago").frame(width: Self.agoWidth, alignment: .leading)
             Text("Side").frame(width: Self.sideWidth, alignment: .leading)
+            Text("PnL").frame(width: Self.pnlWidth, alignment: .trailing)
             Text("Qty").frame(maxWidth: .infinity, alignment: .trailing)
             Text("\(model.trade.quote)").frame(width: Self.amountWidth, alignment: .trailing)
             Text("Rate").frame(width: Self.rateWidth, alignment: .trailing)
-            Text("PnL").frame(width: Self.pnlWidth, alignment: .trailing)
             Color.clear.frame(width: Self.iconWidth, height: 1)
         }
         .font(.system(size: 11)).foregroundStyle(Theme.secondaryText.opacity(0.7)).lineLimit(1)
@@ -118,8 +131,8 @@ struct TransactionList: View {
                 .buttonStyle(.plain).foregroundStyle(Theme.negative)
             } else {
                 TimelineView(.periodic(from: .now, by: 30)) { ctx in
-                    Text(Elapsed.ago(from: tx.occurredAt, to: ctx.date))
-                        .help(tx.occurredAt.formatted(date: .abbreviated, time: .shortened) + "\nDouble-click a row to edit")
+                    Text(Elapsed.duration(ctx.date.timeIntervalSince(tx.occurredAt)))
+                        .help(tx.occurredAt.formatted(date: .complete, time: .standard) + "\nDouble-click the row to edit")
                 }
                 .foregroundStyle(Theme.secondaryText).frame(width: Self.agoWidth, alignment: .leading).minimumScaleFactor(0.7)
                 Text(tx.side == .buy ? "BUY" : "SELL") // user's choice: buy green, sell red (word stays, colour is not the only cue)
@@ -128,11 +141,11 @@ struct TransactionList: View {
                     .background(Capsule().fill((tx.side == .buy ? Theme.positive : Theme.negative).opacity(0.18)))
                     .foregroundStyle(tx.side == .buy ? Theme.positive : Theme.negative)
                     .frame(width: Self.sideWidth, alignment: .leading)
+                pnl(model.pnl(of: tx))
                 Text(NumberFormat.quantity(tx.quantity)).frame(maxWidth: .infinity, alignment: .trailing)
                     .minimumScaleFactor(0.6)
                 Text(NumberFormat.amount(tx.amount)).frame(width: Self.amountWidth, alignment: .trailing)
                 Text(tx.rate.map(NumberFormat.price) ?? "—").foregroundStyle(Theme.secondaryText).minimumScaleFactor(0.6).frame(width: Self.rateWidth, alignment: .trailing)
-                pnl(model.pnl(of: tx))
                 Button { confirming = tx.id } label: { Image(systemName: "trash") }
                     .buttonStyle(.plain).foregroundStyle(Theme.negative.opacity(0.8)).opacity(hovering == tx.id ? 1 : 0)
             }

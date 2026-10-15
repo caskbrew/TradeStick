@@ -21,7 +21,7 @@ public final class StickerModel {
 
     /// Height of one transaction row; shared with the view so the window can reserve room before a list opens.
     public static let listRowHeight: CGFloat = 30
-    static let formExtraHeight: CGFloat = 200
+    static let formExtraHeight: CGFloat = 240
     /// Called synchronously before a change that makes the card taller, with a generous upper bound of the extra
     /// height. The window grows first (it is transparent) and the card then animates inside it.
     @ObservationIgnored public var onWillGrow: ((CGFloat) -> Void)?
