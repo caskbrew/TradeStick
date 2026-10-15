@@ -149,6 +149,23 @@ public final class StickerModel {
         formError = nil
     }
 
+    /// Add transaction (menu / ⌘N): an empty form for the opening side. Ignored while a form is already open.
+    public func addTransaction() {
+        guard form == nil else { return }
+        openForm(side: trade.direction.openingSide)
+    }
+
+    public func toggleList() {
+        guard status != .empty else { return }
+        setExpanded(!trade.isExpanded)
+    }
+
+    /// Close → sell (or buy back) everything at the current price; needs a price.
+    public func closeAll() {
+        guard currentPrice != nil, summary.openQuantity > 0 else { return }
+        openCloseForm()
+    }
+
     /// `Close` → all: the closing side, the whole open quantity, the current price when known.
     public func openCloseForm() { openClosingForm(quantity: summary.openQuantity) }
 

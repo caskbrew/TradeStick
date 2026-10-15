@@ -36,22 +36,19 @@ public struct StickerView: View {
                 StickerHeader(model: model, actions: actions, live: usable)
                 PriceRow(model: model, freshness: freshness, usable: usable)
                 if model.status == .empty {
-                    Text("Add first transaction").font(.system(size: 13)).foregroundStyle(Theme.secondaryText)
+                    Button { model.addTransaction() } label: { Label("Add first transaction", systemImage: "plus").frame(maxWidth: .infinity) }
+                        .buttonStyle(PillStyle(fill: Theme.field))
                 } else {
                     NumbersBlock(model: model, usable: usable)
                 }
-                BottomSection(model: model)
+                BottomSection(model: model).padding(.top, -12)
             }
             .padding(16)
             .frame(width: Self.width)
             .background(GlassBackground())
             .foregroundStyle(.white)
             .environment(\.colorScheme, .dark)
-            .contextMenu { // same items as the `⋯` menu (FR-WIN-11)
-                Button("Hide Window", action: actions.hide)
-                Divider()
-                Button("Delete Trade…", role: .destructive, action: actions.delete)
-            }
+            .contextMenu { StickerMenuItems(model: model, actions: actions) } // same items as the `⋯` menu (FR-WIN-11)
             // The card never moves; the form drawer grows out of one side of it. With both the list and
             // the form open the outline is an "L".
             HStack(alignment: .top, spacing: 0) {
@@ -182,12 +179,12 @@ struct BottomSection: View {
     @ViewBuilder
     private func content(_ shape: Shape) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            ActionRow(model: model)
             if shape.expanded {
                 Divider().overlay(Theme.divider)
                 TransactionList(model: model)
             }
         }
+        .padding(.top, 12) // cancels the negative padding below, which removes the card's spacing while closed
     }
 }
 
@@ -223,14 +220,50 @@ struct StickerHeader: View {
             Spacer(minLength: 4)
             if model.status == .open { CloseMenu(model: model) } else { StatusBadge(status: model.status) }
             Menu {
-                Button("Hide Window", action: actions.hide)
-                Divider()
-                Button("Delete Trade…", role: .destructive, action: actions.delete)
+                StickerMenuItems(model: model, actions: actions)
             } label: {
                 Image(systemName: "ellipsis").frame(width: 24, height: 24)
             }
             .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
         }
+        .background { ShortcutLayer(model: model, actions: actions) }
+    }
+}
+
+/// The items of the `⋯` menu and the context menu. Titles carry their shortcut because a SwiftUI menu in
+/// a borderless panel does not reliably show or fire `.keyboardShortcut`; `ShortcutLayer` does the firing.
+struct StickerMenuItems: View {
+    let model: StickerModel
+    let actions: StickerActions
+
+    var body: some View {
+        let expanded = model.trade.isExpanded
+        let count = model.transactions.count
+        Button("Add transaction\t⌘N") { model.addTransaction() }
+        Button("\(expanded ? "Hide" : "Show") transactions (\(count))\t⌘L") { model.toggleList() }
+            .disabled(model.status == .empty)
+        Divider()
+        Button("Hide Window\t⌘W", action: actions.hide)
+        Divider()
+        Button("Delete Trade…\t⌥⌘⌫", role: .destructive, action: actions.delete)
+    }
+}
+
+/// Invisible buttons that own the keyboard shortcuts while the sticker is the key window.
+struct ShortcutLayer: View {
+    let model: StickerModel
+    let actions: StickerActions
+
+    var body: some View {
+        Group {
+            Button("") { model.addTransaction() }.keyboardShortcut("n")
+            Button("") { model.toggleList() }.keyboardShortcut("l")
+            Button("") { model.closeAll() }.keyboardShortcut("e")
+            Button("") { model.openRecoverForm() }.keyboardShortcut("r")
+            Button("") { actions.hide() }.keyboardShortcut("w")
+            Button("") { actions.delete() }.keyboardShortcut(.delete, modifiers: [.command, .option])
+        }
+        .opacity(0).frame(width: 0, height: 0).allowsHitTesting(false).accessibilityHidden(true)
     }
 }
 
@@ -242,10 +275,10 @@ struct CloseMenu: View {
         let closing = model.trade.direction == .buyFirst ? "Sell" : "Buy back"
         let base = model.trade.base
         Menu {
-            Button("\(closing) all at market · \(NumberFormat.quantity(model.summary.openQuantity)) \(base)") { model.openCloseForm() }
+            Button("\(closing) all at market · \(NumberFormat.quantity(model.summary.openQuantity)) \(base)\t⌘E") { model.closeAll() }
                 .disabled(model.currentPrice == nil)
             if model.trade.direction == .buyFirst {
-                Button(recoverTitle) { model.openRecoverForm() }.disabled(model.recoverQuantity == nil)
+                Button(recoverTitle + "\t⌘R") { model.openRecoverForm() }.disabled(model.recoverQuantity == nil)
             }
         } label: {
             HStack(spacing: 4) {
@@ -430,32 +463,6 @@ struct DurationLabel: View {
 }
 
 // MARK: Actions
-
-struct ActionRow: View {
-    let model: StickerModel
-
-    var body: some View {
-        let opening = model.trade.direction.openingSide
-        let expanded = model.trade.isExpanded
-        HStack(spacing: 8) {
-            Button { model.openForm(side: opening) } label: { Label("Add", systemImage: "plus").frame(maxWidth: .infinity) }
-                .buttonStyle(PillStyle(fill: Theme.field))
-                .help("Add a buy or sell record (no order is sent)")
-            if model.status != .empty {
-                Button { model.setExpanded(!expanded) } label: {
-                    HStack(spacing: 5) {
-                        Image(systemName: "list.bullet")
-                        Text("\(model.transactions.count) transaction\(model.transactions.count == 1 ? "" : "s")").monospacedDigit().lineLimit(1).fixedSize()
-                        Image(systemName: "chevron.down").font(.system(size: 9, weight: .bold)).rotationEffect(.degrees(expanded ? 180 : 0))
-                    }
-                    .padding(.horizontal, 6)
-                }
-                .buttonStyle(PillStyle(fill: expanded ? Theme.accent.opacity(0.35) : Theme.field, flexible: false))
-                .help(expanded ? "Hide transactions" : "Show transactions")
-            }
-        }
-    }
-}
 
 struct PillStyle: ButtonStyle {
     let fill: Color
