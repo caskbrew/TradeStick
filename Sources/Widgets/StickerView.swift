@@ -208,6 +208,7 @@ struct StickerHeader: View {
             }
             Spacer(minLength: 4)
             if model.status != .open { StatusBadge(status: model.status) }
+            HStack(spacing: -2) {
             Button { model.togglePin() } label: {
                 Image(systemName: model.isPinned ? "pin.fill" : "pin").rotationEffect(.degrees(-45)).frame(width: 20, height: 24).offset(y: -6)
             }
@@ -216,9 +217,10 @@ struct StickerHeader: View {
             Menu {
                 StickerMenuItems(model: model, actions: actions)
             } label: {
-                Text("\u{22EE}").font(.system(size: 16, weight: .bold)).frame(width: 24, height: 24).offset(y: -6)
+                Text("\u{22EE}").font(.system(size: 16, weight: .bold)).offset(y: -8).frame(width: 24, height: 24)
             }
             .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
+            }
         }
         .background { ShortcutLayer(model: model, actions: actions) }
     }
