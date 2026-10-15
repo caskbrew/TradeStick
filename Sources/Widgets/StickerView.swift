@@ -376,19 +376,20 @@ struct CompactNumbers: View {
             .frame(maxHeight: .infinity, alignment: .bottomLeading)
             Rectangle().fill(Theme.divider).frame(width: 1)
             VStack(alignment: .trailing, spacing: 2) {
-                HStack(alignment: .firstTextBaseline, spacing: 4) {
-                    Text(total.map(NumberFormat.signedQuote) ?? "—").font(.system(size: 32, weight: .semibold, design: .rounded)).monospacedDigit()
-                        .lineLimit(1).minimumScaleFactor(0.4)
-                    Text(model.trade.quote).font(.system(size: 11, weight: .medium)).foregroundStyle(Theme.secondaryText).lineLimit(1).fixedSize()
-                }
-                .foregroundStyle(Theme.pnl(total.map(NumberFormat.displayedQuote)))
-                if let ratio {
-                    HStack(spacing: 3) {
-                        Text(NumberFormat.displayedPercent(ratio) > 0 ? "▲" : NumberFormat.displayedPercent(ratio) < 0 ? "▼" : "")
-                        Text(NumberFormat.signedPercent(ratio)).monospacedDigit()
+                Text(total.map(NumberFormat.signedQuote) ?? "—").font(.system(size: 32, weight: .semibold, design: .rounded)).monospacedDigit()
+                    .lineLimit(1).minimumScaleFactor(0.4)
+                    .foregroundStyle(Theme.pnl(total.map(NumberFormat.displayedQuote)))
+                HStack(spacing: 6) {
+                    Text(model.trade.quote).font(.system(size: 11, weight: .medium)).foregroundStyle(Theme.secondaryText)
+                    if let ratio {
+                        HStack(spacing: 3) {
+                            Text(NumberFormat.displayedPercent(ratio) > 0 ? "▲" : NumberFormat.displayedPercent(ratio) < 0 ? "▼" : "")
+                            Text(NumberFormat.signedPercent(ratio)).monospacedDigit()
+                        }
+                        .font(.system(size: 14, weight: .medium)).foregroundStyle(Theme.pnl(NumberFormat.displayedPercent(ratio)))
                     }
-                    .font(.system(size: 14, weight: .medium)).foregroundStyle(Theme.pnl(NumberFormat.displayedPercent(ratio)))
                 }
+                .lineLimit(1).fixedSize()
             }
             .layoutPriority(1)
             .opacity(dim ? 0.45 : 1)
