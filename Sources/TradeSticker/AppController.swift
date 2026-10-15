@@ -38,8 +38,9 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         watchConnectivity()
 
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        if let url = Bundle.module.url(forResource: "MenuBarIconColor", withExtension: "png"), let icon = NSImage(contentsOf: url) {
+        if let url = Bundle.module.url(forResource: "MenuBarIconTemplate", withExtension: "png"), let icon = NSImage(contentsOf: url) {
             icon.size = NSSize(width: 20 * icon.size.width / icon.size.height, height: 20)
+            icon.isTemplate = true // black + alpha: macOS tints it for light and dark menu bars
             statusItem.button?.image = icon
         } else {
             statusItem.button?.image = NSImage(systemSymbolName: "note.text", accessibilityDescription: "TradeSticker")
