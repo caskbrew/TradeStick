@@ -136,7 +136,6 @@ struct TransactionList: View {
             Text("Qty").frame(maxWidth: .infinity, alignment: .trailing)
             Text("\(model.trade.quote)").frame(width: Self.amountWidth, alignment: .trailing)
             Text("Rate").frame(width: Self.rateWidth, alignment: .trailing)
-            Color.clear.frame(width: Self.iconWidth, height: 1)
         }
         .font(.system(size: 10)).foregroundStyle(Theme.secondaryText.opacity(0.7)).lineLimit(1)
     }
@@ -176,11 +175,16 @@ struct TransactionList: View {
                     .minimumScaleFactor(0.6)
                 Text(NumberFormat.amount(tx.amount)).frame(width: Self.amountWidth, alignment: .trailing)
                 Text(tx.rate.map(NumberFormat.price) ?? "—").foregroundStyle(Theme.secondaryText).minimumScaleFactor(0.6).frame(width: Self.rateWidth, alignment: .trailing)
-                Button { confirming = tx.id } label: { Image(systemName: "trash") }
-                    .buttonStyle(.plain).foregroundStyle(Theme.negative.opacity(0.8)).opacity(hovering == tx.id ? 1 : 0)
             }
         }
         .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(.white.opacity(hovering == tx.id && confirming == nil ? 0.06 : 0)))
+        .overlay(alignment: .trailing) { // over the rate while hovering, so the row keeps equal margins
+            if hovering == tx.id && confirming == nil {
+                Button { confirming = tx.id } label: { Image(systemName: "trash") }
+                    .buttonStyle(.plain).foregroundStyle(Theme.negative)
+                    .padding(.horizontal, 6).frame(maxHeight: .infinity).background(Color.black.opacity(0.75), in: RoundedRectangle(cornerRadius: 6))
+            }
+        }
         .contentShape(Rectangle())
         .onHover { inside in if inside { hovering = tx.id } else if hovering == tx.id { hovering = nil } }
         .onTapGesture(count: 2) { model.openEditForm(id: tx.id) }

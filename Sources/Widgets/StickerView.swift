@@ -141,7 +141,7 @@ struct ListDrawer: View {
     var body: some View {
         let top = model.listOnTop
         TransactionList(model: model)
-            .padding(10)
+            .padding(.horizontal, 12).padding(.vertical, 7)
             .frame(width: Self.width)
             .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { measured = $0; model.listHeightChanged($0 + Self.gap) }
             .background(GlassBackground(radius: 14))
@@ -211,7 +211,7 @@ struct StickerHeader: View {
             Menu {
                 StickerMenuItems(model: model, actions: actions)
             } label: {
-                Image(systemName: "ellipsis").offset(y: -4).frame(width: 24, height: 24)
+                Image(systemName: "ellipsis").offset(y: -8).frame(width: 24, height: 24)
             }
             .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
         }
@@ -383,7 +383,7 @@ struct CompactNumbers: View {
             .frame(maxHeight: .infinity, alignment: .bottomLeading)
             Rectangle().fill(Theme.divider).frame(width: 1)
             VStack(alignment: .trailing, spacing: 2) {
-                Text(total.map(NumberFormat.signedQuote) ?? "—").font(.system(size: 32, weight: .semibold, design: .rounded)).monospacedDigit()
+                Text(total.map(NumberFormat.signedQuote) ?? "—").font(.system(size: 38, weight: .semibold, design: .rounded)).monospacedDigit()
                     .lineLimit(1).minimumScaleFactor(0.4)
                     .foregroundStyle(Theme.pnl(total.map(NumberFormat.displayedQuote)))
                 HStack(spacing: 6) {
@@ -412,9 +412,9 @@ struct LabeledValue: View {
 
     var body: some View {
         HStack {
-            Text(label).font(.system(size: 11)).foregroundStyle(Theme.secondaryText)
-            Spacer(minLength: 6)
-            Text(value).font(.system(size: 12, weight: .medium)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.7)
+            Text(label).font(.system(size: 10)).foregroundStyle(Theme.secondaryText)
+            Spacer(minLength: 4)
+            Text(value).font(.system(size: 11, weight: .medium)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.7)
         }
     }
 }
