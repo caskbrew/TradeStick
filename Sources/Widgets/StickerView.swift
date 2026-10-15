@@ -261,6 +261,8 @@ struct StickerMenuItems: View {
         Button("Zoom Out") { model.zoom(by: -0.1) }.keyboardShortcut("-")
         Button("Default") { model.zoom(by: 0) }.keyboardShortcut("0")
         Divider()
+        Button(model.isPinned ? "Unpin Window" : "Pin Window") { model.togglePin() }.keyboardShortcut("p")
+        Divider()
         Button("Hide Window", action: actions.hide).keyboardShortcut("w")
         Divider()
         Button("Delete Trade…", role: .destructive, action: actions.delete).keyboardShortcut(.delete, modifiers: [.option, .command])
@@ -286,6 +288,7 @@ struct ShortcutLayer: View {
             Button("") { model.toggleList() }.keyboardShortcut("l")
             Button("") { Task { await model.requestClose(recoverInvestment: false) } }.keyboardShortcut("e")
             Button("") { Task { await model.requestClose(recoverInvestment: true) } }.keyboardShortcut("r")
+            Button("") { model.togglePin() }.keyboardShortcut("p")
             Button("") { actions.hide() }.keyboardShortcut("w")
             Button("") { actions.delete() }.keyboardShortcut(.delete, modifiers: [.command, .option])
         }
