@@ -130,10 +130,10 @@ struct TransactionList: View {
         VStack(spacing: 0) { ForEach(rows) { tx in row(tx) } }
     }
 
-    private static let sideWidth: CGFloat = 40, amountWidth: CGFloat = 52, rateWidth: CGFloat = 62, agoWidth: CGFloat = 62, pnlWidth: CGFloat = 58, iconWidth: CGFloat = 14
+    private static let sideWidth: CGFloat = 36, amountWidth: CGFloat = 48, rateWidth: CGFloat = 56, agoWidth: CGFloat = 54, pnlWidth: CGFloat = 50, iconWidth: CGFloat = 14
 
     private var header: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 4) {
             Text("Ago").frame(width: Self.agoWidth, alignment: .leading)
             Text("Side").frame(width: Self.sideWidth, alignment: .leading)
             Text("PnL").frame(width: Self.pnlWidth, alignment: .trailing)
@@ -153,7 +153,7 @@ struct TransactionList: View {
     }
 
     private func row(_ tx: Domain.Transaction) -> some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 4) {
             if confirming == tx.id {
                 Text("Delete this transaction?").font(.system(size: 12))
                 Spacer()
@@ -170,8 +170,8 @@ struct TransactionList: View {
                 }
                 .foregroundStyle(Theme.secondaryText).frame(width: Self.agoWidth, alignment: .leading).minimumScaleFactor(0.7)
                 Text(tx.side == .buy ? "BUY" : "SELL") // user's choice: buy green, sell red (word stays, colour is not the only cue)
-                    .font(.system(size: 10, weight: .semibold)).fixedSize()
-                    .padding(.horizontal, 5).padding(.vertical, 2)
+                    .font(.system(size: 9, weight: .semibold)).fixedSize()
+                    .padding(.horizontal, 4).padding(.vertical, 2)
                     .background(Capsule().fill((tx.side == .buy ? Theme.positive : Theme.negative).opacity(0.18)))
                     .foregroundStyle(tx.side == .buy ? Theme.positive : Theme.negative)
                     .frame(width: Self.sideWidth, alignment: .leading)
@@ -192,7 +192,7 @@ struct TransactionList: View {
             Button("Edit…") { model.openEditForm(id: tx.id) }
             Button("Delete…", role: .destructive) { confirming = tx.id }
         }
-        .font(.system(size: 12)).monospacedDigit().lineLimit(1)
+        .font(.system(size: 11)).monospacedDigit().lineLimit(1)
         .frame(height: Self.rowHeight)
     }
 }

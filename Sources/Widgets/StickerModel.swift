@@ -20,7 +20,7 @@ public final class StickerModel {
     public private(set) var editingID: UUID?
 
     /// Height of one transaction row; shared with the view so the window can reserve room before a list opens.
-    public static let listRowHeight: CGFloat = 30
+    public static let listRowHeight: CGFloat = 26
     /// The card reports its laid-out height here; the window follows it.
     @ObservationIgnored public var onContentSize: ((CGSize) -> Void)?
     /// The transaction list slides out below the card, or above it when the screen has no room below.

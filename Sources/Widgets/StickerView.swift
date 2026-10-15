@@ -15,8 +15,8 @@ public struct StickerActions {
 }
 
 public struct StickerView: View {
-    public static let width: CGFloat = 420
-    public static let compactWidth: CGFloat = 340
+    public static let width: CGFloat = 380
+    public static let compactWidth: CGFloat = 310
 
     let model: StickerModel
     let actions: StickerActions
@@ -131,7 +131,7 @@ struct FormDrawer: View {
 
 /// The transaction list as a separate glass panel that slides out under the card (or over it).
 struct ListDrawer: View {
-    static let width: CGFloat = 420
+    static let width: CGFloat = 380
     static let gap: CGFloat = 8
     private static let duration = 0.22
 
@@ -189,14 +189,14 @@ struct StickerHeader: View {
                     Image(nsImage: image).resizable().scaledToFit().clipShape(Circle())
                 } else {
                     Circle().fill(Theme.monogram(model.trade.base))
-                    Text(String(model.trade.base.prefix(1))).font(.system(size: 18, weight: .semibold)).foregroundStyle(.white)
+                    Text(String(model.trade.base.prefix(1))).font(.system(size: 14, weight: .semibold)).foregroundStyle(.white)
                 }
             }
-            .frame(width: 38, height: 38)
+            .frame(width: 30, height: 30)
             .task { await model.loadIcon() }
 
             VStack(alignment: .leading, spacing: 2) {
-                Text("\(model.trade.base) / \(model.trade.quote)").font(.system(size: 16, weight: .semibold))
+                Text("\(model.trade.base) / \(model.trade.quote)").font(.system(size: 14, weight: .semibold))
                 HStack(spacing: 8) {
                     Text("\(model.trade.direction == .buyFirst ? "BUY" : "SELL") · Spot · \(model.trade.exchange.capitalized)")
                         .font(.system(size: 11)).foregroundStyle(Theme.secondaryText)
@@ -298,7 +298,7 @@ struct PriceRow: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .firstTextBaseline, spacing: 10) {
                 Text(model.currentPrice.map(NumberFormat.price) ?? "—")
-                    .font(.system(size: 30, weight: .semibold, design: .rounded)).monospacedDigit()
+                    .font(.system(size: 26, weight: .semibold, design: .rounded)).monospacedDigit()
                     .opacity(usable || model.currentPrice == nil ? 1 : 0.5)
                 if let change = model.price.change24h { ChangePill(change: change, dimmed: !usable) }
                 Spacer(minLength: 0)
@@ -323,8 +323,8 @@ struct ChangePill: View {
             Text(NumberFormat.signedPercent(change)).monospacedDigit()
             Text("24h").foregroundStyle(Theme.secondaryText)
         }
-        .font(.system(size: 12, weight: .medium))
-        .padding(.horizontal, 8).padding(.vertical, 3)
+        .font(.system(size: 11, weight: .medium))
+        .padding(.horizontal, 7).padding(.vertical, 2)
         .background(Capsule().fill(color.opacity(0.18)))
         .foregroundStyle(color)
         .opacity(dimmed ? 0.5 : 1)
@@ -372,9 +372,9 @@ struct NumbersBlock: View {
             HStack(alignment: .top, spacing: 12) {
                 VStack(alignment: .leading, spacing: 3) {
                     HStack(alignment: .firstTextBaseline, spacing: 4) {
-                        Text(total.map(NumberFormat.signedQuote) ?? "—").font(.system(size: 24, weight: .semibold, design: .rounded)).monospacedDigit()
+                        Text(total.map(NumberFormat.signedQuote) ?? "—").font(.system(size: 20, weight: .semibold, design: .rounded)).monospacedDigit()
                             .lineLimit(1).minimumScaleFactor(0.5) // a 4-digit PnL used to wrap its last digit
-                        Text(model.trade.quote).font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.secondaryText)
+                        Text(model.trade.quote).font(.system(size: 11, weight: .medium)).foregroundStyle(Theme.secondaryText)
                             .lineLimit(1).fixedSize()
                     }
                     .foregroundStyle(Theme.pnl(total.map(NumberFormat.displayedQuote)))
@@ -385,22 +385,24 @@ struct NumbersBlock: View {
                             Text(NumberFormat.signedPercent(ratio)).monospacedDigit()
                             if closed { Text("FINAL").font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.secondaryText) }
                         }
-                        .font(.system(size: 16, weight: .medium)).foregroundStyle(Theme.pnl(NumberFormat.displayedPercent(ratio))).opacity(dim ? 0.45 : 1)
+                        .font(.system(size: 13, weight: .medium)).foregroundStyle(Theme.pnl(NumberFormat.displayedPercent(ratio))).opacity(dim ? 0.45 : 1)
                     }
                     DurationLabel(model: model).padding(.top, 4)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
 
                 Rectangle().fill(Theme.divider).frame(width: 1)
 
-                VStack(alignment: .leading, spacing: 6) {
-                    LabeledValue(label: "Entry (avg)", value: summary.entryPrice.map(NumberFormat.price) ?? "—")
+                VStack(alignment: .leading, spacing: 4) {
+                    LabeledValue(label: "Entry", value: summary.entryPrice.map(NumberFormat.price) ?? "—")
                     LabeledValue(label: "Amount", value: closed ? "—" : "\(NumberFormat.quantity(summary.openQuantity)) \(model.trade.base)")
                     LabeledValue(label: "Cost", value: closed ? "—" : "\(NumberFormat.amount(summary.openCost)) \(model.trade.quote)")
                     LabeledValue(label: "Value", value: closed ? "—" : model.currentPrice.map { "\(NumberFormat.amount(summary.openQuantity * $0)) \(model.trade.quote)" } ?? "—")
                 }
-                .frame(width: 168)
+                .frame(width: 150, alignment: .bottom)
+                .frame(maxHeight: .infinity, alignment: .bottom)
             }
+            .fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -423,11 +425,11 @@ struct CompactNumbers: View {
                 LabeledValue(label: "Entry", value: summary.entryPrice.map(NumberFormat.price) ?? "—")
                 LabeledValue(label: "Amount", value: closed ? "—" : NumberFormat.quantity(summary.openQuantity))
             }
-            .frame(maxWidth: .infinity)
-            Rectangle().fill(Theme.divider).frame(width: 1, height: 44)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+            Rectangle().fill(Theme.divider).frame(width: 1)
             VStack(alignment: .trailing, spacing: 2) {
                 HStack(alignment: .firstTextBaseline, spacing: 4) {
-                    Text(total.map(NumberFormat.signedQuote) ?? "—").font(.system(size: 22, weight: .semibold, design: .rounded)).monospacedDigit()
+                    Text(total.map(NumberFormat.signedQuote) ?? "—").font(.system(size: 18, weight: .semibold, design: .rounded)).monospacedDigit()
                         .lineLimit(1).minimumScaleFactor(0.5)
                     Text(model.trade.quote).font(.system(size: 11, weight: .medium)).foregroundStyle(Theme.secondaryText).lineLimit(1).fixedSize()
                 }
@@ -437,12 +439,13 @@ struct CompactNumbers: View {
                         Text(NumberFormat.displayedPercent(ratio) > 0 ? "▲" : NumberFormat.displayedPercent(ratio) < 0 ? "▼" : "")
                         Text(NumberFormat.signedPercent(ratio)).monospacedDigit()
                     }
-                    .font(.system(size: 14, weight: .medium)).foregroundStyle(Theme.pnl(NumberFormat.displayedPercent(ratio)))
+                    .font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.pnl(NumberFormat.displayedPercent(ratio)))
                 }
             }
             .opacity(dim ? 0.45 : 1)
-            .frame(maxWidth: .infinity, alignment: .trailing)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
         }
+        .fixedSize(horizontal: false, vertical: true)
     }
 }
 
@@ -452,9 +455,9 @@ struct LabeledValue: View {
 
     var body: some View {
         HStack {
-            Text(label).font(.system(size: 12)).foregroundStyle(Theme.secondaryText)
+            Text(label).font(.system(size: 11)).foregroundStyle(Theme.secondaryText)
             Spacer(minLength: 6)
-            Text(value).font(.system(size: 13, weight: .medium)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.7)
+            Text(value).font(.system(size: 12, weight: .medium)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.7)
         }
     }
 }
@@ -466,7 +469,7 @@ struct DurationLabel: View {
     var body: some View {
         TimelineView(.periodic(from: .now, by: 30)) { ctx in
             if let span = model.duration(at: ctx.date) {
-                Label(Elapsed.duration(span), systemImage: "clock").font(.system(size: 12)).foregroundStyle(Theme.secondaryText)
+                Label(Elapsed.duration(span), systemImage: "clock").font(.system(size: 11)).foregroundStyle(Theme.secondaryText)
             }
         }
     }

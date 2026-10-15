@@ -114,6 +114,8 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 window.captureList(to: URL(fileURLWithPath: dir).appendingPathComponent("list-\(i).png"))
             }
             try? await Task.sleep(for: .milliseconds(600))
+            window.captureList(to: URL(fileURLWithPath: dir).appendingPathComponent("list-final.png"))
+            print("listOnTop", window.model.listOnTop, "listFrame", window.listFrame)
             window.model.setExpanded(false)
             for i in 1...6 {
                 try? await Task.sleep(for: .milliseconds(35))
