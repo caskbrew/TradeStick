@@ -249,7 +249,7 @@ struct StickerMenuItems: View {
     var body: some View {
         let expanded = model.trade.isExpanded
         let count = model.transactions.count
-        Button("Add transaction\t⌃B") { model.addTransaction() }
+        Button("Add transaction\t⌘B") { model.addTransaction() }
         Button("\(expanded ? "Hide" : "Show") transactions (\(count))\t⌘L") { model.toggleList() }
             .disabled(model.status == .empty)
         if model.status == .open {
@@ -286,7 +286,7 @@ struct ShortcutLayer: View {
 
     var body: some View {
         Group {
-            Button("") { model.toggleForm() }.keyboardShortcut("b", modifiers: .control)
+            Button("") { model.toggleForm() }.keyboardShortcut("b")
             Button("") { model.toggleList() }.keyboardShortcut("l")
             Button("") { Task { await model.requestClose(recoverInvestment: false) } }.keyboardShortcut("e")
             Button("") { Task { await model.requestClose(recoverInvestment: true) } }.keyboardShortcut("r")

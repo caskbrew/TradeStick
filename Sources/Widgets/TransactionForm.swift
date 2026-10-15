@@ -30,7 +30,7 @@ struct TransactionForm: View {
                     .buttonStyle(PillStyle(fill: Theme.accent, minHeight: 40)).keyboardShortcut(measuring ? nil : KeyboardShortcut.defaultAction).disabled(!model.canSave)
             }
         }
-        .background { Button("") { model.toggleForm() }.keyboardShortcut("b", modifiers: .control).opacity(0).frame(width: 0, height: 0).allowsHitTesting(false) }
+        .background { Button("") { model.toggleForm() }.keyboardShortcut("b").opacity(0).frame(width: 0, height: 0).allowsHitTesting(false) }
         .onAppear { if !measuring { focus = .quantity } }
     }
 
