@@ -12,7 +12,7 @@ struct TransactionForm: View {
         let form = model.form
         VStack(alignment: .leading, spacing: 6) {
             HStack {
-                Text(model.editingID == nil ? "Add" : "Edit").font(.system(size: 12, weight: .semibold))
+                Text(model.editingID == nil ? "Add Tx" : "Edit Tx").font(.system(size: 12, weight: .semibold))
                 Spacer(minLength: 8)
                 sideSwitch(form?.side ?? .buy).frame(width: 64)
             }
@@ -22,7 +22,7 @@ struct TransactionForm: View {
                     field("Amount", unit: model.trade.quote, .amount, text: form?.amountText ?? "", auto: form?.isAuto(.amount) ?? false)
                 }
                 GridRow {
-                    field("Rate", unit: model.trade.quote, .rate, text: form?.rateText ?? "", auto: form?.isAuto(.rate) ?? false)
+                    field("Rate", unit: "rate", .rate, text: form?.rateText ?? "", auto: form?.isAuto(.rate) ?? false)
                     timeField(form)
                 }
             }
@@ -33,7 +33,7 @@ struct TransactionForm: View {
             HStack(spacing: 6) {
                 Button("Cancel") { model.cancelForm() }
                     .buttonStyle(PillStyle(fill: Theme.field, minHeight: 26)).keyboardShortcut(.cancelAction)
-                Button(model.editingID == nil ? "Add" : "Save") { Task { await model.submit() } }
+                Button(model.editingID == nil ? "Add Tx" : "Save") { Task { await model.submit() } }
                     .buttonStyle(PillStyle(fill: (form?.side ?? .buy) == .buy ? Theme.positive : Theme.negative, minHeight: 26)).keyboardShortcut(.defaultAction).disabled(!model.canSave)
             }
         }
@@ -85,10 +85,20 @@ struct TransactionForm: View {
             }
     }
 
+    /// Digits and one dot only; a comma counts as a dot.
+    private static func numeric(_ text: String) -> String {
+        var seenDot = false
+        return String(text.compactMap { ch -> Character? in
+            if ch.isASCII, ch.isNumber { return ch }
+            if (ch == "." || ch == ","), !seenDot { seenDot = true; return "." }
+            return nil
+        })
+    }
+
     /// The label lives inside the field: a placeholder while empty, the unit (and "auto") on the right.
     private func field(_ title: String, unit: String, _ id: TransactionDraft.Field, text: String, auto: Bool) -> some View {
         HStack(spacing: 4) {
-            TextField(title, text: Binding(get: { text }, set: { model.edit(id, $0) }))
+            TextField(title, text: Binding(get: { text }, set: { model.edit(id, Self.numeric($0)) }))
                 .textFieldStyle(.plain).monospacedDigit().font(.system(size: 12))
                 .focused($focus, equals: id)
             Text(auto ? "auto" : unit).font(.system(size: 10)).foregroundStyle(Theme.secondaryText).lineLimit(1).fixedSize()

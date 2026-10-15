@@ -227,8 +227,8 @@ struct StickerMenuItems: View {
 
     var body: some View {
         let expanded = model.trade.isExpanded
-        Button("Add transaction") { model.addTransaction() }.keyboardShortcut("b")
-        Button("\(expanded ? "Hide" : "Show") transactions ") { model.toggleList() }
+        Button("Add Tx") { model.addTransaction() }.keyboardShortcut("b")
+        Button("\(expanded ? "Hide" : "Show") history") { model.toggleList() }
             .keyboardShortcut("l").disabled(model.status == .empty)
         if model.status == .open {
             Divider()
@@ -246,7 +246,7 @@ struct StickerMenuItems: View {
         Divider()
         Button("Zoom In") { model.zoom(by: 0.1) }.keyboardShortcut("+")
         Button("Zoom Out") { model.zoom(by: -0.1) }.keyboardShortcut("-")
-        Button("Actual Size") { model.zoom(by: 0) }.keyboardShortcut("0")
+        Button("Default") { model.zoom(by: 0) }.keyboardShortcut("0")
         Divider()
         Button("Hide Window", action: actions.hide).keyboardShortcut("w")
         Divider()

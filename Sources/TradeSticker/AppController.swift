@@ -193,7 +193,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     func menuNeedsUpdate(_ menu: NSMenu) {
         menu.removeAllItems()
-        let new = NSMenuItem(title: "New Trade…", action: #selector(showNewTrade), keyEquivalent: "n")
+        let new = NSMenuItem(title: "New Tx", action: #selector(showNewTrade), keyEquivalent: "n")
         new.target = self
         menu.addItem(new)
 
@@ -202,7 +202,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         for trade in trades {
             let visible = windows[trade.id]?.isVisible ?? false
             let item = NSMenuItem(
-                title: "\(trade.base)/\(trade.quote) · \(trade.direction == .buyFirst ? "Buy-first" : "Sell-first")",
+                title: "\(trade.base)/\(trade.quote) · \(trade.direction == .buyFirst ? "BUY" : "SELL")",
                 action: #selector(toggle(_:)), keyEquivalent: ""
             )
             item.target = self
@@ -212,7 +212,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
             menu.addItem(item)
         }
         menu.addItem(.separator())
-        menu.addItem(NSMenuItem(title: "Quit TradeSticker", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
+        menu.addItem(NSMenuItem(title: "Quit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
     }
 
     /// Shows a hidden sticker, or pulls a visible one to the desktop you are on. Hiding is in the sticker's `⋯` menu.
