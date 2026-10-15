@@ -207,7 +207,7 @@ struct StickerHeader: View {
             Menu {
                 StickerMenuItems(model: model, actions: actions)
             } label: {
-                Image(systemName: "ellipsis").frame(width: 24, height: 24)
+                Image(systemName: "ellipsis").offset(y: -4).frame(width: 24, height: 24)
             }
             .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
         }
