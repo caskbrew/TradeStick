@@ -29,7 +29,7 @@ let package = Package(
         // Sticker view models and SwiftUI views. No AppKit window code here.
         .target(name: "Widgets", dependencies: ["Domain", "Persistence", "MarketData", "Presentation"]),
         .testTarget(name: "WidgetsTests", dependencies: ["Widgets", "Domain", "Persistence", "MarketData", "Presentation"]),
-        .executableTarget(name: "TradeSticker", dependencies: ["Domain", "Persistence", "MarketData", "Widgets"]),
+        .executableTarget(name: "TradeSticker", dependencies: ["Domain", "Persistence", "MarketData", "Widgets"], resources: [.process("Resources")]),
         // Throwaway spike for risk R1 (window behaviour). Not used by any other target.
         .executableTarget(name: "WindowSpike"),
     ]

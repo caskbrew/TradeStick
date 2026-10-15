@@ -8,3 +8,4 @@ DerivedData/
 # Large design reference images stay local for now (about 20 MB).
 docs/*.png
 *.png
+!Sources/**/*.png
