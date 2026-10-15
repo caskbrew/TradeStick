@@ -8,11 +8,11 @@ swift build -c release --arch arm64 --arch x86_64
 BIN=$(swift build -c release --arch arm64 --arch x86_64 --show-bin-path)
 APP=dist/TradeStickies.app
 rm -rf $APP dist/*.zip dist/AppIcon.iconset && mkdir -p $APP/Contents/{MacOS,Resources}
-cp $BIN/TradeSticker $APP/Contents/MacOS/TradeStickies
-cp -R $BIN/TradeSticker_TradeSticker.bundle $BIN/GRDB_GRDB.bundle $APP/Contents/Resources/ 2>/dev/null || true
+cp $BIN/TradeStickies $APP/Contents/MacOS/TradeStickies
+cp -R $BIN/TradeStickies_TradeStickies.bundle $BIN/GRDB_GRDB.bundle $APP/Contents/Resources/ 2>/dev/null || true
 
 ICONSET=dist/AppIcon.iconset; mkdir -p $ICONSET
-SRC=Sources/TradeSticker/Resources/AppIcon.png
+SRC=Sources/TradeStickies/Resources/AppIcon.png
 for s in 16 32 128 256 512; do
   sips -z $s $s $SRC --out $ICONSET/icon_${s}x${s}.png >/dev/null
   sips -z $((s*2)) $((s*2)) $SRC --out $ICONSET/icon_${s}x${s}@2x.png >/dev/null

@@ -27,7 +27,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         do {
             // Developer overrides: a separate database file and demo data (spec example A).
             let path: String
-            if let override = ProcessInfo.processInfo.environment["TRADESTICKER_DB"] { path = override } else { path = try TradeStore.defaultDatabaseURL(folder: Self.dataFolder).path }
+            if let override = ProcessInfo.processInfo.environment["TRADESTICKIES_DB"] { path = override } else { path = try TradeStore.defaultDatabaseURL(folder: Self.dataFolder).path }
             store = try TradeStore(path: path)
             if CommandLine.arguments.contains("--seed-demo"), try store.trades().isEmpty { try seedDemo() }
         } catch {
@@ -115,7 +115,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
             print("selftest \(label): card \(cardPath.map { Int($0) })")
             print("selftest \(label): top moved \(tops.max()! - tops.min()!) pt, heights \(path.map { Int($0) }), steps \(steps)")
         }
-        if let dir = ProcessInfo.processInfo.environment["TRADESTICKER_FRAMES"] {
+        if let dir = ProcessInfo.processInfo.environment["TRADESTICKIES_FRAMES"] {
             try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
             try? await Task.sleep(for: .milliseconds(800))
             window.capture(to: URL(fileURLWithPath: dir).appendingPathComponent("expand-0.png"))

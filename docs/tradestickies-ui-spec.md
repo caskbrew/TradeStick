@@ -1,4 +1,4 @@
-# TradeSticker — UI/UX Specification
+# TradeStickies — UI/UX Specification
 
 **Status:** Draft for discovery and implementation planning  
 **Platform:** macOS  
