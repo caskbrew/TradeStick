@@ -12,23 +12,24 @@ struct TransactionForm: View {
         let form = model.form
         VStack(alignment: .leading, spacing: 6) {
             HStack {
-                Text(model.editingID == nil ? "New transaction" : "Edit transaction").font(.system(size: 12, weight: .semibold))
+                Text(model.editingID == nil ? "Add" : "Edit transaction").font(.system(size: 12, weight: .semibold))
                 Spacer(minLength: 8)
                 sideSwitch(form?.side ?? .buy).frame(width: 64)
             }
             Grid(horizontalSpacing: 6, verticalSpacing: 4) {
                 GridRow {
-                    field("Quantity (\(model.trade.base))", .quantity, text: form?.quantityText ?? "", auto: false)
-                    field("Amount (\(model.trade.quote))", .amount, text: form?.amountText ?? "", auto: form?.isAuto(.amount) ?? false)
+                    field("Quantity", unit: model.trade.base, .quantity, text: form?.quantityText ?? "", auto: false)
+                    field("Amount", unit: model.trade.quote, .amount, text: form?.amountText ?? "", auto: form?.isAuto(.amount) ?? false)
                 }
                 GridRow {
-                    field("Rate (\(model.trade.quote))", .rate, text: form?.rateText ?? "", auto: form?.isAuto(.rate) ?? false)
+                    field("Rate", unit: model.trade.quote, .rate, text: form?.rateText ?? "", auto: form?.isAuto(.rate) ?? false)
                     timeField(form)
                 }
             }
             if let message = model.formError ?? model.formProblems.first?.message {
                 Text(message).font(.system(size: 12)).foregroundStyle(Theme.negative) // errors may be red (FR-UI-8)
             }
+            Spacer(minLength: 0)
             HStack(spacing: 6) {
                 Button("Cancel") { model.cancelForm() }
                     .buttonStyle(PillStyle(fill: Theme.field, minHeight: 26)).keyboardShortcut(.cancelAction)
@@ -60,9 +61,7 @@ struct TransactionForm: View {
 
     /// "Now" until the user picks a time; the popover has a calendar and a "Now" button to go back.
     private func timeField(_ form: TransactionDraft?) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text("Time").font(.system(size: 10)).foregroundStyle(Theme.secondaryText)
-            Button { showPicker = true } label: {
+        Button { showPicker = true } label: {
                 HStack {
                     Text(form?.isNow ?? true ? "Now" : (form?.occurredAt ?? .now).formatted(.dateTime.day().month().hour().minute()))
                         .font(.system(size: 12)).lineLimit(1).minimumScaleFactor(0.7)
@@ -70,7 +69,7 @@ struct TransactionForm: View {
                     Image(systemName: "calendar").foregroundStyle(Theme.secondaryText)
                 }
                 .padding(.horizontal, 6).frame(height: 24)
-                .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Theme.field))
+                .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Theme.field))
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -84,22 +83,19 @@ struct TransactionForm: View {
                 }
                 .padding(12)
             }
-        }
     }
 
-    private func field(_ title: String, _ id: TransactionDraft.Field, text: String, auto: Bool) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            HStack(spacing: 4) {
-                Text(title).font(.system(size: 10)).foregroundStyle(Theme.secondaryText).lineLimit(1).minimumScaleFactor(0.8)
-                if auto { Text("auto").font(.system(size: 10)).foregroundStyle(Theme.secondaryText.opacity(0.7)) }
-            }
-            TextField("0", text: Binding(get: { text }, set: { model.edit(id, $0) }))
+    /// The label lives inside the field: a placeholder while empty, the unit (and "auto") on the right.
+    private func field(_ title: String, unit: String, _ id: TransactionDraft.Field, text: String, auto: Bool) -> some View {
+        HStack(spacing: 4) {
+            TextField(title, text: Binding(get: { text }, set: { model.edit(id, $0) }))
                 .textFieldStyle(.plain).monospacedDigit().font(.system(size: 12))
-                .padding(.horizontal, 6).frame(height: 24)
-                .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Theme.field))
-                .opacity(auto ? 0.6 : 1)
                 .focused($focus, equals: id)
+            Text(auto ? "auto" : unit).font(.system(size: 10)).foregroundStyle(Theme.secondaryText).lineLimit(1).fixedSize()
         }
+        .padding(.horizontal, 6).frame(height: 24)
+        .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Theme.field))
+        .opacity(auto ? 0.6 : 1)
     }
 }
 

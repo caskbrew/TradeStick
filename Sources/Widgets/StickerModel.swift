@@ -76,6 +76,8 @@ public final class StickerModel {
         return saved > 0 ? min(max(CGFloat(saved), 0.6), 1.8) : 1
     }()
     public static let scaleRange: ClosedRange<CGFloat> = 0.6...1.8
+    /// Unscaled height of the card; the form panel matches it.
+    public private(set) var cardHeight: CGFloat = 0
     @ObservationIgnored private var rawContent = CGSize.zero
     @ObservationIgnored private var rawList: CGFloat = 0
     @ObservationIgnored private var rawForm: CGFloat = 0
@@ -92,7 +94,7 @@ public final class StickerModel {
     }
 
     /// The views report unscaled sizes; the windows get what is on screen.
-    func contentSizeChanged(_ size: CGSize) { rawContent = size; onContentSize?(CGSize(width: size.width * scale, height: size.height * scale)) }
+    func contentSizeChanged(_ size: CGSize) { rawContent = size; cardHeight = size.height; onContentSize?(CGSize(width: size.width * scale, height: size.height * scale)) }
     func listHeightChanged(_ height: CGFloat) { rawList = height; onListHeight?(height * scale) }
     func formHeightChanged(_ height: CGFloat) { rawForm = height; onFormHeight?(height * scale) }
 

@@ -55,7 +55,7 @@ public struct StickerView: View {
                 .fixedSize()
                 .onGeometryChange(for: CGSize.self) { $0.size } action: { model.contentSizeChanged($0) }
                 .scaleEffect(model.scale, anchor: .topLeading)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
     }
 }
@@ -115,6 +115,7 @@ struct FormDrawer: View {
     private var panel: some View {
         if rendered {
             TransactionForm(model: model)
+                .frame(minHeight: model.cardHeight - 20, alignment: .top)
                 .padding(10)
                 .frame(width: Self.panelWidth)
                 .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { model.formHeightChanged($0) }

@@ -200,6 +200,7 @@ final class StickerWindow: NSObject, NSWindowDelegate {
     /// Card height as SwiftUI currently lays it out (animated while a section opens or closes).
     var currentCardHeight: CGFloat { content.height }
 
+
     // MARK: Geometry
 
     // Resizing model: the window frame itself is never animated. A transparent window may be taller than the
