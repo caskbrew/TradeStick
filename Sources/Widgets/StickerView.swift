@@ -221,7 +221,7 @@ struct StickerHeader: View {
                 }
             }
             Spacer(minLength: 4)
-            StatusBadge(status: model.status)
+            if model.status == .open { CloseMenu(model: model) } else { StatusBadge(status: model.status) }
             Menu {
                 Button("Hide Window", action: actions.hide)
                 Divider()
@@ -231,6 +231,39 @@ struct StickerHeader: View {
             }
             .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
         }
+    }
+}
+
+/// Replaces the OPEN badge while the trade is open: the two ways to close it.
+struct CloseMenu: View {
+    let model: StickerModel
+
+    var body: some View {
+        let closing = model.trade.direction == .buyFirst ? "Sell" : "Buy back"
+        let base = model.trade.base
+        Menu {
+            Button("\(closing) all at market · \(NumberFormat.quantity(model.summary.openQuantity)) \(base)") { model.openCloseForm() }
+                .disabled(model.currentPrice == nil)
+            if model.trade.direction == .buyFirst {
+                Button(recoverTitle) { model.openRecoverForm() }.disabled(model.recoverQuantity == nil)
+            }
+        } label: {
+            HStack(spacing: 4) {
+                Text("Close").font(.system(size: 12, weight: .semibold))
+                Image(systemName: "chevron.down").font(.system(size: 8, weight: .bold))
+            }
+            .padding(.horizontal, 10).padding(.vertical, 4)
+            .background(Capsule().fill(Theme.accent))
+            .foregroundStyle(.white)
+        }
+        .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
+        .help("Close the trade: record the closing sale at the current price")
+    }
+
+    private var recoverTitle: String {
+        guard let quantity = model.recoverQuantity else { return "Sell enough to recover the investment" }
+        let invested = model.summary.boughtAmount - model.summary.soldAmount
+        return "Sell \(NumberFormat.quantity(quantity)) \(model.trade.base) to recover \(NumberFormat.amount(invested)) \(model.trade.quote)"
     }
 }
 
@@ -403,13 +436,8 @@ struct ActionRow: View {
 
     var body: some View {
         let opening = model.trade.direction.openingSide
-        let open = model.summary.openQuantity > 0
         let expanded = model.trade.isExpanded
         HStack(spacing: 8) {
-            if model.status == .open {
-                Button { model.openCloseForm() } label: { Label("Close", systemImage: "checkmark").frame(maxWidth: .infinity) }
-                    .buttonStyle(PillStyle(fill: Theme.accent)).disabled(!open)
-            }
             Button { model.openForm(side: opening) } label: { Label("Add", systemImage: "plus").frame(maxWidth: .infinity) }
                 .buttonStyle(PillStyle(fill: Theme.field))
                 .help("Add a buy or sell record (no order is sent)")

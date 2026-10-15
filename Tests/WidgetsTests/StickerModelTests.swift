@@ -203,3 +203,38 @@ struct Fixture {
         #expect(parts.reduce(0, +) == f.model.pnl.total)
     }
 }
+
+@MainActor @Suite(.timeLimit(.minutes(1))) struct RecoverInvestmentTests {
+    func priced(_ price: String) async throws -> Fixture {
+        let f = try Fixture()
+        try f.add(.buy, "1000", "50", minute: 1)
+        try f.add(.buy, "500", "30", minute: 2) // 1500 GRAM, 80 USDT out of pocket
+        await f.model.refreshSubscription()
+        await waitUntil { f.fake.connectCount == 1 }
+        f.fake.emit(PriceTick(price: dec(price), open24h: nil, eventTime: Date()))
+        await waitUntil { f.model.currentPrice != nil }
+        return f
+    }
+
+    @Test func sellsEnoughToGetTheInvestmentBack() async throws {
+        let f = try await priced("0.1")
+        #expect(f.model.recoverQuantity == 800) // 80 / 0.1
+        f.model.openRecoverForm()
+        #expect(f.model.form?.quantityText == "800" && f.model.form?.side == .sell)
+        #expect(f.model.form?.amountText == "80")
+    }
+
+    @Test func unavailableWhenPriceIsTooLowOrUnknown() async throws {
+        let low = try await priced("0.05") // 80 / 0.05 = 1600 > 1500 held
+        #expect(low.model.recoverQuantity == nil)
+        let none = try Fixture()
+        try none.add(.buy, "100", "10", minute: 1)
+        #expect(none.model.recoverQuantity == nil)
+    }
+
+    @Test func roundsUpAndCountsEarlierSales() async throws {
+        let f = try await priced("0.3")
+        try f.add(.sell, "100", "40", minute: 3) // 40 USDT already back: 40 left out of pocket
+        #expect(f.model.recoverQuantity == dec("133.33333334")) // 40 / 0.3 rounded up at 8 decimals
+    }
+}

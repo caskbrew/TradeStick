@@ -149,16 +149,37 @@ public final class StickerModel {
         formError = nil
     }
 
-    /// `Close`: the closing side, the whole open quantity, the current price when known.
-    public func openCloseForm() {
+    /// `Close` → all: the closing side, the whole open quantity, the current price when known.
+    public func openCloseForm() { openClosingForm(quantity: summary.openQuantity) }
+
+    /// Quantity to sell at the current price so that the USDT still out of pocket (bought minus already sold)
+    /// comes back, leaving the rest as profit. nil when that is not possible: sell-first trade, no price,
+    /// nothing left to recover, or the price is too low to recover it with what is held.
+    public var recoverQuantity: Decimal? {
+        guard trade.direction == .buyFirst, let price = currentPrice, price > 0 else { return nil }
+        let outOfPocket = summary.boughtAmount - summary.soldAmount
+        guard outOfPocket > 0 else { return nil }
+        var exact = outOfPocket / price, rounded = Decimal()
+        NSDecimalRound(&rounded, &exact, 8, .up) // never recover a hair less than the investment
+        return rounded < summary.openQuantity ? rounded : nil
+    }
+
+    /// `Close` → recover the investment: sells `recoverQuantity` at the current price.
+    public func openRecoverForm() {
+        guard let quantity = recoverQuantity else { return }
+        openClosingForm(quantity: quantity)
+    }
+
+    private func openClosingForm(quantity: Decimal) {
         guard summary.openQuantity > 0 else { return }
         if form == nil { onFormWillOpen?() }
+        editingID = nil
         let side = trade.direction.closingSide
         if let rate = currentPrice {
-            form = TransactionDraft(side: side, occurredAt: clock(), quantity: summary.openQuantity, rate: rate)
+            form = TransactionDraft(side: side, occurredAt: clock(), quantity: quantity, rate: rate)
         } else {
             var draft = TransactionDraft(side: side, occurredAt: clock())
-            draft.edit(.quantity, "\(summary.openQuantity)")
+            draft.edit(.quantity, "\(quantity)")
             form = draft
         }
         formError = nil
