@@ -130,7 +130,7 @@ struct TransactionList: View {
         VStack(spacing: 0) { ForEach(rows) { tx in row(tx) } }
     }
 
-    private static let sideWidth: CGFloat = 26, amountWidth: CGFloat = 48, rateWidth: CGFloat = 56, agoWidth: CGFloat = 36, pnlWidth: CGFloat = 50, iconWidth: CGFloat = 14
+    private static let sideWidth: CGFloat = 26, amountWidth: CGFloat = 58, rateWidth: CGFloat = 56, agoWidth: CGFloat = 36, pnlWidth: CGFloat = 50, iconWidth: CGFloat = 14
 
     private var header: some View {
         HStack(spacing: 4) {

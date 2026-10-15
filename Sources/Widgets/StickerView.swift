@@ -131,7 +131,7 @@ struct FormDrawer: View {
 
 /// The transaction list as a separate glass panel that slides out under the card (or over it).
 struct ListDrawer: View {
-    static let width: CGFloat = 380
+    static let width: CGFloat = 330
     static let gap: CGFloat = 8
     private static let duration = 0.22
 
@@ -196,7 +196,10 @@ struct StickerHeader: View {
             .task { await model.loadIcon() }
 
             VStack(alignment: .leading, spacing: 2) {
-                Text("\(model.trade.base) / \(model.trade.quote)").font(.system(size: 14, weight: .semibold))
+                HStack(spacing: 8) {
+                    Text("\(model.trade.base) / \(model.trade.quote)").font(.system(size: 14, weight: .semibold))
+                    DurationLabel(model: model)
+                }
                 HStack(spacing: 8) {
                     Text("\(model.trade.direction == .buyFirst ? "BUY" : "SELL") · Spot · \(model.trade.exchange.capitalized)")
                         .font(.system(size: 11)).foregroundStyle(Theme.secondaryText)
@@ -387,17 +390,16 @@ struct NumbersBlock: View {
                         }
                         .font(.system(size: 13, weight: .medium)).foregroundStyle(Theme.pnl(NumberFormat.displayedPercent(ratio))).opacity(dim ? 0.45 : 1)
                     }
-                    DurationLabel(model: model).padding(.top, 4)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
 
                 Rectangle().fill(Theme.divider).frame(width: 1)
 
                 VStack(alignment: .leading, spacing: 4) {
-                    LabeledValue(label: "Entry", value: summary.entryPrice.map(NumberFormat.price) ?? "—")
-                    LabeledValue(label: "Amount", value: closed ? "—" : "\(NumberFormat.quantity(summary.openQuantity)) \(model.trade.base)")
-                    LabeledValue(label: "Cost", value: closed ? "—" : "\(NumberFormat.amount(summary.openCost)) \(model.trade.quote)")
-                    LabeledValue(label: "Value", value: closed ? "—" : model.currentPrice.map { "\(NumberFormat.amount(summary.openQuantity * $0)) \(model.trade.quote)" } ?? "—")
+                    LabeledValue(label: "Rate", value: summary.entryPrice.map(NumberFormat.price) ?? "—")
+                    LabeledValue(label: model.trade.base, value: closed ? "—" : NumberFormat.quantity(summary.openQuantity))
+                    LabeledValue(label: model.trade.quote, value: closed ? "—" : NumberFormat.amount(summary.openCost))
+                    LabeledValue(label: "Value", value: closed ? "—" : model.currentPrice.map { NumberFormat.amount(summary.openQuantity * $0) } ?? "—")
                 }
                 .frame(width: 150, alignment: .bottom)
                 .frame(maxHeight: .infinity, alignment: .bottom)
@@ -422,9 +424,9 @@ struct CompactNumbers: View {
         let dim = !closed && !usable
         HStack(alignment: .center, spacing: 12) {
             VStack(alignment: .leading, spacing: 6) {
-                LabeledValue(label: "Entry", value: summary.entryPrice.map(NumberFormat.price) ?? "—")
-                LabeledValue(label: "Amount", value: closed ? "—" : NumberFormat.quantity(summary.openQuantity))
-                LabeledValue(label: "Cost", value: closed ? "—" : "\(NumberFormat.amount(summary.openCost)) \(model.trade.quote)")
+                LabeledValue(label: "Rate", value: summary.entryPrice.map(NumberFormat.price) ?? "—")
+                LabeledValue(label: model.trade.base, value: closed ? "—" : NumberFormat.quantity(summary.openQuantity))
+                LabeledValue(label: model.trade.quote, value: closed ? "—" : NumberFormat.amount(summary.openCost))
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
             Rectangle().fill(Theme.divider).frame(width: 1)
@@ -442,7 +444,6 @@ struct CompactNumbers: View {
                     }
                     .font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.pnl(NumberFormat.displayedPercent(ratio)))
                 }
-                DurationLabel(model: model)
             }
             .opacity(dim ? 0.45 : 1)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
