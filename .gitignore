@@ -9,3 +9,4 @@ DerivedData/
 docs/*.png
 *.png
 !Sources/**/*.png
+dist/
