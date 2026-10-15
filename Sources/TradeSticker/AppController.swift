@@ -202,7 +202,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         for trade in trades {
             let visible = windows[trade.id]?.isVisible ?? false
             let item = NSMenuItem(
-                title: "\(trade.base)/\(trade.quote) · \(trade.direction == .buyFirst ? "BUY" : "SELL")",
+                title: "\(trade.base)/\(trade.quote) \(trade.direction == .buyFirst ? "BUY" : "SELL") \(trade.exchange.capitalized)",
                 action: #selector(toggle(_:)), keyEquivalent: ""
             )
             item.target = self
