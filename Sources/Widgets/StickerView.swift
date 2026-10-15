@@ -78,7 +78,7 @@ public struct FormWindowView: View {
 
 /// The add/edit form as a separate glass panel that slides out sideways from the card.
 struct FormDrawer: View {
-    static let panelWidth: CGFloat = 280
+    static let panelWidth: CGFloat = 240
     static let gap: CGFloat = 10
     private static let duration = 0.22
 
@@ -117,10 +117,10 @@ struct FormDrawer: View {
     private var panel: some View {
         if rendered {
             TransactionForm(model: model)
-                .padding(12)
+                .padding(10)
                 .frame(width: Self.panelWidth)
                 .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { model.onFormHeight?($0) }
-                .background(GlassBackground())
+                .background(GlassBackground(radius: 14))
                 .foregroundStyle(.white)
                 .environment(\.colorScheme, .dark)
         }

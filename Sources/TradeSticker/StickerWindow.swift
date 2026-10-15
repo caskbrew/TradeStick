@@ -221,11 +221,10 @@ final class StickerWindow: NSObject, NSWindowDelegate {
         listPanel.invalidateShadow()
     }
 
-    /// The form opens in its own panel to the right of the sticker, or to the left when the right side has no room.
+    /// The form opens in its own panel to the left of the sticker, or to the right when the left side has no room.
     private func prepareForm() {
         let screen = NSScreen.screens.first { $0.frame.contains(anchor) } ?? NSScreen.main
-        let right = anchor.x + panel.frame.width + StickerView.formDrawerWidth
-        model.formOnLeft = right > (screen?.visibleFrame.maxX ?? .infinity)
+        model.formOnLeft = anchor.x - StickerView.formDrawerWidth >= (screen?.visibleFrame.minX ?? 0) // left by default
         formPanel.setContentSize(NSSize(width: StickerView.formDrawerWidth, height: formHeight > 0 ? formHeight : 300))
         placeFormPanel()
         if formPanel.parent == nil { panel.addChildWindow(formPanel, ordered: .above) }
