@@ -226,6 +226,7 @@ struct StickerHeader: View {
             }
             .frame(width: 24, height: 24)
             }
+            .padding(.trailing, -8)
         }
         .background { ShortcutLayer(model: model, actions: actions) }
     }
