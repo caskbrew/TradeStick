@@ -258,14 +258,7 @@ struct NumbersBlock: View {
 
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .top, spacing: 14) {
-                VStack(alignment: .leading, spacing: 6) {
-                    LabeledValue(label: "Entry (avg)", value: summary.entryPrice.map(NumberFormat.price) ?? "—")
-                    LabeledValue(label: "Amount", value: closed ? "—" : "\(NumberFormat.quantity(summary.openQuantity)) \(model.trade.base)")
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .layoutPriority(-1)
-
-                VStack(alignment: .trailing, spacing: 3) {
+                VStack(alignment: .leading, spacing: 3) {
                     HStack(alignment: .firstTextBaseline, spacing: 4) {
                         Text(total.map(NumberFormat.signedQuote) ?? "—").font(.system(size: 24, weight: .semibold, design: .rounded)).monospacedDigit()
                             .lineLimit(1).minimumScaleFactor(0.5) // a 4-digit PnL used to wrap its last digit
@@ -283,6 +276,14 @@ struct NumbersBlock: View {
                         .font(.system(size: 16, weight: .medium)).foregroundStyle(Theme.pnl(NumberFormat.displayedPercent(ratio))).opacity(dim ? 0.45 : 1)
                     }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                VStack(alignment: .leading, spacing: 6) {
+                    LabeledValue(label: "Entry (avg)", value: summary.entryPrice.map(NumberFormat.price) ?? "—")
+                    LabeledValue(label: "Amount", value: closed ? "—" : "\(NumberFormat.quantity(summary.openQuantity)) \(model.trade.base)")
+                    LabeledValue(label: "Total", value: closed ? "—" : "\(NumberFormat.amount(summary.openCost)) \(model.trade.quote)")
+                }
+                .frame(width: 168)
             }
                 if dim, model.currentPrice != nil || model.status == .open {
                 Label("based on old price", systemImage: "exclamationmark.triangle.fill")
@@ -308,21 +309,12 @@ struct LabeledValue: View {
     }
 }
 
-/// USDT spent and received so far, opening side first, and how long the trade has run.
 struct SideTotals: View {
     let model: StickerModel
 
     var body: some View {
-        let summary = model.summary, quote = model.trade.quote
-        let bought = ("Bought", summary.boughtAmount), sold = ("Sold", summary.soldAmount)
-        let rows = summary.direction == .buyFirst ? [bought, sold] : [sold, bought]
-        VStack(alignment: .leading, spacing: 6) {
-            ForEach(rows, id: \.0) { title, amount in
-                LabeledValue(label: "\(title), \(quote)", value: amount > 0 ? NumberFormat.amount(amount) : "—")
-            }
-            TimelineView(.periodic(from: .now, by: 30)) { ctx in
-                if let span = model.duration(at: ctx.date) { LabeledValue(label: "Duration", value: Elapsed.duration(span)) }
-            }
+        TimelineView(.periodic(from: .now, by: 30)) { ctx in
+            if let span = model.duration(at: ctx.date) { LabeledValue(label: "Duration", value: Elapsed.duration(span)) }
         }
     }
 }
@@ -335,40 +327,40 @@ struct ActionRow: View {
     var body: some View {
         let opening = model.trade.direction.openingSide
         let open = model.summary.openQuantity > 0
-        VStack(spacing: 8) {
-            HStack(spacing: 8) {
-                pill("Add transaction") { model.openForm(side: opening) }
-                if model.status == .open {
-                    Button("Close") { model.openCloseForm() }
-                        .buttonStyle(PillStyle(fill: Theme.accent)).disabled(!open)
-                }
+        let expanded = model.trade.isExpanded
+        HStack(spacing: 8) {
+            Button { model.openForm(side: opening) } label: { Label("Add", systemImage: "plus").frame(maxWidth: .infinity) }
+                .buttonStyle(PillStyle(fill: Theme.field))
+                .help("Add transaction")
+            if model.status == .open {
+                Button { model.openCloseForm() } label: { Label("Close", systemImage: "checkmark").frame(maxWidth: .infinity) }
+                    .buttonStyle(PillStyle(fill: Theme.accent)).disabled(!open)
             }
             if model.status != .empty {
-                Button {
-                    model.setExpanded(!model.trade.isExpanded)
-                } label: {
-                    let n = model.transactions.count
-                    Text("\(n) transaction\(n == 1 ? "" : "s") \(model.trade.isExpanded ? "⌃" : "⌄")")
-                        .font(.system(size: 12)).foregroundStyle(Theme.secondaryText)
+                Button { model.setExpanded(!expanded) } label: {
+                    HStack(spacing: 5) {
+                        Image(systemName: "list.bullet")
+                        Text("\(model.transactions.count)").monospacedDigit()
+                        Image(systemName: "chevron.down").font(.system(size: 9, weight: .bold)).rotationEffect(.degrees(expanded ? 180 : 0))
+                    }
+                    .padding(.horizontal, 6)
                 }
-                .buttonStyle(.plain).frame(maxWidth: .infinity, alignment: .trailing)
+                .buttonStyle(PillStyle(fill: expanded ? Theme.accent.opacity(0.35) : Theme.field, flexible: false))
+                .help(expanded ? "Hide transactions" : "Show transactions")
             }
         }
-    }
-
-    private func pill(_ title: String, enabled: Bool = true, action: @escaping () -> Void) -> some View {
-        Button(title, action: action).buttonStyle(PillStyle(fill: Theme.field)).disabled(!enabled)
     }
 }
 
 struct PillStyle: ButtonStyle {
     let fill: Color
+    var flexible = true
     @Environment(\.isEnabled) private var isEnabled
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.system(size: 13, weight: .medium))
-            .frame(maxWidth: .infinity, minHeight: 32)
+            .frame(maxWidth: flexible ? .infinity : nil, minHeight: 32)
             .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(fill.opacity(configuration.isPressed ? 0.7 : 1)))
             .foregroundStyle(.white.opacity(isEnabled ? 1 : 0.35))
     }
