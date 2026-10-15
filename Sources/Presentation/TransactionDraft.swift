@@ -35,7 +35,7 @@ public struct TransactionDraft: Equatable, Sendable {
     public init(side: Side, occurredAt: Date, quantity: Decimal, rate: Decimal) {
         self.init(side: side, occurredAt: occurredAt)
         edit(.quantity, Self.text(quantity, scale: 8))
-        edit(.rate, Self.text(rate, scale: 10))
+        edit(.rate, Self.text(rate, scale: 8))
     }
 
     /// Pre-fills the form with an existing transaction; Amount is the input, Rate follows.
@@ -102,7 +102,7 @@ public struct TransactionDraft: Equatable, Sendable {
         switch driver {
         case .amount:
             if let q = quantity, q > 0, let a = DecimalInput.parse(amountText) {
-                rateText = Self.text(a / q, scale: 10)
+                rateText = NumberFormat.price(a / q) // same digits as the exchange feed
             } else {
                 rateText = ""
             }

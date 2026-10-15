@@ -91,7 +91,7 @@ let now = Date(timeIntervalSince1970: 1_700_000_000)
         var d = draft()
         d.edit(.quantity, "500")
         d.edit(.amount, "30")
-        #expect(d.rateText == "0.06") // 30 / 500, the reference-image error C25
+        #expect(d.rateText == "0.060000") // 30 / 500, the reference-image error C25
         #expect(d.isAuto(.rate) && !d.isAuto(.amount))
         #expect(d.savable(now: now)?.amount == 30)
     }
@@ -115,7 +115,7 @@ let now = Date(timeIntervalSince1970: 1_700_000_000)
         d.edit(.quantity, "100")
         d.edit(.amount, "10")
         d.edit(.quantity, "200")
-        #expect(d.rateText == "0.05") // amount stays, rate follows
+        #expect(d.rateText == "0.050000") // amount stays, rate follows
 
         d.edit(.rate, "0.1")
         d.edit(.quantity, "50")
@@ -129,7 +129,7 @@ let now = Date(timeIntervalSince1970: 1_700_000_000)
         d.edit(.quantity, "0")
         #expect(d.rateText == "")
         d.edit(.quantity, "500")
-        #expect(d.rateText == "0.06")
+        #expect(d.rateText == "0.060000")
     }
 
     @Test func commaInputWorks() {
@@ -232,7 +232,7 @@ let now = Date(timeIntervalSince1970: 1_700_000_000)
 @Suite struct DraftEditTests {
     @Test func prefilledFromTransactionKeepsAmountAndDerivesRate() {
         let d = TransactionDraft(side: .buy, occurredAt: now, quantity: dec("1000"), amount: dec("50.123456"))
-        #expect(d.quantityText == "1000" && d.amountText == "50.123456" && d.rateText == "0.050123456")
+        #expect(d.quantityText == "1000" && d.amountText == "50.123456" && d.rateText == "0.05012346")
         #expect(d.driver == .amount)
     }
 }
