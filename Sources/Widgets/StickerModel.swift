@@ -18,6 +18,8 @@ public final class StickerModel {
     public var form: TransactionDraft?
     /// Set while the form edits an existing transaction instead of adding one.
     public private(set) var editingID: UUID?
+    /// Changes every time a form is opened (also when switching between transactions), so the view starts from the new draft.
+    public private(set) var formID = UUID()
 
     /// Height of one transaction row; shared with the view so the window can reserve room before a list opens.
     public static let listRowHeight: CGFloat = 22
@@ -194,6 +196,7 @@ public final class StickerModel {
         if form == nil { onFormWillOpen?() }
         form = TransactionDraft(side: side, occurredAt: clock())
         editingID = nil
+        formID = UUID()
         formError = nil
     }
 
@@ -271,6 +274,7 @@ public final class StickerModel {
         if form == nil { onFormWillOpen?() }
         form = TransactionDraft(side: tx.side, occurredAt: tx.occurredAt, quantity: tx.quantity, amount: tx.amount)
         editingID = id
+        formID = UUID()
         formError = nil
     }
 

@@ -9,6 +9,9 @@ struct TransactionForm: View {
     @State private var timeText = ""
     /// The current time shown when the form opens; left untouched, the transaction is stamped when saved.
     @State private var nowText = ""
+    /// The text of a transaction being edited, as first shown: left alone, its exact time (with seconds) is kept.
+    @State private var shownText = ""
+    @State private var shownDate: Date?
     @FocusState private var focus: TransactionDraft.Field?
 
     var body: some View {
@@ -43,7 +46,11 @@ struct TransactionForm: View {
         .background { Button("") { model.toggleForm() }.keyboardShortcut("b").opacity(0).frame(width: 0, height: 0).allowsHitTesting(false) }
         .onAppear {
             nowText = TimeInput.format(.now)
-            if let f = model.form { timeText = f.isNow ? nowText : TimeInput.format(f.occurredAt) }
+            if let f = model.form {
+                shownText = f.isNow ? nowText : TimeInput.format(f.occurredAt)
+                shownDate = f.isNow ? nil : f.occurredAt
+                timeText = shownText
+            }
             focus = .quantity
         }
     }
@@ -84,7 +91,7 @@ struct TransactionForm: View {
                         get: { model.form?.occurredAt ?? .now },
                         set: { timeText = TimeInput.format($0) }
                     ), in: ...Date.now).labelsHidden().datePickerStyle(.graphical)
-                    Button("Now") { nowText = TimeInput.format(.now); timeText = nowText; showPicker = false }.disabled(model.form?.isNow ?? true)
+                    Button("Now") { nowText = TimeInput.format(.now); shownText = ""; shownDate = nil; timeText = nowText; showPicker = false }.disabled(model.form?.isNow ?? true)
                 }
                 .padding(12)
             }
@@ -95,9 +102,12 @@ struct TransactionForm: View {
 
     private func applyTime(_ text: String) {
         let trimmed = text.trimmingCharacters(in: .whitespaces)
-        if trimmed.isEmpty || trimmed == nowText {
+        if trimmed == shownText, model.form?.isNow == false {
+            if let shownDate { model.form?.occurredAt = shownDate } // untouched or typed back: the stored time to the second
+            model.form?.timeInvalid = false
+        } else if trimmed.isEmpty || trimmed == nowText {
             model.form?.isNow = true; model.form?.timeInvalid = false
-        } else if let date = TimeInput.parse(trimmed, now: .now) {
+        } else if let date = TimeInput.parse(trimmed, now: model.form.map { $0.isNow ? Date.now : $0.occurredAt } ?? .now) {
             model.form?.occurredAt = date; model.form?.isNow = false; model.form?.timeInvalid = false
         } else {
             model.form?.timeInvalid = true

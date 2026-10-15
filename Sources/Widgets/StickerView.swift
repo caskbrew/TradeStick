@@ -114,7 +114,7 @@ struct FormDrawer: View {
     @ViewBuilder
     private var panel: some View {
         if rendered {
-            TransactionForm(model: model)
+            TransactionForm(model: model).id(model.formID)
                 .frame(minHeight: model.cardHeight - 20, alignment: .top)
                 .padding(10)
                 .frame(width: Self.panelWidth)
