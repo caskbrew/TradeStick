@@ -216,7 +216,7 @@ struct StickerHeader: View {
             Menu {
                 StickerMenuItems(model: model, actions: actions)
             } label: {
-                VStack(spacing: 2.5) { ForEach(0..<3) { _ in Circle().frame(width: 3, height: 3) } }.frame(width: 24, height: 24)
+                Text("\u{22EE}").font(.system(size: 16, weight: .bold)).frame(width: 24, height: 24)
             }
             .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
         }
