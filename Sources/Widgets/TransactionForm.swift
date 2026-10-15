@@ -11,10 +11,13 @@ struct TransactionForm: View {
 
     var body: some View {
         let form = model.form
-        VStack(alignment: .leading, spacing: 10) {
-            Text(model.editingID == nil ? "New transaction" : "Edit transaction").font(.system(size: 14, weight: .semibold))
-            sideSwitch(form?.side ?? .buy)
-            Grid(horizontalSpacing: 8, verticalSpacing: 8) {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text(model.editingID == nil ? "New transaction" : "Edit transaction").font(.system(size: 13, weight: .semibold))
+                Spacer(minLength: 8)
+                sideSwitch(form?.side ?? .buy).frame(width: 116)
+            }
+            Grid(horizontalSpacing: 8, verticalSpacing: 6) {
                 GridRow {
                     field("Quantity (\(model.trade.base))", .quantity, text: form?.quantityText ?? "", auto: false)
                     field("Amount (\(model.trade.quote))", .amount, text: form?.amountText ?? "", auto: form?.isAuto(.amount) ?? false)
@@ -27,11 +30,11 @@ struct TransactionForm: View {
             if let message = model.formError ?? model.formProblems.first?.message {
                 Text(message).font(.system(size: 12)).foregroundStyle(Theme.negative) // errors may be red (FR-UI-8)
             }
-            HStack(spacing: 10) {
+            HStack(spacing: 8) {
                 Button("Cancel") { model.cancelForm() }
-                    .buttonStyle(PillStyle(fill: Theme.field, minHeight: 34)).keyboardShortcut(measuring ? nil : KeyboardShortcut.cancelAction)
+                    .buttonStyle(PillStyle(fill: Theme.field, minHeight: 30)).keyboardShortcut(measuring ? nil : KeyboardShortcut.cancelAction)
                 Button(model.editingID == nil ? "Save" : "Save changes") { Task { await model.submit() } }
-                    .buttonStyle(PillStyle(fill: Theme.accent, minHeight: 34)).keyboardShortcut(measuring ? nil : KeyboardShortcut.defaultAction).disabled(!model.canSave)
+                    .buttonStyle(PillStyle(fill: Theme.accent, minHeight: 30)).keyboardShortcut(measuring ? nil : KeyboardShortcut.defaultAction).disabled(!model.canSave)
             }
         }
         .background { Button("") { model.toggleForm() }.keyboardShortcut("b").opacity(0).frame(width: 0, height: 0).allowsHitTesting(false) }
@@ -43,9 +46,10 @@ struct TransactionForm: View {
         HStack(spacing: 0) {
             ForEach([Side.buy, Side.sell], id: \.self) { option in
                 Button { model.form?.side = option } label: {
-                    Text(option == .buy ? "Buy" : "Sell").font(.system(size: 13, weight: .medium))
-                        .frame(maxWidth: .infinity, minHeight: 30)
-                        .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(side == option ? Theme.accent : .clear))
+                    Text(option == .buy ? "Buy" : "Sell").font(.system(size: 12, weight: .semibold))
+                        .frame(maxWidth: .infinity, minHeight: 24)
+                        .background(RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .fill(side == option ? (option == .buy ? Theme.positive : Theme.negative).opacity(0.85) : .clear))
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -57,16 +61,16 @@ struct TransactionForm: View {
 
     /// "Now" until the user picks a time; the popover has a calendar and a "Now" button to go back.
     private func timeField(_ form: TransactionDraft?) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 2) {
             Text("Time").font(.system(size: 11)).foregroundStyle(Theme.secondaryText)
             Button { showPicker = true } label: {
                 HStack {
                     Text(form?.isNow ?? true ? "Now" : (form?.occurredAt ?? .now).formatted(.dateTime.day().month().hour().minute()))
-                        .font(.system(size: 14)).lineLimit(1).minimumScaleFactor(0.7)
+                        .font(.system(size: 13)).lineLimit(1).minimumScaleFactor(0.7)
                     Spacer(minLength: 0)
                     Image(systemName: "calendar").foregroundStyle(Theme.secondaryText)
                 }
-                .padding(.horizontal, 10).frame(height: 36)
+                .padding(.horizontal, 8).frame(height: 30)
                 .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Theme.field))
                 .contentShape(Rectangle())
             }
@@ -85,14 +89,14 @@ struct TransactionForm: View {
     }
 
     private func field(_ title: String, _ id: TransactionDraft.Field, text: String, auto: Bool) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 2) {
             HStack(spacing: 4) {
                 Text(title).font(.system(size: 11)).foregroundStyle(Theme.secondaryText).lineLimit(1).minimumScaleFactor(0.8)
                 if auto { Text("auto").font(.system(size: 11)).foregroundStyle(Theme.secondaryText.opacity(0.7)) }
             }
             TextField("0", text: Binding(get: { text }, set: { model.edit(id, $0) }))
-                .textFieldStyle(.plain).monospacedDigit().font(.system(size: 14))
-                .padding(.horizontal, 10).frame(height: 36)
+                .textFieldStyle(.plain).monospacedDigit().font(.system(size: 13))
+                .padding(.horizontal, 8).frame(height: 30)
                 .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Theme.field))
                 .opacity(auto ? 0.6 : 1)
                 .focused($focus, equals: id)
