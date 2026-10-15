@@ -7,7 +7,6 @@ struct TransactionForm: View {
     let model: StickerModel
     @State private var showPicker = false
     @FocusState private var focus: TransactionDraft.Field?
-    @Environment(\.isMeasuring) private var measuring
 
     var body: some View {
         let form = model.form
@@ -32,13 +31,13 @@ struct TransactionForm: View {
             }
             HStack(spacing: 8) {
                 Button("Cancel") { model.cancelForm() }
-                    .buttonStyle(PillStyle(fill: Theme.field, minHeight: 30)).keyboardShortcut(measuring ? nil : KeyboardShortcut.cancelAction)
+                    .buttonStyle(PillStyle(fill: Theme.field, minHeight: 30)).keyboardShortcut(.cancelAction)
                 Button(model.editingID == nil ? "Save" : "Save changes") { Task { await model.submit() } }
-                    .buttonStyle(PillStyle(fill: Theme.accent, minHeight: 30)).keyboardShortcut(measuring ? nil : KeyboardShortcut.defaultAction).disabled(!model.canSave)
+                    .buttonStyle(PillStyle(fill: (form?.side ?? .buy) == .buy ? Theme.positive : Theme.negative, minHeight: 30)).keyboardShortcut(.defaultAction).disabled(!model.canSave)
             }
         }
         .background { Button("") { model.toggleForm() }.keyboardShortcut("b").opacity(0).frame(width: 0, height: 0).allowsHitTesting(false) }
-        .onAppear { if !measuring { focus = .quantity } }
+        .onAppear { focus = .quantity }
     }
 
     /// Buy / Sell switch; the chosen side is filled with the accent colour.

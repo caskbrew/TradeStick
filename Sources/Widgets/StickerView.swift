@@ -27,6 +27,7 @@ public struct StickerView: View {
     }
 
     /// Width of the form drawer including the gap to the card.
+    public static let listWidth: CGFloat = ListDrawer.width
     public static let formDrawerWidth: CGFloat = FormDrawer.gap + FormDrawer.panelWidth
 
     public var body: some View {
@@ -35,7 +36,7 @@ public struct StickerView: View {
             let usable = freshness == .fresh && model.price.connection == .connected
             let compact = model.trade.isCompact
             let card = VStack(alignment: .leading, spacing: 0) {
-              VStack(alignment: .leading, spacing: compact ? 6 : 12) {
+              VStack(alignment: .leading, spacing: compact ? 6 : 10) {
                 StickerHeader(model: model, actions: actions, live: usable)
                 PriceRow(model: model, freshness: freshness, usable: usable)
                 if model.status == .empty {
@@ -47,9 +48,8 @@ public struct StickerView: View {
                     NumbersBlock(model: model, usable: usable)
                 }
               }
-                if !model.trade.isCompact { BottomSection(model: model) }
             }
-            .padding(compact ? 10 : 16)
+            .padding(compact ? 8 : 12)
             .frame(width: model.trade.isCompact ? Self.compactWidth : Self.width)
             .background(GlassBackground())
             .foregroundStyle(.white)
@@ -127,78 +127,50 @@ struct FormDrawer: View {
     }
 }
 
-// MARK: Bottom section
+// MARK: List drawer
 
-private struct MeasuringKey: EnvironmentKey { static let defaultValue = false }
-extension EnvironmentValues {
-    /// True for the invisible copy used only to learn a layout's height: it must not take focus or shortcuts.
-    var isMeasuring: Bool {
-        get { self[MeasuringKey.self] }
-        set { self[MeasuringKey.self] = newValue }
+/// The transaction list as a separate glass panel that slides out under the card (or over it).
+struct ListDrawer: View {
+    static let width: CGFloat = 420
+    static let gap: CGFloat = 8
+    private static let duration = 0.22
+
+    let model: StickerModel
+    @State private var reveal: CGFloat = 0
+    @State private var measured: CGFloat = 0
+
+    var body: some View {
+        let top = model.listOnTop
+        TransactionList(model: model)
+            .padding(12)
+            .frame(width: Self.width)
+            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { measured = $0; model.onListHeight?($0 + Self.gap) }
+            .background(GlassBackground())
+            .foregroundStyle(.white)
+            .environment(\.colorScheme, .dark)
+            .padding(top ? .bottom : .top, Self.gap)
+            .frame(height: reveal, alignment: top ? .bottom : .top)
+            .clipped()
+            .onChange(of: model.trade.isExpanded) { _, open in move(open) }
+            .onChange(of: measured) { _, _ in if model.trade.isExpanded { move(true) } }
+            .onAppear { if model.trade.isExpanded { move(true) } }
+    }
+
+    private func move(_ open: Bool) {
+        withAnimation(.easeInOut(duration: Self.duration)) { reveal = open ? measured + Self.gap : 0 }
     }
 }
 
-/// Actions, form and transaction list. Everything above it never moves. This section sits in a clip whose height
-/// animates, so new content is revealed from the top downward as the card grows, and on shrinking the old
-/// content stays visible until the clip has closed over it.
-struct BottomSection: View {
+/// Root of the list's own window.
+public struct ListWindowView: View {
     let model: StickerModel
 
-    private struct Shape: Equatable {
-        var expanded: Bool
-    }
+    public init(model: StickerModel) { self.model = model }
 
-    private static let duration = 0.22
-
-    @State private var shown: Shape
-    @State private var height: CGFloat?
-    @State private var targetHeight: CGFloat = 0
-
-    init(model: StickerModel) {
-        self.model = model
-        _shown = State(initialValue: Shape(expanded: model.trade.isExpanded))
-    }
-
-    private var target: Shape { Shape(expanded: model.trade.isExpanded) }
-
-    var body: some View {
-        content(shown)
-            .fixedSize(horizontal: false, vertical: true)
-            .frame(height: height, alignment: .top)
-            .clipped()
-            // Invisible copy in the target state: tells us how tall the section is going to be.
-            .background(alignment: .top) {
-                content(target)
-                    .environment(\.isMeasuring, true)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .hidden().allowsHitTesting(false).accessibilityHidden(true)
-                    .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { targetHeight = $0 }
-            }
-            .onChange(of: targetHeight) { _, new in
-                if height == nil { height = new } else { withAnimation(.easeInOut(duration: Self.duration)) { height = new } }
-            }
-            .onChange(of: target) { old, new in
-                let shrinking = old.expanded && !new.expanded
-                if shrinking {
-                    Task {
-                        try? await Task.sleep(for: .milliseconds(Int(Self.duration * 1000) + 20))
-                        shown = target // by now the clip has closed over the old content
-                    }
-                } else {
-                    shown = new
-                }
-            }
-    }
-
-    @ViewBuilder
-    private func content(_ shape: Shape) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            if shape.expanded {
-                Divider().overlay(Theme.divider)
-                TransactionList(model: model)
-            }
-        }
-        .padding(.top, shape.expanded ? 12 : 0) // the card VStack has no spacing before this section: it supplies its own
+    public var body: some View {
+        ListDrawer(model: model)
+            .fixedSize()
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: model.listOnTop ? .bottomLeading : .topLeading)
     }
 }
 
@@ -430,9 +402,6 @@ struct NumbersBlock: View {
                 }
                 .frame(width: 168)
             }
-            .padding(12)
-            .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Color.white.opacity(0.05)))
-            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Theme.divider, lineWidth: 1))
         }
     }
 

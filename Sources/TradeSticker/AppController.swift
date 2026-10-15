@@ -111,6 +111,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
             for i in 1...6 {
                 try? await Task.sleep(for: .milliseconds(35))
                 window.capture(to: URL(fileURLWithPath: dir).appendingPathComponent("expand-\(i).png"))
+                window.captureList(to: URL(fileURLWithPath: dir).appendingPathComponent("list-\(i).png"))
             }
             try? await Task.sleep(for: .milliseconds(600))
             window.model.setExpanded(false)
@@ -128,7 +129,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
             try? await Task.sleep(for: .milliseconds(600))
             window.capture(to: URL(fileURLWithPath: dir).appendingPathComponent("form-L.png"))
             window.captureForm(to: URL(fileURLWithPath: dir).appendingPathComponent("form-panel.png"))
-            print("frame", window.frame, "form", window.formFrame)
+            print("frame", window.frame, "form", window.formFrame, "list", window.listFrame)
             window.model.cancelForm()
             for i in 1...6 {
                 try? await Task.sleep(for: .milliseconds(35))

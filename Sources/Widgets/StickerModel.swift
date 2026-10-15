@@ -21,11 +21,13 @@ public final class StickerModel {
 
     /// Height of one transaction row; shared with the view so the window can reserve room before a list opens.
     public static let listRowHeight: CGFloat = 30
-    /// Called synchronously before a change that makes the card taller, with a generous upper bound of the extra
-    /// height. The window grows first (it is transparent) and the card then animates inside it.
-    @ObservationIgnored public var onWillGrow: ((CGFloat) -> Void)?
     /// The card reports its laid-out height here; the window follows it.
     @ObservationIgnored public var onContentSize: ((CGSize) -> Void)?
+    /// The transaction list slides out below the card, or above it when the screen has no room below.
+    public var listOnTop = false
+    @ObservationIgnored public var onListWillOpen: (() -> Void)?
+    @ObservationIgnored public var onListClosed: (() -> Void)?
+    @ObservationIgnored public var onListHeight: ((CGFloat) -> Void)?
     /// The add/edit form slides out beside the card, normally to the right. The window sets this to true
     /// (before the form opens) when there is no room on the right.
     public var formOnLeft = false
@@ -135,12 +137,13 @@ public final class StickerModel {
         await refreshSubscription()
     }
 
+    /// Opens or closes the transaction list, which lives in its own window under (or over) the sticker.
     public func setExpanded(_ expanded: Bool) {
-        if expanded && !trade.isExpanded {
-            onWillGrow?(CGFloat(min(transactions.count, 8)) * Self.listRowHeight + 64)
-        }
+        guard expanded != trade.isExpanded else { return }
+        if expanded { onListWillOpen?() }
         try? store.setExpanded(id: trade.id, expanded)
         trade.isExpanded = expanded
+        if !expanded { onListClosed?() }
     }
 
     // MARK: Form

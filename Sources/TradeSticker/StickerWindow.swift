@@ -51,6 +51,9 @@ final class StickerWindow: NSObject, NSWindowDelegate {
     let model: StickerModel
     private let panel = StickerPanel()
     private let formPanel = FormPanel()
+    private let listPanel = FormPanel()
+    private let listHost = NSHostingView(rootView: AnyView(EmptyView()))
+    private var listHeight: CGFloat = 0
     private let formHost = NSHostingView(rootView: AnyView(EmptyView()))
     private var formHeight: CGFloat = 0
     private let store: TradeStore
@@ -80,11 +83,17 @@ final class StickerWindow: NSObject, NSWindowDelegate {
             self?.content = size
             self?.contentLaidOut()
         }
-        model.onWillGrow = { [weak self] extra in self?.reserve(extra) }
         model.onFormWillOpen = { [weak self] in self?.prepareForm() }
         model.confirm = { plan in Self.confirm(plan, base: model.trade.base, quote: model.trade.quote) }
         model.onFormClosed = { [weak self] in self?.dismissForm() }
         model.onFormHeight = { [weak self] height in self?.formHeightChanged(height) }
+        model.onListWillOpen = { [weak self] in self?.prepareList() }
+        model.onListClosed = { [weak self] in self?.dismissList() }
+        model.onListHeight = { [weak self] height in self?.listHeightChanged(height) }
+        listHost.rootView = AnyView(ListWindowView(model: model))
+        listHost.sizingOptions = []
+        listPanel.contentView = listHost
+        listPanel.setContentSize(NSSize(width: StickerView.listWidth, height: 300))
         formHost.rootView = AnyView(FormWindowView(model: model))
         formHost.sizingOptions = []
         formPanel.contentView = formHost
@@ -101,6 +110,7 @@ final class StickerWindow: NSObject, NSWindowDelegate {
     func show(activate: Bool) {
         contentLaidOut()
         settle()
+        if model.trade.isExpanded && !listPanel.isVisible { prepareList() }
         if activate {
             NSApp.activate()
             panel.makeKeyAndOrderFront(nil)
@@ -120,6 +130,7 @@ final class StickerWindow: NSObject, NSWindowDelegate {
     }
 
     func close() {
+        listPanel.orderOut(nil)
         formPanel.orderOut(nil)
         panel.orderOut(nil)
         panel.contentView = nil
@@ -156,6 +167,12 @@ final class StickerWindow: NSObject, NSWindowDelegate {
         view.cacheDisplay(in: view.bounds, to: rep)
         try? rep.representation(using: .png, properties: [:])?.write(to: url)
     }
+    func captureList(to url: URL) {
+        guard let view = listPanel.contentView, let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { return }
+        view.cacheDisplay(in: view.bounds, to: rep)
+        try? rep.representation(using: .png, properties: [:])?.write(to: url)
+    }
+    var listFrame: NSRect { listPanel.frame }
     var frame: NSRect { panel.frame }
     var formFrame: NSRect { formPanel.frame }
     /// Card height as SwiftUI currently lays it out (animated while a section opens or closes).
@@ -167,9 +184,38 @@ final class StickerWindow: NSObject, NSWindowDelegate {
     // card; SwiftUI animates the card inside it. Growing happens first (reserve), trimming after the content
     // has settled. Animating the frame made the glass flicker and left nothing to animate when closing.
 
-    /// Called just before a change that makes the card taller: make room first.
-    private func reserve(_ extra: CGFloat) {
-        setWindowHeight(panel.frame.height + extra)
+    /// The list opens in its own panel under the sticker, or over it when the screen has no room below.
+    private func prepareList() {
+        listPanel.setContentSize(NSSize(width: StickerView.listWidth, height: max(listHeight, 300)))
+        let screen = NSScreen.screens.first { $0.frame.contains(anchor) } ?? NSScreen.main
+        model.listOnTop = panel.frame.minY - listPanel.frame.height < (screen?.visibleFrame.minY ?? -.infinity)
+        placeListPanel()
+        if listPanel.parent == nil { panel.addChildWindow(listPanel, ordered: .above) }
+        listPanel.orderFront(nil)
+    }
+
+    private func dismissList() {
+        Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(260)) // let the drawer slide away first
+            guard let self, !self.model.trade.isExpanded else { return }
+            self.panel.removeChildWindow(self.listPanel)
+            self.listPanel.orderOut(nil)
+        }
+    }
+
+    private func listHeightChanged(_ height: CGFloat) {
+        guard height > 0 else { return }
+        listHeight = height
+        guard listPanel.isVisible, abs(listPanel.frame.height - height) > 0.5 else { return }
+        listPanel.setContentSize(NSSize(width: StickerView.listWidth, height: height))
+        placeListPanel()
+    }
+
+    /// Left-aligned with the sticker, touching its bottom edge (or its top edge when it opens upward).
+    private func placeListPanel() {
+        let main = panel.frame, size = listPanel.frame.size
+        listPanel.setFrameOrigin(NSPoint(x: main.minX, y: model.listOnTop ? main.maxY : main.minY - size.height))
+        listPanel.invalidateShadow()
     }
 
     /// The form opens in its own panel to the right of the sticker, or to the left when the right side has no room.
@@ -239,6 +285,7 @@ final class StickerWindow: NSObject, NSWindowDelegate {
         panel.setFrame(frame, display: true)
         panel.invalidateShadow()
         if formPanel.isVisible { placeFormPanel() }
+        if listPanel.isVisible { placeListPanel() }
     }
 
     private static func initialAnchor(for stored: WindowPosition?, index: Int) -> NSPoint {
