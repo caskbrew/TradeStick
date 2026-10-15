@@ -66,7 +66,7 @@ public struct ImportView: View {
                     Text(row.trade.side == .buy ? "BUY" : "SELL").bold()
                         .foregroundStyle(row.trade.side == .buy ? Theme.positive : Theme.negative).frame(width: 36, alignment: .leading)
                     Text(NumberFormat.quantity(row.trade.quantity)).frame(width: 90, alignment: .trailing)
-                    Text(NumberFormat.quote(row.trade.amount)).frame(width: 80, alignment: .trailing)
+                    Text(NumberFormat.quote(row.trade.amount, fixed: model.fixedQuote)).frame(width: 80, alignment: .trailing)
                     Text(row.trade.rate.map(NumberFormat.price) ?? "").frame(width: 80, alignment: .trailing)
                     Text(row.alreadyAdded ? "added" : row.partlyAdded ? "partly added" : detail(row.trade))
                         .foregroundStyle(.secondary).font(.caption).lineLimit(1)

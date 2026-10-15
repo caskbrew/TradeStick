@@ -278,7 +278,7 @@ extension StickerMenuItems {
     fileprivate var recoverTitle: String {
         guard let quantity = model.recoverQuantity else { return "Sell enough to recover the investment" }
         let invested = model.summary.boughtAmount - model.summary.soldAmount
-        return "Sell \(NumberFormat.quantity(quantity)) \(model.trade.base) to recover \(NumberFormat.amount(invested)) \(model.trade.quote)"
+        return "Sell \(NumberFormat.quantity(quantity)) \(model.trade.base) to recover \(NumberFormat.quote(invested, fixed: NumberFormat.isTwoDecimalCurrency(model.trade.quote))) \(model.trade.quote)"
     }
 }
 
@@ -400,14 +400,14 @@ struct CompactNumbers: View {
             VStack(alignment: .leading, spacing: 3) {
                 LabeledValue(label: "Rate", value: summary.entryPrice.map(NumberFormat.price) ?? "—")
                 LabeledValue(label: model.trade.base, value: closed ? "—" : NumberFormat.quantity(summary.openQuantity))
-                LabeledValue(label: model.trade.quote, value: closed ? "—" : NumberFormat.amount(summary.openCost))
+                LabeledValue(label: model.trade.quote, value: closed ? "—" : NumberFormat.quote(summary.openCost, fixed: model.quoteFixed))
             }
             .frame(maxHeight: .infinity, alignment: .bottomLeading)
             Rectangle().fill(Theme.divider).frame(width: 1)
             VStack(alignment: .trailing, spacing: 2) {
-                Text(total.map(NumberFormat.signedQuote) ?? "—").font(.system(size: 32, weight: .semibold, design: .rounded)).monospacedDigit()
+                Text(total.map { NumberFormat.signedQuote($0, fixed: model.quoteFixed) } ?? "—").font(.system(size: 32, weight: .semibold, design: .rounded)).monospacedDigit()
                     .lineLimit(1).minimumScaleFactor(0.4)
-                    .foregroundStyle(Theme.pnl(total.map(NumberFormat.displayedQuote)))
+                    .foregroundStyle(Theme.pnl(total.map { NumberFormat.displayedQuote($0, fixed: model.quoteFixed) }))
                 HStack(spacing: 6) {
                     Text(model.trade.quote).font(.system(size: 11, weight: .medium)).foregroundStyle(Theme.secondaryText)
                     if let ratio {

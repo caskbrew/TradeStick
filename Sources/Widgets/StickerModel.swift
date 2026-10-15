@@ -266,6 +266,9 @@ public final class StickerModel {
         }
     }
 
+    /// The quote currency is shown with exactly 2 decimals (USDT and alike).
+    public var quoteFixed: Bool { NumberFormat.isTwoDecimalCurrency(trade.quote) }
+
     public func importHistory() { onImportHistory?() }
 
     /// Adds fills from the exchange. Returns nil on success, else a message (nothing was written).

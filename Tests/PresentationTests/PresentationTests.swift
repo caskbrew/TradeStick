@@ -52,6 +52,15 @@ let now = Date(timeIntervalSince1970: 1_700_000_000)
         #expect(NumberFormat.quote(dec("1234.567")) == "1234.57")
     }
 
+    @Test func stableQuotesAlwaysShowTwoDecimals() {
+        #expect(NumberFormat.quote(dec("0.12345"), fixed: true) == "0.12")
+        #expect(NumberFormat.quote(dec("48"), fixed: true) == "48.00")
+        #expect(NumberFormat.signedQuote(dec("0.0004"), fixed: true) == "0.00") // rounds to zero: no sign
+        #expect(NumberFormat.signedQuote(dec("-0.456"), fixed: true) == "\u{2212}0.46")
+        #expect(NumberFormat.displayedQuote(dec("0.004"), fixed: true) == 0)
+        #expect(NumberFormat.isTwoDecimalCurrency("usdt") && !NumberFormat.isTwoDecimalCurrency("BTC"))
+    }
+
     @Test func signedAmountsAlwaysCarryASignExceptZero() {
         #expect(NumberFormat.signedQuote(dec("9.5")) == "+9.50")
         #expect(NumberFormat.signedQuote(dec("-4.5")) == "\u{2212}4.50")

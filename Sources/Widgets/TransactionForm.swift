@@ -186,8 +186,8 @@ struct TransactionList: View {
 
     /// Profit or loss of one transaction against the current price; "—" while the price is unknown.
     private func pnl(_ value: Decimal?) -> some View {
-        Text(value.map(NumberFormat.signedQuote) ?? "—")
-            .foregroundStyle(Theme.pnl(value.map(NumberFormat.displayedQuote)))
+        Text(value.map { NumberFormat.signedQuote($0, fixed: model.quoteFixed) } ?? "—")
+            .foregroundStyle(Theme.pnl(value.map { NumberFormat.displayedQuote($0, fixed: model.quoteFixed) }))
             .minimumScaleFactor(0.6).frame(width: Self.pnlWidth, alignment: .trailing)
     }
 
@@ -217,7 +217,7 @@ struct TransactionList: View {
                 pnl(model.pnl(of: tx))
                 Text(NumberFormat.quantity(tx.quantity)).frame(maxWidth: .infinity, alignment: .trailing)
                     .minimumScaleFactor(0.6)
-                Text(NumberFormat.quote(tx.amount)).frame(width: Self.amountWidth, alignment: .trailing)
+                Text(NumberFormat.quote(tx.amount, fixed: model.quoteFixed)).frame(width: Self.amountWidth, alignment: .trailing)
                 Text(tx.rate.map(NumberFormat.price) ?? "—").foregroundStyle(Theme.secondaryText).minimumScaleFactor(0.6).frame(width: Self.rateWidth, alignment: .trailing)
             }
         }

@@ -168,7 +168,7 @@ final class StickerWindow: NSObject, NSWindowDelegate {
     private static func confirm(_ plan: StickerModel.ClosePlan, base: String, quote: String) -> Bool {
         let verb = plan.side == .sell ? "Sell" : "Buy back"
         let quantity = "\(NumberFormat.quantity(plan.quantity)) \(base)"
-        let amount = "\(NumberFormat.amount(plan.amount)) \(quote)"
+        let amount = "\(NumberFormat.quote(plan.amount, fixed: NumberFormat.isTwoDecimalCurrency(quote))) \(quote)"
         let alert = NSAlert()
         alert.messageText = plan.recoversInvestment ? "\(verb) \(quantity) to recover the investment?" : "\(verb) all \(quantity) at market?"
         alert.informativeText = "\(plan.side == .sell ? "You receive" : "You pay") ≈ \(amount) at \(NumberFormat.price(plan.rate)) per \(base).\n"

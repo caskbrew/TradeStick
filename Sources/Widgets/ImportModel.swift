@@ -1,5 +1,6 @@
 import Domain
 import Observation
+import Presentation
 
 /// Logic of the "Import from trade history" window: load fills, pick some, add them.
 @MainActor @Observable
@@ -21,6 +22,8 @@ public final class ImportModel {
     }
 
     public let title: String
+    /// Show amounts with exactly 2 decimals (USDT and alike).
+    public let fixedQuote: Bool
     public private(set) var state: State = .loading
     public private(set) var rows: [Row] = []
     /// One row per order (like the exchange's web history) instead of one per fill.
@@ -40,11 +43,13 @@ public final class ImportModel {
     ///   - commit: adds the trades; returns nil on success or a message.
     public init(
         title: String,
+        quote: String = "",
         fetch: @escaping @Sendable () async throws -> [ImportedTrade],
         existing: @escaping () -> Set<String>,
         commit: @escaping ([ImportedTrade]) -> String?
     ) {
         self.title = title
+        self.fixedQuote = NumberFormat.isTwoDecimalCurrency(quote)
         self.fetch = fetch
         self.existing = existing
         self.commit = commit

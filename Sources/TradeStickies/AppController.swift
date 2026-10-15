@@ -328,7 +328,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let instrument = Instrument(base: trade.base, quote: trade.quote)
         let store = self.store!
         let model = ImportModel(
-            title: "Import from Binance · \(trade.base)/\(trade.quote)",
+            title: "Import from Binance · \(trade.base)/\(trade.quote)", quote: trade.quote,
             fetch: { try await api.myTrades(keys, instrument) },
             existing: { (try? store.externalIDs(tradeID: trade.id)) ?? [] },
             commit: { sticker.importTrades($0) }

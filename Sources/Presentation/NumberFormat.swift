@@ -27,10 +27,15 @@ public enum NumberFormat {
         return plain(value, min: decimals, max: decimals)
     }
 
-    /// Quote-currency amounts: 2 decimals, up to 4 when |x| < 1 (FR-FMT-3).
-    public static func quote(_ value: Decimal) -> String {
+    /// Quote currencies worth cents: always shown with exactly 2 decimals.
+    public static func isTwoDecimalCurrency(_ symbol: String) -> Bool {
+        ["USDT", "USDC", "FDUSD", "BUSD", "TUSD", "DAI", "USD", "EUR"].contains(symbol.uppercased())
+    }
+
+    /// Quote-currency amounts: 2 decimals, up to 4 when |x| < 1 (FR-FMT-3). `fixed`: always exactly 2 (USDT and alike).
+    public static func quote(_ value: Decimal, fixed: Bool = false) -> String {
         let magnitude = value < 0 ? -value : value
-        return plain(value, min: 2, max: magnitude < 1 ? 4 : 2)
+        return plain(value, min: 2, max: magnitude < 1 && !fixed ? 4 : 2)
     }
 
     /// Quote amounts of transactions and totals: up to 6 decimals, trailing zeros dropped but never fewer than 2.
@@ -40,9 +45,9 @@ public enum NumberFormat {
 
     /// The value as `quote(_:)` shows it. Signs and colours must follow this, not the raw value, so that a
     /// tiny `+0.003` never appears as a green `+0.00`.
-    public static func displayedQuote(_ value: Decimal) -> Decimal {
+    public static func displayedQuote(_ value: Decimal, fixed: Bool = false) -> Decimal {
         let magnitude = value < 0 ? -value : value
-        return value.rounded(scale: magnitude < 1 ? 4 : 2)
+        return value.rounded(scale: magnitude < 1 && !fixed ? 4 : 2)
     }
 
     /// Percent value as `signedPercent(_:)` shows it (in percent, 2 decimals).
@@ -51,9 +56,9 @@ public enum NumberFormat {
     }
 
     /// Always signed for non-zero values, zero without a sign (FR-UI-14).
-    public static func signedQuote(_ value: Decimal) -> String {
-        let shown = displayedQuote(value)
-        return sign(shown) + quote(shown < 0 ? -shown : shown)
+    public static func signedQuote(_ value: Decimal, fixed: Bool = false) -> String {
+        let shown = displayedQuote(value, fixed: fixed)
+        return sign(shown) + quote(shown < 0 ? -shown : shown, fixed: fixed)
     }
 
     /// Coin quantity: at least 2 and up to 8 decimals, thousands separators (FR-FMT-4).
