@@ -48,6 +48,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
             return
         }
         hub = MarketDataHub(adapters: adapters)
+        installEditMenu()
         watchConnectivity()
 
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -66,6 +67,31 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         for trade in (try? store.trades()) ?? [] where trade.isVisible { open(trade, activate: false) }
         if CommandLine.arguments.contains("--selftest-window") { Task { await selfTestWindow() } }
+    }
+
+    /// A menu-bar agent has no main menu, and without an Edit menu ⌘C / ⌘V / ⌘A / ⌘Z do nothing in text fields.
+    private func installEditMenu() {
+        let main = NSMenu()
+        let appItem = NSMenuItem()
+        appItem.submenu = NSMenu()
+        main.addItem(appItem)
+        let edit = NSMenu(title: "Edit")
+        for (title, action, key, mods) in [
+            ("Undo", Selector(("undo:")), "z", NSEvent.ModifierFlags.command),
+            ("Redo", Selector(("redo:")), "z", [.command, .shift]),
+            ("Cut", #selector(NSText.cut(_:)), "x", .command),
+            ("Copy", #selector(NSText.copy(_:)), "c", .command),
+            ("Paste", #selector(NSText.paste(_:)), "v", .command),
+            ("Select All", #selector(NSText.selectAll(_:)), "a", .command),
+        ] {
+            let item = NSMenuItem(title: title, action: action, keyEquivalent: key)
+            item.keyEquivalentModifierMask = mods
+            edit.addItem(item)
+        }
+        let editItem = NSMenuItem(title: "Edit", action: nil, keyEquivalent: "")
+        editItem.submenu = edit
+        main.addItem(editItem)
+        NSApp.mainMenu = main
     }
 
     /// Sockets die silently when the Mac sleeps or the network changes: reconnect on wake and when the
