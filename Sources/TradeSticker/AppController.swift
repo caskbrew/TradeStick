@@ -12,7 +12,11 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var store: TradeStore!
     private var hub: MarketDataHub!
     private var pathMonitor: NWPathMonitor?
-    private let icons = CoinIcons(directory: FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?.appending(path: "TradeSticker/icons"))
+    /// Only the installed app (bundle id set by scripts/package.sh) touches the real data. Anything else
+    /// (`swift run`, a dev build) uses its own folder, so development never damages the user's trades.
+    static let isInstalled = Bundle.main.bundleIdentifier == "com.sgoroshko.tradesticker"
+    static let dataFolder = isInstalled ? "TradeSticker" : "TradeSticker-Dev"
+    private let icons = CoinIcons(directory: FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?.appending(path: "\(AppController.dataFolder)/icons"))
     private let adapters: [any ExchangeAdapter] = [BinanceAdapter()]
     private var statusItem: NSStatusItem!
     private var windows: [UUID: StickerWindow] = [:]
@@ -23,7 +27,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         do {
             // Developer overrides: a separate database file and demo data (spec example A).
             let path: String
-            if let override = ProcessInfo.processInfo.environment["TRADESTICKER_DB"] { path = override } else { path = try TradeStore.defaultDatabaseURL().path }
+            if let override = ProcessInfo.processInfo.environment["TRADESTICKER_DB"] { path = override } else { path = try TradeStore.defaultDatabaseURL(folder: Self.dataFolder).path }
             store = try TradeStore(path: path)
             if CommandLine.arguments.contains("--seed-demo"), try store.trades().isEmpty { try seedDemo() }
         } catch {
@@ -46,6 +50,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
             statusItem.button?.image = NSImage(systemSymbolName: "note.text", accessibilityDescription: "TradeSticker")
         }
         if let url = Bundle.module.url(forResource: "AppIcon", withExtension: "png") { NSApp.applicationIconImage = NSImage(contentsOf: url) } // shown in alerts
+        if !Self.isInstalled { statusItem.button?.title = " DEV" } // a dev instance is never mistaken for the real one
         let menu = NSMenu()
         menu.delegate = self
         statusItem.menu = menu

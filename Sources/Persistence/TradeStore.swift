@@ -13,16 +13,16 @@ public final class TradeStore: Sendable {
     }
 
     /// `<Application Support>/TradeSticker/tradesticker.sqlite`, creating the directory (FR-STORE-1).
-    public static func databaseURL(inApplicationSupport base: URL) throws -> URL {
-        let dir = base.appendingPathComponent("TradeSticker", isDirectory: true)
+    public static func databaseURL(inApplicationSupport base: URL, folder: String = "TradeSticker") throws -> URL {
+        let dir = base.appendingPathComponent(folder, isDirectory: true)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir.appendingPathComponent("tradesticker.sqlite")
     }
 
     /// The real location for the app: `~/Library/Application Support/TradeSticker/tradesticker.sqlite`.
-    public static func defaultDatabaseURL() throws -> URL {
+    public static func defaultDatabaseURL(folder: String = "TradeSticker") throws -> URL {
         try databaseURL(inApplicationSupport: FileManager.default.url(
-            for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true))
+            for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true), folder: folder)
     }
 
     public static func inMemory() throws -> TradeStore {
