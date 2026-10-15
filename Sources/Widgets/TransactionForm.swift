@@ -87,7 +87,6 @@ struct TransactionList: View {
 
     private var header: some View {
         HStack(spacing: 6) {
-            Color.clear.frame(width: Self.iconWidth, height: 1)
             Text("When").frame(width: Self.agoWidth, alignment: .leading)
             Text("Side").frame(width: Self.sideWidth, alignment: .leading)
             Text("Qty").frame(maxWidth: .infinity, alignment: .trailing)
@@ -118,12 +117,9 @@ struct TransactionList: View {
                 }
                 .buttonStyle(.plain).foregroundStyle(Theme.negative)
             } else {
-                Button { model.openEditForm(id: tx.id) } label: { Image(systemName: "pencil") }
-                    .buttonStyle(.plain).foregroundStyle(Theme.secondaryText).frame(width: Self.iconWidth)
-                    .opacity(hovering == tx.id ? 1 : 0)
                 TimelineView(.periodic(from: .now, by: 30)) { ctx in
                     Text(Elapsed.ago(from: tx.occurredAt, to: ctx.date))
-                        .help(tx.occurredAt.formatted(date: .abbreviated, time: .shortened))
+                        .help(tx.occurredAt.formatted(date: .abbreviated, time: .shortened) + "\nDouble-click a row to edit")
                 }
                 .foregroundStyle(Theme.secondaryText).frame(width: Self.agoWidth, alignment: .leading).minimumScaleFactor(0.7)
                 Text(tx.side == .buy ? "BUY" : "SELL") // user's choice: buy green, sell red (word stays, colour is not the only cue)
