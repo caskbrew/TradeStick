@@ -111,6 +111,36 @@ public final class TradeStore: Sendable {
         }
     }
 
+    /// Exchange trade ids already imported into this trade.
+    public func externalIDs(tradeID: UUID) throws -> Set<String> {
+        try dbQueue.read { db in
+            Set(try String.fetchAll(db, sql: "SELECT externalID FROM tradeTransaction WHERE tradeID = ? AND externalID IS NOT NULL", arguments: [tradeID.uuidString]))
+        }
+    }
+
+    /// Adds fills from the exchange in time order, all or none: if the ledger rejects the result nothing is written.
+    /// Fills that were imported before are skipped. Returns how many were added.
+    @discardableResult
+    public func importTrades(tradeID: UUID, _ trades: [ImportedTrade]) throws -> Int {
+        try dbQueue.write { db in
+            guard let trade = try Self.fetchTrade(db, tradeID) else { throw StoreError.tradeNotFound(tradeID) }
+            let existing = try Self.fetchTransactions(db, tradeID)
+            let known = Set(try String.fetchAll(db, sql: "SELECT externalID FROM tradeTransaction WHERE tradeID = ? AND externalID IS NOT NULL", arguments: [tradeID.uuidString]))
+            let fresh = trades.filter { !known.contains($0.externalID) }.sorted { ($0.occurredAt, $0.externalID) < ($1.occurredAt, $1.externalID) }
+            var next = try Int.fetchOne(db, sql: "SELECT MAX(sequence) FROM tradeTransaction WHERE tradeID = ?", arguments: [tradeID.uuidString]) ?? 0
+            let added = fresh.map { t -> (Transaction, String) in
+                next += 1
+                return (Transaction(side: t.side, quantity: t.quantity, amount: t.amount, occurredAt: t.occurredAt, sequence: next), t.externalID)
+            }
+            try Self.validate(trade.direction, existing + added.map(\.0))
+            for (tx, externalID) in added {
+                try Self.insert(db, tx, tradeID: tradeID)
+                try db.execute(sql: "UPDATE tradeTransaction SET externalID = ? WHERE id = ?", arguments: [externalID, tx.id.uuidString])
+            }
+            return added.count
+        }
+    }
+
     /// Keeps the transaction's creation order (`sequence`).
     @discardableResult
     public func updateTransaction(tradeID: UUID, id: UUID, side: Side, quantity: Decimal, amount: Decimal, occurredAt: Date) throws -> Transaction {

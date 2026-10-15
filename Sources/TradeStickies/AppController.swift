@@ -208,6 +208,9 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let window = StickerWindow(model: model, store: store, index: windows.count)
         window.onDelete = { [weak self] in self?.confirmDelete(trade.id) }
         window.onOpenAPIKeys = { [weak self] in self?.showAPIKeys() }
+        model.onImportHistory = { [weak self, weak model] in
+            if let model { self?.showImport(for: model) }
+        }
         windows[trade.id] = window
         window.show(activate: activate)
         Task { await model.setVisible(true); await model.refreshSubscription() }
@@ -300,6 +303,35 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         window.isReleasedWhenClosed = false
         window.center()
         apiKeysWindow = window
+        NSApp.activate()
+        window.makeKeyAndOrderFront(nil)
+    }
+
+    private var importWindows: [UUID: NSWindow] = [:]
+
+    /// Pick fills from the exchange's trade history for one trade. Without a saved API key the key window opens instead.
+    private func showImport(for sticker: StickerModel) {
+        let trade = sticker.trade
+        importWindows[trade.id]?.close() // always start fresh: the list is re-read from the exchange
+        guard let keys = credentials.load(exchange: trade.exchange) else { showAPIKeys(); return }
+        let api = BinanceAccountAPI()
+        let instrument = Instrument(base: trade.base, quote: trade.quote)
+        let store = self.store!
+        let model = ImportModel(
+            title: "Import from Binance · \(trade.base)/\(trade.quote)",
+            fetch: { try await api.myTrades(keys, instrument) },
+            existing: { (try? store.externalIDs(tradeID: trade.id)) ?? [] },
+            commit: { sticker.importTrades($0) }
+        )
+        let window = NSWindow(contentViewController: NSHostingController(rootView: ImportView(model: model, onClose: { [weak self] in
+            self?.importWindows[trade.id]?.close()
+            self?.importWindows[trade.id] = nil
+        })))
+        window.title = "Import trade history"
+        window.styleMask = [.titled, .closable]
+        window.isReleasedWhenClosed = false
+        window.center()
+        importWindows[trade.id] = window
         NSApp.activate()
         window.makeKeyAndOrderFront(nil)
     }

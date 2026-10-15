@@ -1,3 +1,4 @@
+import Foundation
 import Persistence
 import Domain
 import MarketData
@@ -101,5 +102,49 @@ struct BrokenExchange: ExchangeAdapter {
         let m = model(store)
         m.remove()
         #expect(store.load(exchange: "binance") == nil && !m.hasSavedKey && m.keyText == "")
+    }
+}
+
+@MainActor @Suite struct ImportModelTests {
+    nonisolated func fill(_ id: String, _ side: Side = .buy) -> ImportedTrade {
+        ImportedTrade(externalID: id, side: side, quantity: 1, amount: 1, occurredAt: Date(timeIntervalSince1970: Double(Int(id)!)))
+    }
+
+    func model(known: Set<String> = [], commit: @escaping ([ImportedTrade]) -> String? = { _ in nil }) -> ImportModel {
+        ImportModel(title: "t", fetch: { [fill("1"), fill("2", .sell), fill("3")] }, existing: { known }, commit: commit)
+    }
+
+    @Test func listsNewestFirstAndMarksWhatIsAlreadyAdded() async {
+        let m = model(known: ["2"])
+        await m.load()
+        #expect(m.rows.map(\.id) == ["3", "2", "1"])
+        #expect(m.rows.map(\.alreadyAdded) == [false, true, false])
+        m.toggle("2") // an added row cannot be picked
+        #expect(m.selection.isEmpty)
+        m.selectAll()
+        #expect(m.selection == ["1", "3"])
+    }
+
+    @Test func addPassesOnlyTheSelectedTrades() async {
+        nonisolated(unsafe) var received: [String] = []
+        let m = model { received = $0.map(\.externalID); return nil }
+        await m.load()
+        m.toggle("1"); m.toggle("3")
+        #expect(m.add() && m.added == 2)
+        #expect(received == ["3", "1"]) // as listed, newest first: the store orders by time
+    }
+
+    @Test func aRejectedAddKeepsTheWindowOpenWithTheMessage() async {
+        let m = model { _ in "Not enough open quantity" }
+        await m.load()
+        m.selectAll()
+        #expect(!m.add())
+        #expect(m.error == "Not enough open quantity" && m.added == nil && m.canAdd)
+    }
+
+    @Test func aFailedLoadIsShown() async {
+        let m = ImportModel(title: "t", fetch: { throw BinanceAPIError(status: 401, code: -2015, message: "Invalid API-key") }, existing: { [] }, commit: { _ in nil })
+        await m.load()
+        #expect(m.state == .failed("Invalid API-key (-2015)"))
     }
 }

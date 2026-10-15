@@ -76,6 +76,8 @@ public final class StickerModel {
     /// A pinned sticker cannot be dragged. Remembered per trade.
     public private(set) var isPinned = false
     @ObservationIgnored public var onPinChange: ((Bool) -> Void)?
+    /// Set by the app: opens the "import from the exchange's trade history" window for this trade.
+    @ObservationIgnored public var onImportHistory: (() -> Void)?
     private var pinKey: String { "pinned.\(trade.id.uuidString)" }
     public func togglePin() {
         isPinned.toggle()
@@ -262,6 +264,23 @@ public final class StickerModel {
         } catch {
             listError = "Could not save: \(error)"
         }
+    }
+
+    public func importHistory() { onImportHistory?() }
+
+    /// Adds fills from the exchange. Returns nil on success, else a message (nothing was written).
+    public func importTrades(_ trades: [ImportedTrade]) -> String? {
+        do {
+            try store.importTrades(tradeID: trade.id, trades)
+        } catch StoreError.ledger(let error) {
+            return Self.message(for: error, transactions: transactions) + ". Select the earlier trades too."
+        } catch {
+            return "Could not import: \(error)"
+        }
+        reload()
+        cancelForm()
+        Task { await refreshSubscription() }
+        return nil
     }
 
     public func toggleForm() {

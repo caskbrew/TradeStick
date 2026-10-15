@@ -72,6 +72,41 @@ public struct BinanceAccountAPI: Sendable {
         return APIKeyCheck(warnings: warnings)
     }
 
+    /// The user's fills for a pair, oldest first (`GET /api/v3/myTrades`, 1000 per page, up to 20 pages).
+    public func myTrades(_ credentials: APICredentials, _ instrument: Instrument) async throws -> [ImportedTrade] {
+        let symbol = BinanceParsing.symbol(instrument)
+        var all: [ImportedTrade] = []
+        var fromID = 0
+        for _ in 0..<20 {
+            let data = try await signedGET("api/v3/myTrades", credentials, items: [
+                .init(name: "symbol", value: symbol), .init(name: "fromId", value: String(fromID)), .init(name: "limit", value: "1000"),
+            ])
+            guard let rows = try JSONSerialization.jsonObject(with: data) as? [[String: Any]] else { throw URLError(.cannotParseResponse) }
+            let page = try rows.map(Self.trade(from:))
+            all += page
+            guard rows.count == 1000, let last = rows.last?["id"] as? Int else { break }
+            fromID = last + 1
+        }
+        return all.sorted { ($0.occurredAt, $0.externalID) < ($1.occurredAt, $1.externalID) }
+    }
+
+    static func trade(from row: [String: Any]) throws -> ImportedTrade {
+        func decimal(_ key: String) throws -> Decimal {
+            guard let text = row[key] as? String, let d = Decimal(string: text, locale: Locale(identifier: "en_US_POSIX")) else { throw URLError(.cannotParseResponse) }
+            return d
+        }
+        guard let id = row["id"] as? Int, let ms = row["time"] as? Double ?? (row["time"] as? Int).map(Double.init), let buyer = row["isBuyer"] as? Bool else {
+            throw URLError(.cannotParseResponse)
+        }
+        var fee: String?
+        if let c = row["commission"] as? String, let amount = Decimal(string: c, locale: Locale(identifier: "en_US_POSIX")), amount > 0,
+           let asset = row["commissionAsset"] as? String { fee = "\(amount) \(asset)" }
+        return ImportedTrade(
+            externalID: String(id), side: buyer ? .buy : .sell, quantity: try decimal("qty"), amount: try decimal("quoteQty"),
+            occurredAt: Date(timeIntervalSince1970: ms / 1000), fee: fee
+        )
+    }
+
     static func error(_ data: Data, _ status: Int) -> BinanceAPIError {
         let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
         return BinanceAPIError(status: status, code: json?["code"] as? Int, message: json?["msg"] as? String ?? "HTTP \(status)")

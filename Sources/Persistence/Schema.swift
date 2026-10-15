@@ -35,6 +35,12 @@ enum Schema {
             try db.alter(table: "trade") { t in t.add(column: "isCompact", .boolean).notNull().defaults(to: false) }
         }
 
+        // The exchange's trade id of an imported fill; manual transactions have none. Unique per trade.
+        migrator.registerMigration("v3") { db in
+            try db.alter(table: "tradeTransaction") { t in t.add(column: "externalID", .text) }
+            try db.execute(sql: "CREATE UNIQUE INDEX tradeTransaction_external ON tradeTransaction(tradeID, externalID) WHERE externalID IS NOT NULL")
+        }
+
         return migrator
     }
 }

@@ -189,3 +189,36 @@ func at(_ minute: Int) -> Date { Date(timeIntervalSince1970: 1_700_000_000 + Dou
         try store.remove(exchange: "binance") // removing nothing is fine
     }
 }
+
+@Suite struct ImportTradesTests {
+    func fill(_ id: String, _ side: Side, _ qty: Decimal, _ amt: Decimal, _ minute: Int) -> ImportedTrade {
+        ImportedTrade(externalID: id, side: side, quantity: qty, amount: amt, occurredAt: at(minute))
+    }
+
+    @Test func importsInTimeOrderAndSkipsWhatWasImportedBefore() throws {
+        let store = try TradeStore.inMemory()
+        let trade = try store.createTrade(exchange: "binance", base: "GRAM", quote: "USDT", direction: .buyFirst)
+        // Given out of order: the ledger must still see the buy first.
+        #expect(try store.importTrades(tradeID: trade.id, [fill("2", .sell, 5, 3, 10), fill("1", .buy, 10, 4, 0)]) == 2)
+        #expect(try store.externalIDs(tradeID: trade.id) == ["1", "2"])
+        #expect(try store.importTrades(tradeID: trade.id, [fill("1", .buy, 10, 4, 0), fill("3", .buy, 1, 1, 20)]) == 1) // "1" skipped
+        #expect(try store.transactions(tradeID: trade.id).count == 3)
+    }
+
+    @Test func aRejectedImportWritesNothing() throws {
+        let store = try TradeStore.inMemory()
+        let trade = try store.createTrade(exchange: "binance", base: "GRAM", quote: "USDT", direction: .buyFirst)
+        #expect(throws: StoreError.self) {
+            try store.importTrades(tradeID: trade.id, [fill("1", .buy, 1, 1, 0), fill("2", .sell, 5, 5, 1)]) // sells more than held
+        }
+        #expect(try store.transactions(tradeID: trade.id).isEmpty)
+        #expect(try store.externalIDs(tradeID: trade.id).isEmpty)
+    }
+
+    @Test func manualTransactionsHaveNoExternalIDAndSurviveTheMigration() throws {
+        let store = try TradeStore.inMemory()
+        let trade = try store.createTrade(exchange: "binance", base: "GRAM", quote: "USDT", direction: .buyFirst)
+        try store.addTransaction(tradeID: trade.id, side: .buy, quantity: 1, amount: 1, occurredAt: at(0))
+        #expect(try store.externalIDs(tradeID: trade.id).isEmpty)
+    }
+}

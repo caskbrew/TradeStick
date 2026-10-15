@@ -19,6 +19,11 @@ struct TransactionForm: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
                 Text(model.editingID == nil ? "Add Tx" : "Edit Tx").font(.system(size: 12, weight: .semibold))
+                if model.editingID == nil, model.trade.exchange == "binance" {
+                    Button("From history") { model.importHistory() }
+                        .buttonStyle(PillStyle(fill: Theme.field, minHeight: 20)).font(.system(size: 11))
+                        .help("Pick fills from your Binance trade history")
+                }
                 Spacer(minLength: 8)
                 sideSwitch(form?.side ?? .buy).frame(width: 64)
             }

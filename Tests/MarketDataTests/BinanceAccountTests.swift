@@ -75,3 +75,42 @@ final class Recorder: @unchecked Sendable {
         } catch { Issue.record("\(error)") }
     }
 }
+
+@Suite struct BinanceMyTradesTests {
+    let creds = APICredentials(key: "K", secret: "S")
+    let gram = Instrument(base: "GRAM", quote: "USDT")
+
+    func row(_ id: Int, buyer: Bool, qty: String = "10", quote: String = "5", time: Int = 1_700_000_000_000, fee: String = "0.00000000") -> String {
+        #"{"symbol":"GRAMUSDT","id":\#(id),"orderId":1,"price":"0.5","qty":"\#(qty)","quoteQty":"\#(quote)","commission":"\#(fee)","commissionAsset":"BNB","time":\#(time),"isBuyer":\#(buyer),"isMaker":false}"#
+    }
+
+    @Test func fillsBecomeImportedTradesOldestFirst() async throws {
+        let body = "[" + [row(2, buyer: false, time: 1_700_000_100_000), row(1, buyer: true, fee: "0.0004")].joined(separator: ",") + "]"
+        let api = BinanceAccountAPI(now: { Date() }, send: { _ in (Data(body.utf8), 200) })
+        let trades = try await api.myTrades(creds, gram)
+        #expect(trades.map(\.externalID) == ["1", "2"])
+        #expect(trades[0] == ImportedTrade(externalID: "1", side: .buy, quantity: 10, amount: 5, occurredAt: Date(timeIntervalSince1970: 1_700_000_000), fee: "0.0004 BNB"))
+        #expect(trades[1].side == .sell && trades[1].fee == nil)
+    }
+
+    @Test func fullPagesAreFollowedWithFromId() async throws {
+        let recorder = Recorder()
+        let page1 = "[" + (1...1000).map { row($0, buyer: true) }.joined(separator: ",") + "]"
+        let page2 = "[" + [row(1001, buyer: false)].joined(separator: ",") + "]"
+        let api = BinanceAccountAPI(now: { Date() }, send: { request in
+            recorder.add(request)
+            return (Data((recorder.requests.count == 1 ? page1 : page2).utf8), 200)
+        })
+        let trades = try await api.myTrades(creds, gram)
+        #expect(trades.count == 1001)
+        #expect(recorder.requests.count == 2)
+        #expect(recorder.requests[0].url!.query!.contains("fromId=0"))
+        #expect(recorder.requests[1].url!.query!.contains("fromId=1001"))
+        #expect(recorder.requests[0].url!.query!.contains("symbol=GRAMUSDT"))
+    }
+
+    @Test func aBrokenRowFailsInsteadOfBeingSkipped() async {
+        let api = BinanceAccountAPI(now: { Date() }, send: { _ in (Data(#"[{"id":1,"qty":"x"}]"#.utf8), 200) })
+        await #expect(throws: (any Error).self) { try await api.myTrades(creds, gram) }
+    }
+}
