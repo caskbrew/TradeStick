@@ -6,6 +6,7 @@ import SwiftUI
 struct TransactionForm: View {
     let model: StickerModel
     @State private var showPicker = false
+    @State private var timeText = ""
     @FocusState private var focus: TransactionDraft.Field?
 
     var body: some View {
@@ -38,7 +39,10 @@ struct TransactionForm: View {
             }
         }
         .background { Button("") { model.toggleForm() }.keyboardShortcut("b").opacity(0).frame(width: 0, height: 0).allowsHitTesting(false) }
-        .onAppear { focus = .quantity }
+        .onAppear {
+            if let f = model.form, !f.isNow { timeText = TimeInput.format(f.occurredAt) }
+            focus = .quantity
+        }
     }
 
     /// Buy / Sell switch; the chosen side is filled with the accent colour.
@@ -59,30 +63,42 @@ struct TransactionForm: View {
         .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Theme.field))
     }
 
-    /// "Now" until the user picks a time; the popover has a calendar and a "Now" button to go back.
+    /// Empty means "now" (stamped when saved). Type `HH:mm` or `dd.MM.yy HH:mm`, or pick in the calendar popover.
     private func timeField(_ form: TransactionDraft?) -> some View {
-        Button { showPicker = true } label: {
-                HStack {
-                    Text(form?.isNow ?? true ? "Now" : (form?.occurredAt ?? .now).formatted(.dateTime.day().month().hour().minute()))
-                        .font(.system(size: 12)).lineLimit(1).minimumScaleFactor(0.7)
-                    Spacer(minLength: 0)
-                    Image(systemName: "calendar").foregroundStyle(Theme.secondaryText)
-                }
-                .padding(.horizontal, 6).frame(height: 24)
-                .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Theme.field))
-                .contentShape(Rectangle())
+        HStack(spacing: 4) {
+            TextField("now", text: $timeText)
+                .textFieldStyle(.plain).monospacedDigit().font(.system(size: 12))
+                .lineLimit(1).minimumScaleFactor(0.8)
+                .foregroundStyle(form?.timeInvalid == true ? Theme.negative : .primary)
+                .onChange(of: timeText) { _, text in applyTime(text) }
+            Button { showPicker = true } label: {
+                Image(systemName: "calendar").foregroundStyle(Theme.secondaryText).frame(width: 18, height: 22).contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .popover(isPresented: $showPicker, arrowEdge: .bottom) {
                 VStack(spacing: 8) {
                     DatePicker("", selection: Binding(
                         get: { model.form?.occurredAt ?? .now },
-                        set: { model.form?.occurredAt = $0; model.form?.isNow = false }
+                        set: { timeText = TimeInput.format($0) }
                     ), in: ...Date.now).labelsHidden().datePickerStyle(.graphical)
-                    Button("Now") { model.form?.isNow = true; showPicker = false }.disabled(model.form?.isNow ?? true)
+                    Button("Now") { timeText = ""; showPicker = false }.disabled(model.form?.isNow ?? true)
                 }
                 .padding(12)
             }
+        }
+        .padding(.leading, 6).padding(.trailing, 2).frame(height: 24)
+        .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Theme.field))
+    }
+
+    private func applyTime(_ text: String) {
+        let trimmed = text.trimmingCharacters(in: .whitespaces)
+        if trimmed.isEmpty {
+            model.form?.isNow = true; model.form?.timeInvalid = false
+        } else if let date = TimeInput.parse(trimmed, now: .now) {
+            model.form?.occurredAt = date; model.form?.isNow = false; model.form?.timeInvalid = false
+        } else {
+            model.form?.timeInvalid = true
+        }
     }
 
     /// Digits and one dot only; a comma counts as a dot.

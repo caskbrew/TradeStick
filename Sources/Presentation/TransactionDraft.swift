@@ -7,13 +7,14 @@ public struct TransactionDraft: Equatable, Sendable {
     public enum Field: Sendable { case quantity, amount, rate }
 
     public enum Problem: Equatable, Sendable {
-        case quantityInvalid, amountInvalid, rateInvalid, timeInFuture
+        case quantityInvalid, amountInvalid, rateInvalid, timeInFuture, timeInvalid
         public var message: String {
             switch self {
             case .quantityInvalid: "Enter a quantity greater than 0"
             case .amountInvalid: "Enter an amount greater than 0"
             case .rateInvalid: "Enter a rate greater than 0"
             case .timeInFuture: "Time cannot be in the future"
+            case .timeInvalid: TimeInput.hint
             }
         }
     }
@@ -22,6 +23,8 @@ public struct TransactionDraft: Equatable, Sendable {
     public var occurredAt: Date
     /// True until the user picks a time: the transaction is stamped when it is saved, not when the form opened.
     public var isNow = true
+    /// The typed time text could not be read.
+    public var timeInvalid = false
     public private(set) var quantityText = ""
     public private(set) var amountText = ""
     public private(set) var rateText = ""
@@ -92,7 +95,8 @@ public struct TransactionDraft: Equatable, Sendable {
                 found.append(.rateInvalid)
             }
         }
-        if !isNow, occurredAt > now.addingTimeInterval(60) { found.append(.timeInFuture) } // FR-TX-3
+        if timeInvalid { found.append(.timeInvalid) }
+        if !isNow, !timeInvalid, occurredAt > now.addingTimeInterval(60) { found.append(.timeInFuture) } // FR-TX-3
         return found
     }
 

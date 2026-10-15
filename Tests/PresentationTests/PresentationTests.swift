@@ -244,3 +244,40 @@ let now = Date(timeIntervalSince1970: 1_700_000_000)
         #expect(d.driver == .amount)
     }
 }
+
+@Suite struct TimeInputTests {
+    var cal: Calendar { var c = Calendar(identifier: .gregorian); c.timeZone = TimeZone(identifier: "UTC")!; return c }
+    // 2026-10-15 12:00 UTC
+    let ref = Date(timeIntervalSince1970: 1_792_065_600)
+
+    func at(_ y: Int, _ mo: Int, _ d: Int, _ h: Int, _ mi: Int) -> Date {
+        cal.date(from: DateComponents(year: y, month: mo, day: d, hour: h, minute: mi))!
+    }
+
+    @Test func parsesTimeOnlyDateAndYear() {
+        #expect(TimeInput.parse("9:05", now: ref, calendar: cal) == at(2026, 10, 15, 9, 5))
+        #expect(TimeInput.parse("03.10 18:30", now: ref, calendar: cal) == at(2026, 10, 3, 18, 30))
+        #expect(TimeInput.parse("3-10-25 18:30", now: ref, calendar: cal) == at(2025, 10, 3, 18, 30))
+        #expect(TimeInput.parse(" 03/10/2025  18:30 ", now: ref, calendar: cal) == at(2025, 10, 3, 18, 30))
+    }
+
+    @Test func rejectsGarbageAndImpossibleDates() {
+        for bad in ["", "abc", "25:00", "12:60", "31.02 10:00", "10.13 10:00", "10.10", "1 2 3", "12.10.2025.1 10:00", "12:1x"] {
+            #expect(TimeInput.parse(bad, now: ref, calendar: cal) == nil, "\(bad)")
+        }
+    }
+
+    @Test func formatRoundTrips() {
+        let d = at(2025, 10, 3, 18, 30)
+        #expect(TimeInput.format(d, calendar: cal) == "03.10.25 18:30")
+        #expect(TimeInput.parse(TimeInput.format(d, calendar: cal), now: ref, calendar: cal) == d)
+    }
+
+    @Test func invalidTimeBlocksSaving() {
+        var d = TransactionDraft(side: .buy, occurredAt: ref)
+        d.edit(.quantity, "1"); d.edit(.amount, "1")
+        d.timeInvalid = true
+        #expect(d.problems(now: ref) == [.timeInvalid])
+        #expect(d.savable(now: ref) == nil)
+    }
+}
