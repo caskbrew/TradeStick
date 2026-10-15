@@ -32,7 +32,7 @@ struct TransactionForm: View {
             HStack(spacing: 6) {
                 Button("Cancel") { model.cancelForm() }
                     .buttonStyle(PillStyle(fill: Theme.field, minHeight: 26)).keyboardShortcut(.cancelAction)
-                Button(model.editingID == nil ? "Add" : "Save changes") { Task { await model.submit() } }
+                Button(model.editingID == nil ? "Add" : "Save") { Task { await model.submit() } }
                     .buttonStyle(PillStyle(fill: (form?.side ?? .buy) == .buy ? Theme.positive : Theme.negative, minHeight: 26)).keyboardShortcut(.defaultAction).disabled(!model.canSave)
             }
         }

@@ -15,7 +15,7 @@ public struct StickerActions {
 }
 
 public struct StickerView: View {
-    public static let width: CGFloat = 310
+    public static let width: CGFloat = 330
 
     let model: StickerModel
     let actions: StickerActions
@@ -34,7 +34,7 @@ public struct StickerView: View {
             let freshness = model.price.freshness(at: context.date)
             let usable = freshness == .fresh && model.price.connection == .connected
             let card = VStack(alignment: .leading, spacing: 0) {
-              VStack(alignment: .leading, spacing: 6) {
+              VStack(alignment: .leading, spacing: 4) {
                 StickerHeader(model: model, actions: actions, live: usable)
                 PriceRow(model: model, freshness: freshness, usable: usable)
                 if model.status == .empty {
@@ -45,7 +45,7 @@ public struct StickerView: View {
                 }
               }
             }
-            .padding(10)
+            .padding(.horizontal, 10).padding(.vertical, 8)
             .frame(width: Self.width)
             .background(GlassBackground(radius: 14))
             .foregroundStyle(.white)
@@ -224,25 +224,26 @@ struct StickerMenuItems: View {
     var body: some View {
         let expanded = model.trade.isExpanded
         let count = model.transactions.count
-        Button("Add transaction\t⌘B") { model.addTransaction() }
-        Button("\(expanded ? "Hide" : "Show") transactions (\(count))\t⌘L") { model.toggleList() }
-            .disabled(model.status == .empty)
+        Button("Add transaction") { model.addTransaction() }.keyboardShortcut("b")
+        Button("\(expanded ? "Hide" : "Show") transactions (\(count))") { model.toggleList() }
+            .keyboardShortcut("l").disabled(model.status == .empty)
         if model.status == .open {
             Divider()
             let closing = model.trade.direction == .buyFirst ? "Sell" : "Buy back"
-            Button("\(closing) all at market · \(NumberFormat.quantity(model.summary.openQuantity)) \(model.trade.base)\t⌘E") {
+            Button("\(closing) all at market · \(NumberFormat.quantity(model.summary.openQuantity)) \(model.trade.base)") {
                 Task { await model.requestClose(recoverInvestment: false) }
             }
+            .keyboardShortcut("e")
             .disabled(model.closePlan(recoverInvestment: false) == nil)
             if model.trade.direction == .buyFirst {
-                Button(recoverTitle + "\t⌘R") { Task { await model.requestClose(recoverInvestment: true) } }
-                    .disabled(model.closePlan(recoverInvestment: true) == nil)
+                Button(recoverTitle) { Task { await model.requestClose(recoverInvestment: true) } }.keyboardShortcut("r")
+                                        .disabled(model.closePlan(recoverInvestment: true) == nil)
             }
         }
         Divider()
-        Button("Hide Window\t⌘W", action: actions.hide)
+        Button("Hide Window", action: actions.hide).keyboardShortcut("w")
         Divider()
-        Button("Delete Trade…\t⌥⌘⌫", role: .destructive, action: actions.delete)
+        Button("Delete Trade…", role: .destructive, action: actions.delete).keyboardShortcut(.delete, modifiers: [.option, .command])
     }
 }
 
@@ -295,7 +296,7 @@ struct PriceRow: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .firstTextBaseline, spacing: 10) {
                 Text(model.currentPrice.map(NumberFormat.price) ?? "—")
-                    .font(.system(size: 26, weight: .semibold, design: .rounded)).monospacedDigit()
+                    .font(.system(size: 24, weight: .semibold, design: .rounded)).monospacedDigit()
                     .opacity(usable || model.currentPrice == nil ? 1 : 0.5)
                 if let change = model.price.change24h { ChangePill(change: change, dimmed: !usable) }
                 Spacer(minLength: 0)
@@ -367,7 +368,7 @@ struct CompactNumbers: View {
         let ratio = closed ? (summary.openingAmount > 0 ? summary.realized / summary.openingAmount : nil) : pnl.ratio
         let dim = !closed && !usable
         HStack(alignment: .center, spacing: 12) {
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 3) {
                 LabeledValue(label: "Rate", value: summary.entryPrice.map(NumberFormat.price) ?? "—")
                 LabeledValue(label: model.trade.base, value: closed ? "—" : NumberFormat.quantity(summary.openQuantity))
                 LabeledValue(label: model.trade.quote, value: closed ? "—" : NumberFormat.amount(summary.openCost))
