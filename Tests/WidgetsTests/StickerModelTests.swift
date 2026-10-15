@@ -100,7 +100,8 @@ struct Fixture {
         await f.model.setVisible(true)
         #expect(await f.hub.activeFeedCount == 1)
 
-        f.model.openCloseForm()
+        f.model.openForm(side: .sell)
+        f.model.edit(.quantity, "100")
         f.model.edit(.amount, "12")
         await f.model.submit() // sells everything: CLOSED
         #expect(f.model.status == .closed)
@@ -115,7 +116,7 @@ struct Fixture {
         #expect(await f.hub.activeFeedCount == 1)
     }
 
-    @Test func closeFormPrefillsWholeQuantityAtCurrentPrice() async throws {
+    @Test func closeAllAsksFirstThenRecordsAtTheShownPrice() async throws {
         let f = try Fixture()
         try f.add(.buy, "900", "48", minute: 1)
         await f.model.refreshSubscription()
@@ -123,20 +124,31 @@ struct Fixture {
         f.fake.emit(PriceTick(price: dec("0.055"), eventTime: at(1)))
         await waitUntil { f.model.currentPrice != nil }
 
-        f.model.openCloseForm()
-        #expect(f.model.form?.side == .sell)
-        #expect(f.model.form?.quantity == 900)
-        #expect(f.model.form?.amount == dec("49.5"))
-        #expect(f.model.canSave)
+        var shown: StickerModel.ClosePlan?
+        f.model.confirm = { shown = $0; return false }
+        await f.model.requestClose(recoverInvestment: false)
+        #expect(shown?.quantity == 900 && shown?.amount == dec("49.5") && shown?.side == .sell && shown?.remaining == 0)
+        #expect(f.model.transactions.count == 1) // declined: nothing recorded
+
+        f.model.confirm = { _ in true }
+        await f.model.requestClose(recoverInvestment: false)
+        #expect(f.model.status == .closed)
+        #expect(f.model.pnl.realized == dec("1.5"))
     }
 
-    @Test func closeFormWithoutPriceStillFillsQuantity() throws {
-        let f = try Fixture(direction: .sellFirst)
-        try f.add(.sell, "10", "1", minute: 1)
-        f.model.openCloseForm()
-        #expect(f.model.form?.side == .buy) // Sell-first closes with a buy
-        #expect(f.model.form?.quantity == 10)
-        #expect(!f.model.canSave) // needs an amount
+    @Test func closePlanNeedsAnOpenTradeAndAPrice() throws {
+        let f = try Fixture()
+        #expect(f.model.closePlan(recoverInvestment: false) == nil) // empty
+        try f.add(.buy, "10", "1", minute: 1)
+        #expect(f.model.closePlan(recoverInvestment: false) == nil) // no price yet
+    }
+
+    @Test func toggleFormOpensAndClosesTheForm() throws {
+        let f = try Fixture()
+        f.model.toggleForm()
+        #expect(f.model.form != nil)
+        f.model.toggleForm()
+        #expect(f.model.form == nil)
     }
 
     @Test func oversellKeepsTheFormOpenAndExplainsWhy() async throws {
@@ -219,9 +231,8 @@ struct Fixture {
     @Test func sellsEnoughToGetTheInvestmentBack() async throws {
         let f = try await priced("0.1")
         #expect(f.model.recoverQuantity == 800) // 80 / 0.1
-        f.model.openRecoverForm()
-        #expect(f.model.form?.quantityText == "800" && f.model.form?.side == .sell)
-        #expect(f.model.form?.amountText == "80")
+        let plan = f.model.closePlan(recoverInvestment: true)
+        #expect(plan?.quantity == 800 && plan?.side == .sell && plan?.amount == 80 && plan?.remaining == 700)
     }
 
     @Test func unavailableWhenPriceIsTooLowOrUnknown() async throws {

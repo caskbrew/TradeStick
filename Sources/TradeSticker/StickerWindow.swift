@@ -1,5 +1,6 @@
 import AppKit
 import Persistence
+import Presentation
 import SwiftUI
 import Widgets
 
@@ -81,6 +82,7 @@ final class StickerWindow: NSObject, NSWindowDelegate {
         }
         model.onWillGrow = { [weak self] extra in self?.reserve(extra) }
         model.onFormWillOpen = { [weak self] in self?.prepareForm() }
+        model.confirm = { plan in Self.confirm(plan, base: model.trade.base, quote: model.trade.quote) }
         model.onFormClosed = { [weak self] in self?.dismissForm() }
         model.onFormHeight = { [weak self] height in self?.formHeightChanged(height) }
         formHost.rootView = AnyView(FormWindowView(model: model))
@@ -126,6 +128,22 @@ final class StickerWindow: NSObject, NSWindowDelegate {
     }
 
     var isVisible: Bool { panel.isVisible }
+
+    /// "Are you sure?" with what will be sold or bought and for how much (the transaction is only recorded here).
+    private static func confirm(_ plan: StickerModel.ClosePlan, base: String, quote: String) -> Bool {
+        let verb = plan.side == .sell ? "Sell" : "Buy back"
+        let quantity = "\(NumberFormat.quantity(plan.quantity)) \(base)"
+        let amount = "\(NumberFormat.amount(plan.amount)) \(quote)"
+        let alert = NSAlert()
+        alert.messageText = plan.recoversInvestment ? "\(verb) \(quantity) to recover the investment?" : "\(verb) all \(quantity) at market?"
+        alert.informativeText = "\(plan.side == .sell ? "You receive" : "You pay") ≈ \(amount) at \(NumberFormat.price(plan.rate)) per \(base).\n"
+            + (plan.remaining > 0 ? "You keep \(NumberFormat.quantity(plan.remaining)) \(base)." : "The trade will be closed.")
+            + "\nThis records the transaction in TradeSticker only; no order is sent to the exchange."
+        alert.addButton(withTitle: "Yes")
+        alert.addButton(withTitle: "No")
+        NSApp.activate()
+        return alert.runModal() == .alertFirstButtonReturn
+    }
 
     /// Renders the window's current content to a PNG (developer aid; needs no screen-recording permission).
     func capture(to url: URL) {

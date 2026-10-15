@@ -164,14 +164,20 @@ public final class StickerModel {
         setExpanded(!trade.isExpanded)
     }
 
-    /// Close → sell (or buy back) everything at the current price; needs a price.
-    public func closeAll() {
-        guard currentPrice != nil, summary.openQuantity > 0 else { return }
-        openCloseForm()
+    /// A closing transaction at the current price, shown to the user for confirmation before it is recorded.
+    public struct ClosePlan: Equatable, Sendable {
+        public let side: Side
+        public let quantity: Decimal
+        public let rate: Decimal
+        public let amount: Decimal
+        /// What is still held after it.
+        public let remaining: Decimal
+        /// True for "sell enough to get the investment back".
+        public let recoversInvestment: Bool
     }
 
-    /// `Close` → all: the closing side, the whole open quantity, the current price when known.
-    public func openCloseForm() { openClosingForm(quantity: summary.openQuantity) }
+    /// Asks the user to confirm a plan (an alert in the app); tests set it to a closure.
+    @ObservationIgnored public var confirm: ((ClosePlan) -> Bool)?
 
     /// Quantity to sell at the current price so that the USDT still out of pocket (bought minus already sold)
     /// comes back, leaving the rest as profit. nil when that is not possible: sell-first trade, no price,
@@ -185,25 +191,34 @@ public final class StickerModel {
         return rounded < summary.openQuantity ? rounded : nil
     }
 
-    /// `Close` → recover the investment: sells `recoverQuantity` at the current price.
-    public func openRecoverForm() {
-        guard let quantity = recoverQuantity else { return }
-        openClosingForm(quantity: quantity)
+    /// The whole open quantity (or, with `recoverInvestment`, just enough to get the investment back) at the
+    /// current price. nil while the trade is not open or the price is unknown.
+    public func closePlan(recoverInvestment: Bool) -> ClosePlan? {
+        guard status == .open, let price = currentPrice else { return nil }
+        guard let quantity = recoverInvestment ? recoverQuantity : summary.openQuantity else { return nil }
+        return ClosePlan(
+            side: trade.direction.closingSide, quantity: quantity, rate: price, amount: (quantity * price).rounded(scale: 8),
+            remaining: summary.openQuantity - quantity, recoversInvestment: recoverInvestment
+        )
     }
 
-    private func openClosingForm(quantity: Decimal) {
-        guard summary.openQuantity > 0 else { return }
-        if form == nil { onFormWillOpen?() }
-        editingID = nil
-        let side = trade.direction.closingSide
-        if let rate = currentPrice {
-            form = TransactionDraft(side: side, occurredAt: clock(), quantity: quantity, rate: rate)
-        } else {
-            var draft = TransactionDraft(side: side, occurredAt: clock())
-            draft.edit(.quantity, "\(quantity)")
-            form = draft
+    /// Menu action: confirm, then record the closing transaction at the price the user saw.
+    public func requestClose(recoverInvestment: Bool) async {
+        guard let plan = closePlan(recoverInvestment: recoverInvestment), confirm?(plan) == true else { return }
+        do {
+            try store.addTransaction(tradeID: trade.id, side: plan.side, quantity: plan.quantity, amount: plan.amount, occurredAt: clock())
+            listError = nil
+            reload()
+            await refreshSubscription()
+        } catch StoreError.ledger(let error) {
+            listError = Self.message(for: error, transactions: transactions)
+        } catch {
+            listError = "Could not save: \(error)"
         }
-        formError = nil
+    }
+
+    public func toggleForm() {
+        if form != nil { cancelForm() } else { addTransaction() }
     }
 
     /// Edits an existing transaction in the same form (FR-TX-6).

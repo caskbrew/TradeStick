@@ -226,7 +226,7 @@ struct StickerHeader: View {
                 }
             }
             Spacer(minLength: 4)
-            if model.status == .open { CloseMenu(model: model) } else { StatusBadge(status: model.status) }
+            if model.status != .open { StatusBadge(status: model.status) }
             Menu {
                 StickerMenuItems(model: model, actions: actions)
             } label: {
@@ -247,13 +247,33 @@ struct StickerMenuItems: View {
     var body: some View {
         let expanded = model.trade.isExpanded
         let count = model.transactions.count
-        Button("Add transaction\t⌘N") { model.addTransaction() }
+        Button("Add transaction\t⌃B") { model.addTransaction() }
         Button("\(expanded ? "Hide" : "Show") transactions (\(count))\t⌘L") { model.toggleList() }
             .disabled(model.status == .empty)
+        if model.status == .open {
+            Divider()
+            let closing = model.trade.direction == .buyFirst ? "Sell" : "Buy back"
+            Button("\(closing) all at market · \(NumberFormat.quantity(model.summary.openQuantity)) \(model.trade.base)\t⌘E") {
+                Task { await model.requestClose(recoverInvestment: false) }
+            }
+            .disabled(model.closePlan(recoverInvestment: false) == nil)
+            if model.trade.direction == .buyFirst {
+                Button(recoverTitle + "\t⌘R") { Task { await model.requestClose(recoverInvestment: true) } }
+                    .disabled(model.closePlan(recoverInvestment: true) == nil)
+            }
+        }
         Divider()
         Button("Hide Window\t⌘W", action: actions.hide)
         Divider()
         Button("Delete Trade…\t⌥⌘⌫", role: .destructive, action: actions.delete)
+    }
+}
+
+extension StickerMenuItems {
+    fileprivate var recoverTitle: String {
+        guard let quantity = model.recoverQuantity else { return "Sell enough to recover the investment" }
+        let invested = model.summary.boughtAmount - model.summary.soldAmount
+        return "Sell \(NumberFormat.quantity(quantity)) \(model.trade.base) to recover \(NumberFormat.amount(invested)) \(model.trade.quote)"
     }
 }
 
@@ -264,47 +284,14 @@ struct ShortcutLayer: View {
 
     var body: some View {
         Group {
-            Button("") { model.addTransaction() }.keyboardShortcut("n")
+            Button("") { model.toggleForm() }.keyboardShortcut("b", modifiers: .control)
             Button("") { model.toggleList() }.keyboardShortcut("l")
-            Button("") { model.closeAll() }.keyboardShortcut("e")
-            Button("") { model.openRecoverForm() }.keyboardShortcut("r")
+            Button("") { Task { await model.requestClose(recoverInvestment: false) } }.keyboardShortcut("e")
+            Button("") { Task { await model.requestClose(recoverInvestment: true) } }.keyboardShortcut("r")
             Button("") { actions.hide() }.keyboardShortcut("w")
             Button("") { actions.delete() }.keyboardShortcut(.delete, modifiers: [.command, .option])
         }
         .opacity(0).frame(width: 0, height: 0).allowsHitTesting(false).accessibilityHidden(true)
-    }
-}
-
-/// Replaces the OPEN badge while the trade is open: the two ways to close it.
-struct CloseMenu: View {
-    let model: StickerModel
-
-    var body: some View {
-        let closing = model.trade.direction == .buyFirst ? "Sell" : "Buy back"
-        let base = model.trade.base
-        Menu {
-            Button("\(closing) all at market · \(NumberFormat.quantity(model.summary.openQuantity)) \(base)\t⌘E") { model.closeAll() }
-                .disabled(model.currentPrice == nil)
-            if model.trade.direction == .buyFirst {
-                Button(recoverTitle + "\t⌘R") { model.openRecoverForm() }.disabled(model.recoverQuantity == nil)
-            }
-        } label: {
-            HStack(spacing: 4) {
-                Text("Close").font(.system(size: 12, weight: .semibold))
-                Image(systemName: "chevron.down").font(.system(size: 8, weight: .bold))
-            }
-            .padding(.horizontal, 10).padding(.vertical, 4)
-            .background(Capsule().fill(Theme.accent))
-            .foregroundStyle(.white)
-        }
-        .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
-        .help("Close the trade: record the closing sale at the current price")
-    }
-
-    private var recoverTitle: String {
-        guard let quantity = model.recoverQuantity else { return "Sell enough to recover the investment" }
-        let invested = model.summary.boughtAmount - model.summary.soldAmount
-        return "Sell \(NumberFormat.quantity(quantity)) \(model.trade.base) to recover \(NumberFormat.amount(invested)) \(model.trade.quote)"
     }
 }
 
