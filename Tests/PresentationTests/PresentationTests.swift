@@ -259,17 +259,19 @@ let now = Date(timeIntervalSince1970: 1_700_000_000)
         #expect(TimeInput.parse("03.10 18:30", now: ref, calendar: cal) == at(2026, 10, 3, 18, 30))
         #expect(TimeInput.parse("3-10-25 18:30", now: ref, calendar: cal) == at(2025, 10, 3, 18, 30))
         #expect(TimeInput.parse(" 03/10/2025  18:30 ", now: ref, calendar: cal) == at(2025, 10, 3, 18, 30))
+        #expect(TimeInput.parse("03.10 18:30:45", now: ref, calendar: cal) == at(2026, 10, 3, 18, 30).addingTimeInterval(45))
+        #expect(TimeInput.parse("07:08:09", now: ref, calendar: cal) == at(2026, 10, 15, 7, 8).addingTimeInterval(9))
     }
 
     @Test func rejectsGarbageAndImpossibleDates() {
-        for bad in ["", "abc", "25:00", "12:60", "31.02 10:00", "10.13 10:00", "10.10", "1 2 3", "12.10.2025.1 10:00", "12:1x"] {
+        for bad in ["", "abc", "25:00", "12:60", "31.02 10:00", "10.13 10:00", "10.10", "1 2 3", "12.10.2025.1 10:00", "12:1x", "12:00:61", "12:00:", "1:2:3:4"] {
             #expect(TimeInput.parse(bad, now: ref, calendar: cal) == nil, "\(bad)")
         }
     }
 
     @Test func formatRoundTrips() {
         let d = at(2025, 10, 3, 18, 30)
-        #expect(TimeInput.format(d, calendar: cal) == "03.10.25 18:30")
+        #expect(TimeInput.format(d, calendar: cal) == "03.10.25 18:30:00")
         #expect(TimeInput.parse(TimeInput.format(d, calendar: cal), now: ref, calendar: cal) == d)
     }
 

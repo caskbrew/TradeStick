@@ -73,12 +73,12 @@ struct TransactionForm: View {
         .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Theme.field))
     }
 
-    /// Opens with the current time (stamped when saved if left alone). Type `HH:mm` or `dd.MM.yy HH:mm`, or pick in the calendar popover.
+    /// Opens with the current time (stamped when saved if left alone). Type `HH:mm:ss` or `dd.MM.yy HH:mm:ss`, or pick in the calendar popover.
     private func timeField(_ form: TransactionDraft?) -> some View {
         HStack(spacing: 4) {
             TextField(TimeInput.format(.now), text: $timeText)
                 .textFieldStyle(.plain).monospacedDigit().font(.system(size: 12))
-                .lineLimit(1).minimumScaleFactor(0.8)
+                .lineLimit(1).minimumScaleFactor(0.65)
                 .foregroundStyle(form?.timeInvalid == true ? Theme.negative : .primary)
                 .onChange(of: timeText) { _, text in applyTime(text) }
             Button { showPicker = true } label: {
