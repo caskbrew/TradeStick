@@ -14,7 +14,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var pathMonitor: NWPathMonitor?
     /// Only the installed app (bundle id set by scripts/package.sh) touches the real data. Anything else
     /// (`swift run`, a dev build) uses its own folder, so development never damages the user's trades.
-    static let isInstalled = Bundle.main.bundleIdentifier == "com.sgoroshko.tradesticker"
+    static let isInstalled = Bundle.main.bundleIdentifier == "com.caskbrew.tradestickers"
     static let dataFolder = isInstalled ? "TradeSticker" : "TradeSticker-Dev"
     private let icons = CoinIcons(directory: FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?.appending(path: "\(AppController.dataFolder)/icons"))
     private let adapters: [any ExchangeAdapter] = [BinanceAdapter()]
