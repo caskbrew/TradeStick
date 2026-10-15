@@ -214,12 +214,17 @@ struct StickerHeader: View {
             }
             .buttonStyle(.plain).foregroundStyle(model.isPinned ? Color.accentColor : Theme.secondaryText)
             .help(model.isPinned ? "Unpin: allow moving the window" : "Pin: lock the window position")
-            Menu {
-                StickerMenuItems(model: model, actions: actions)
-            } label: {
-                Text("\u{22EE}").font(.system(size: 16, weight: .bold)).offset(y: -20).frame(width: 24, height: 24)
+            ZStack {
+                // The glyph is a plain view (same offset as the pin); the menu on top only catches the click.
+                Text("\u{22EE}").font(.system(size: 16, weight: .bold)).offset(y: -6).allowsHitTesting(false)
+                Menu {
+                    StickerMenuItems(model: model, actions: actions)
+                } label: {
+                    Color.clear.frame(width: 24, height: 24).contentShape(Rectangle())
+                }
+                .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
             }
-            .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
+            .frame(width: 24, height: 24)
             }
         }
         .background { ShortcutLayer(model: model, actions: actions) }
