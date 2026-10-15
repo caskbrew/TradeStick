@@ -234,7 +234,10 @@ struct FreshnessLabel: View {
 
     var body: some View {
         if freshness == .fresh && state.connection == .connected {
-            Text("● Live").font(.system(size: 11)).foregroundStyle(Theme.secondaryText)
+            HStack(spacing: 5) {
+                Circle().fill(Theme.positive).frame(width: 7, height: 7)
+                Text("Live").font(.system(size: 11)).foregroundStyle(Theme.secondaryText)
+            }
         } else if let received = state.receivedAt {
             Label("Price from " + received.formatted(.dateTime.hour().minute().second()), systemImage: "clock")
                 .font(.system(size: 11)).foregroundStyle(Theme.warning).lineLimit(1).fixedSize()

@@ -13,16 +13,16 @@ public enum NumberFormat {
         return value.formatted(style)
     }
 
-    /// Prices and rates: at least 4 significant digits and 6 decimals below 1 (Binance shows up to 6), at most 10 decimals, trailing zeros dropped but never
+    /// Prices and rates: up to 8 decimals like Binance's own price feed (more for tiny values, at most 10), trailing zeros dropped but never
     /// fewer than 2 decimals (FR-FMT-2): `0.05333`, `67432.10`.
     public static func price(_ value: Decimal) -> String {
         let magnitude = value < 0 ? -value : value
-        var decimals = 2
+        var decimals = 8
         if magnitude > 0 && magnitude < 1 {
             var leadingZeros = 0
             var probe = magnitude
             while probe < Decimal(string: "0.1")! { probe *= 10; leadingZeros += 1 }
-            decimals = max(leadingZeros + 4, 6)
+            decimals = max(leadingZeros + 4, 8)
         }
         return plain(value, min: 2, max: min(max(decimals, 2), 10))
     }

@@ -1,5 +1,6 @@
 import Domain
 import Foundation
+import os
 
 public struct PriceSubscription: Sendable {
     public let id: UUID
@@ -122,6 +123,8 @@ public actor MarketDataHub {
         broadcast(feed)
     }
 
+    private static let log = Logger(subsystem: "TradeSticker", category: "marketdata")
+
     private func run(_ key: Key, _ feed: Feed) async {
         guard let adapter = adapters[key.exchange] else { return }
         var failures = 0
@@ -138,11 +141,13 @@ public actor MarketDataHub {
                     }
                 }
             } catch {
-                // fall through to reconnect
+                Self.log.error("\(key.instrument.base, privacy: .public)/\(key.instrument.quote, privacy: .public) feed failed (attempt \(failures + 1)): \(String(describing: error), privacy: .public)")
             }
             if Task.isCancelled { return }
             setConnection(feed, failures + 1 >= disconnectedAfter ? .disconnected : .reconnecting)
-            try? await sleep(backoff.delay(attempt: failures))
+            let delay = backoff.delay(attempt: failures)
+            Self.log.notice("\(key.instrument.base, privacy: .public) feed ended, reconnecting in \(String(describing: delay), privacy: .public)")
+            try? await sleep(delay)
             failures += 1
         }
     }

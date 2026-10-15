@@ -25,12 +25,12 @@ let now = Date(timeIntervalSince1970: 1_700_000_000)
 }
 
 @Suite struct NumberFormatTests {
-    @Test func pricesKeepFourSignificantDigitsAndAtLeastTwoDecimals() {
-        #expect(NumberFormat.price(dec("0.0533333333")) == "0.053333") // 6 decimals below 1, like Binance
+    @Test func pricesShowUpToEightDecimalsTrimmedToAtLeastTwo() {
+        #expect(NumberFormat.price(dec("0.0533333333")) == "0.05333333")
         #expect(NumberFormat.price(dec("0.055")) == "0.055")
-        #expect(NumberFormat.price(dec("0.05512")) == "0.05512")
+        #expect(NumberFormat.price(dec("1.36")) == "1.36")
         #expect(NumberFormat.price(dec("67432.1")) == "67432.10")
-        #expect(NumberFormat.price(dec("67432.12345")) == "67432.12")
+        #expect(NumberFormat.price(dec("67432.12345")) == "67432.12345")
         #expect(NumberFormat.price(dec("1")) == "1.00")
         #expect(NumberFormat.price(dec("0.5")) == "0.50")
         #expect(NumberFormat.price(dec("0.000001234567")) == "0.000001235")
