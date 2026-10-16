@@ -7,6 +7,7 @@ public struct ImportView: View {
     @Bindable var model: ImportModel
     let onClose: () -> Void
 
+    nonisolated(unsafe) static var plainRows = false
     private static let accent = Color(red: 0.04, green: 0.45, blue: 1.0)
 
     public init(model: ImportModel, onClose: @escaping () -> Void) {
@@ -51,7 +52,7 @@ public struct ImportView: View {
         .frame(width: 720, height: 520)
         .background(GlassBackground())
         .environment(\.colorScheme, .dark)
-        .task { await model.load() }
+        .task { if !model.hasLoaded { await model.load() } }
     }
 
     private var summary: String {
@@ -81,8 +82,12 @@ public struct ImportView: View {
         case .loaded:
             VStack(spacing: 0) {
                 header
-                ScrollView {
-                    LazyVStack(spacing: 0) { ForEach(model.visibleRows) { rowView($0) } }
+                if Self.plainRows { // snapshots cannot draw a ScrollView
+                    VStack(spacing: 0) { ForEach(model.visibleRows) { rowView($0) } }.frame(maxHeight: .infinity, alignment: .top)
+                } else {
+                    ScrollView {
+                        LazyVStack(spacing: 0) { ForEach(model.visibleRows) { rowView($0) } }
+                    }
                 }
             }
             .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color.white.opacity(0.04)))

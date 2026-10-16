@@ -21,47 +21,47 @@ public struct NewTradeView: View {
     }
 
     public var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("New Trade").font(.system(size: 24, weight: .semibold))
+        VStack(alignment: .leading, spacing: 10) {
+            Text("New Trade").font(.system(size: 17, weight: .semibold))
 
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 4) {
                 label("Exchange", ok: !model.exchange.isEmpty)
                 exchangePicker
             }
 
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 4) {
                 label("Pair", ok: pairIsKnown)
                 pairField
                 if listOpen { pairList }
             }
 
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 5) {
                 label("Direction", ok: nil)
                 directionSwitch
                 Text(model.direction == .buyFirst
                      ? "Buy now, sell later. You profit when the price rises."
                      : "Sell now, buy back later. You profit when the price falls.")
-                    .font(.system(size: 13)).foregroundStyle(Theme.secondaryText)
+                    .font(.system(size: 12)).foregroundStyle(Theme.secondaryText)
             }
 
             if let error = model.error {
                 Text(error).font(.system(size: 12)).foregroundStyle(Theme.negative)
             }
 
-            HStack(spacing: 10) {
+            HStack(spacing: 8) {
                 Spacer()
-                Button("Cancel", action: onCancel).keyboardShortcut(.cancelAction)
-                    .buttonStyle(PillStyle(fill: Theme.field, flexible: false, minHeight: 38)).frame(minWidth: 110)
-                Button(model.isChecking ? "Checking…" : "Create") {
+                Button(action: onCancel) { Text("Cancel") }.keyboardShortcut(.cancelAction)
+                    .buttonStyle(PillStyle(fill: Theme.field, flexible: false, minHeight: 30))
+                Button {
                     Task { if let request = await model.validate() { onCreate(request) } }
-                }
+                } label: { Text(model.isChecking ? "Checking…" : "Create")}
                 .keyboardShortcut(.defaultAction)
-                .buttonStyle(PillStyle(fill: Self.accent, flexible: false, minHeight: 38)).frame(minWidth: 130)
+                .buttonStyle(PillStyle(fill: Self.accent, flexible: false, minHeight: 30))
                 .disabled(model.isChecking || model.pairText.trimmingCharacters(in: .whitespaces).isEmpty)
             }
         }
-        .padding(24)
-        .frame(width: 460)
+        .padding(16)
+        .frame(width: 340)
         .background(GlassBackground())
         .environment(\.colorScheme, .dark)
         .onAppear { pairFocused = true }
@@ -78,16 +78,16 @@ public struct NewTradeView: View {
 
     private func label(_ text: String, ok: Bool?) -> some View {
         HStack(spacing: 6) {
-            Text(text).font(.system(size: 14)).foregroundStyle(Theme.secondaryText)
+            Text(text).font(.system(size: 12)).foregroundStyle(Theme.secondaryText)
             if ok == true { Circle().fill(Theme.positive).frame(width: 6, height: 6) }
         }
     }
 
     private func pill<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
         content()
-            .padding(.horizontal, 12).frame(height: 44)
-            .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Theme.field))
-            .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Color.white.opacity(0.08)))
+            .padding(.horizontal, 10).frame(height: 32)
+            .background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(Theme.field))
+            .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous).strokeBorder(Color.white.opacity(0.08)))
     }
 
     private var exchangePicker: some View {
@@ -95,11 +95,11 @@ public struct NewTradeView: View {
             ForEach(model.exchanges, id: \.self) { id in Button(id.capitalized) { model.exchange = id } }
         } label: {
             pill {
-                HStack(spacing: 10) {
-                    Image(systemName: "diamond.fill").font(.system(size: 18)).foregroundStyle(Color(red: 0.98, green: 0.78, blue: 0.2))
-                    Text(model.exchange.capitalized).font(.system(size: 16))
+                HStack(spacing: 8) {
+                    Image(systemName: "diamond.fill").font(.system(size: 14)).foregroundStyle(Color(red: 0.98, green: 0.78, blue: 0.2))
+                    Text(model.exchange.capitalized).font(.system(size: 13))
                     Spacer()
-                    Image(systemName: "chevron.down").font(.system(size: 13, weight: .semibold))
+                    Image(systemName: "chevron.down").font(.system(size: 10, weight: .semibold))
                 }
             }
         }
@@ -110,11 +110,11 @@ public struct NewTradeView: View {
         pill {
             HStack(spacing: 6) {
                 TextField("GRAM/USDT", text: $model.pairText)
-                    .textFieldStyle(.plain).font(.system(size: 16)).focused($pairFocused)
+                    .textFieldStyle(.plain).font(.system(size: 13)).focused($pairFocused)
                     .onChange(of: model.pairText) { _, text in if pairFocused, text != lastPicked { listOpen = true } }
                 Button { listOpen.toggle(); pairFocused = true } label: {
-                    Image(systemName: listOpen ? "chevron.up" : "chevron.down").font(.system(size: 13, weight: .semibold))
-                        .frame(width: 28, height: 28).contentShape(Rectangle())
+                    Image(systemName: listOpen ? "chevron.up" : "chevron.down").font(.system(size: 10, weight: .semibold))
+                        .frame(width: 22, height: 22).contentShape(Rectangle())
                 }
                 .buttonStyle(.plain).help("Pairs of \(model.exchange.capitalized)")
             }
@@ -125,17 +125,17 @@ public struct NewTradeView: View {
         HStack(spacing: 0) {
             ForEach([Direction.buyFirst, Direction.sellFirst], id: \.self) { option in
                 Button { model.direction = option } label: {
-                    Text(option == .buyFirst ? "BUY" : "SELL").font(.system(size: 16, weight: .medium))
-                        .frame(maxWidth: .infinity, minHeight: 42)
-                        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(model.direction == option ? Self.accent : .clear))
+                    Text(option == .buyFirst ? "BUY" : "SELL").font(.system(size: 13, weight: .medium))
+                        .frame(maxWidth: .infinity, minHeight: 28)
+                        .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(model.direction == option ? Self.accent : .clear))
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
             }
         }
         .padding(1)
-        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Theme.field))
-        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Color.white.opacity(0.08)))
+        .background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(Theme.field))
+        .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous).strokeBorder(Color.white.opacity(0.08)))
     }
 
     /// The exchange's pairs filtered by what is typed.
@@ -156,18 +156,18 @@ public struct NewTradeView: View {
                                 lastPicked = model.pairText
                                 listOpen = false
                             } label: {
-                                Text("\(item.base)/\(item.quote)").font(.system(size: 15)).frame(maxWidth: .infinity, alignment: .leading)
-                                    .padding(.horizontal, 12).padding(.vertical, 6).contentShape(Rectangle())
+                                Text("\(item.base)/\(item.quote)").font(.system(size: 13)).frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(.horizontal, 10).padding(.vertical, 4).contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
                         }
                     }
                 }
-                .frame(height: min(CGFloat(items.count) * 30, 180))
+                .frame(height: min(CGFloat(items.count) * 26, 156))
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Theme.field))
-        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Color.white.opacity(0.08)))
+        .background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(Theme.field))
+        .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous).strokeBorder(Color.white.opacity(0.08)))
     }
 }

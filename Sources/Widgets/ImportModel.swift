@@ -39,6 +39,7 @@ public final class ImportModel {
     public private(set) var selection: Set<String> = []
     public private(set) var error: String?
     public private(set) var added: Int?
+    public private(set) var hasLoaded = false
 
     @ObservationIgnored private let fetch: @Sendable () async throws -> [ImportedTrade]
     @ObservationIgnored private let existing: () -> Set<String>
@@ -73,6 +74,7 @@ public final class ImportModel {
             fills = try await fetch()
             rebuild()
             state = .loaded
+            hasLoaded = true
         } catch {
             state = .failed("\(error)")
         }

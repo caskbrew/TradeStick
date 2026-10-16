@@ -84,3 +84,52 @@ import Testing
         try render(loss, name: "5-sellfirst-loss")
     }
 }
+
+/// Developer tool: `SNAPSHOT_DIR=/tmp/snaps swift test --filter DialogSnapshotTests` renders the dialogs to PNG.
+@MainActor @Suite(.timeLimit(.minutes(1))) struct DialogSnapshotTests {
+    func render<V: View>(_ content: V, name: String) throws {
+        guard let dir = SnapshotTests.dir else { return }
+        let view = ZStack {
+            LinearGradient(colors: [Color(red: 0.12, green: 0.14, blue: 0.30), Color(red: 0.55, green: 0.30, blue: 0.35)],
+                           startPoint: .topLeading, endPoint: .bottomTrailing)
+            content.padding(24)
+        }
+        let renderer = ImageRenderer(content: view)
+        renderer.scale = 2
+        guard let tiff = renderer.nsImage?.tiffRepresentation, let png = NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:]) else {
+            Issue.record("render failed"); return
+        }
+        try png.write(to: URL(fileURLWithPath: dir).appendingPathComponent("\(name).png"))
+    }
+
+    @Test func newTrade() async throws {
+        let gram = Instrument(base: "GRAM", quote: "USDT")
+        let model = NewTradeModel(adapters: [FakeExchange(id: "binance", listed: [gram])])
+        await model.loadInstruments()
+        model.pairText = "GRAM/USDT"
+        try render(NewTradeView(model: model, onCreate: { _ in }, onCancel: {}), name: "dialog-new-trade")
+    }
+
+    @Test func apiKeys() async throws {
+        let store = InMemoryCredentialStore()
+        try store.save(APICredentials(key: String(repeating: "aB3x", count: 16), secret: "s"), exchange: "binance")
+        let defaults = UserDefaults(suiteName: UUID().uuidString)!
+        defaults.set(Date(), forKey: "apiKeyChecked.binance"); defaults.set(true, forKey: "apiKeyReadOnly.binance")
+        let model = APIKeysModel(store: store, defaults: defaults, check: { _ in APIKeyCheck(readOnly: true) })
+        try render(APIKeysView(model: model, onClose: {}), name: "dialog-api-keys")
+    }
+
+    @Test func importTrades() async throws {
+        @Sendable func fill(_ id: Int, _ order: String, _ side: Side, _ qty: Decimal, _ amt: Decimal, _ t: Double) -> ImportedTrade {
+            ImportedTrade(externalID: String(id), side: side, quantity: qty, amount: amt, occurredAt: Date(timeIntervalSinceNow: -t), orderID: order, fees: ["BNB": Decimal(string: "0.0004")!])
+        }
+        let model = ImportModel(title: "Import from Binance", pair: "GRAM / USDT", quote: "USDT", fetch: {
+            [fill(1, "a", .buy, 298.5, 399.99, 90000), fill(2, "b", .buy, 400, 536, 3000), fill(3, "b", .buy, 100, 134, 2990), fill(4, "c", .sell, 200, 280, 100)]
+        }, existing: { ["1"] }, commit: { _ in nil })
+        await model.load()
+        model.toggle("c")
+        ImportView.plainRows = true
+        defer { ImportView.plainRows = false }
+        try render(ImportView(model: model, onClose: {}), name: "dialog-import")
+    }
+}

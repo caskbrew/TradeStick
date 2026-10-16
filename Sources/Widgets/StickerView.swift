@@ -468,6 +468,7 @@ struct PillStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.system(size: 13, weight: .medium))
+            .padding(.horizontal, flexible ? 0 : 16) // a button that is not stretched needs room around its text
             .frame(maxWidth: flexible ? .infinity : nil, minHeight: minHeight)
             .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(fill.opacity(configuration.isPressed ? 0.7 : 1)))
             .foregroundStyle(.white.opacity(isEnabled ? 1 : 0.35))
