@@ -213,7 +213,7 @@ struct TransactionList: View {
                 Text(NumberFormat.quantity(tx.quantity)).frame(maxWidth: .infinity, alignment: .trailing)
                     .minimumScaleFactor(0.6)
                 Text(NumberFormat.quote(tx.amount, fixed: model.quoteFixed)).frame(width: Self.amountWidth, alignment: .trailing)
-                Text(tx.rate.map(NumberFormat.price) ?? "—").foregroundStyle(Theme.secondaryText).minimumScaleFactor(0.6).frame(width: Self.rateWidth, alignment: .trailing)
+                Text(tx.rate.map(NumberFormat.shownPrice) ?? "—").foregroundStyle(Theme.secondaryText).minimumScaleFactor(0.6).frame(width: Self.rateWidth, alignment: .trailing)
             }
         }
         .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(.white.opacity(hovering == tx.id && confirming == nil ? 0.06 : 0)))

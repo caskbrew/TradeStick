@@ -125,7 +125,7 @@ public struct ImportView: View {
             Text(t.side == .buy ? "BUY" : "SELL").foregroundStyle(t.side == .buy ? Theme.positive : Theme.negative).frame(width: w.side, alignment: .leading)
             Text(NumberFormat.quantity(t.quantity)).frame(width: w.qty, alignment: .trailing)
             Text(NumberFormat.quote(t.amount, fixed: model.fixedQuote)).frame(width: w.amt, alignment: .trailing)
-            Text(t.rate.map(NumberFormat.price) ?? "").frame(width: w.rate, alignment: .trailing)
+            Text(t.rate.map(NumberFormat.shownPrice) ?? "").frame(width: w.rate, alignment: .trailing)
             Text(t.feeText ?? "—").lineLimit(1).minimumScaleFactor(0.7).foregroundStyle(Theme.secondaryText).frame(width: w.fee, alignment: .trailing)
             status(row).frame(maxWidth: .infinity, alignment: .trailing)
         }

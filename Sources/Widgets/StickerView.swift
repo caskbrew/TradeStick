@@ -320,7 +320,7 @@ struct PriceRow: View {
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 10) {
-            Text(model.currentPrice.map(NumberFormat.price) ?? "—")
+            Text(model.currentPrice.map(NumberFormat.shownPrice) ?? "—")
                 .font(.system(size: 24, weight: .semibold, design: .rounded)).monospacedDigit()
                 .opacity(usable || model.currentPrice == nil ? 1 : 0.5)
             if usable, let change = model.price.change24h { ChangePill(change: change, dimmed: false) } // hidden while the price is stale: the warning needs the room
@@ -398,7 +398,7 @@ struct CompactNumbers: View {
         let dim = !closed && !usable
         HStack(alignment: .center, spacing: 12) {
             VStack(alignment: .leading, spacing: 3) {
-                LabeledValue(label: "Rate", value: summary.entryPrice.map(NumberFormat.price) ?? "—")
+                LabeledValue(label: "Rate", value: summary.entryPrice.map(NumberFormat.shownPrice) ?? "—")
                 LabeledValue(label: model.trade.base, value: closed ? "—" : NumberFormat.quantity(summary.openQuantity))
                 LabeledValue(label: model.trade.quote, value: closed ? "—" : NumberFormat.quote(summary.openCost, fixed: model.quoteFixed))
             }
