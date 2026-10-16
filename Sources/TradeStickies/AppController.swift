@@ -254,7 +254,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     func menuNeedsUpdate(_ menu: NSMenu) {
         menu.removeAllItems()
-        let new = NSMenuItem(title: "New Tx", action: #selector(showNewTrade), keyEquivalent: "n")
+        let new = NSMenuItem(title: "New Stick", action: #selector(showNewTrade), keyEquivalent: "n")
         new.target = self
         menu.addItem(new)
         let keys = NSMenuItem(title: "API Keys", action: #selector(openAPIKeysWindow), keyEquivalent: "k")
