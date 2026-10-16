@@ -329,13 +329,22 @@ struct PriceRow: View {
             VStack(alignment: .trailing, spacing: 0) {
                 FreshnessLabel(state: model.price, freshness: freshness)
                 if model.price.connection == .reconnecting || model.price.connection == .disconnected, model.price.tick != nil || model.price.connection == .disconnected {
+                    // One triangle for the pair of lines: on the first one; here only when there is no "Price … old" line above.
                     Label(model.price.connection == .disconnected ? "No connection" : "Reconnecting…", systemImage: "exclamationmark.triangle.fill")
+                        .labelStyle(TitleOnlyUnless(showsIcon: model.price.receivedAt == nil))
                         .font(.system(size: 11)).foregroundStyle(Theme.warning).lineLimit(1).fixedSize()
                 }
             }
             .alignmentGuide(.firstTextBaseline) { $0[.firstTextBaseline] + 11 }
         }
         .frame(height: 30, alignment: .top)
+    }
+}
+
+struct TitleOnlyUnless: LabelStyle {
+    let showsIcon: Bool
+    func makeBody(configuration: Configuration) -> some View {
+        if showsIcon { Label(configuration) } else { configuration.title }
     }
 }
 
