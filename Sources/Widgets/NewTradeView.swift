@@ -11,6 +11,7 @@ public struct NewTradeView: View {
     @FocusState private var pairFocused: Bool
     @State private var listOpen = false
     @State private var lastPicked = ""
+    @State private var highlight = 0
 
     private static let accent = Color(red: 0.04, green: 0.45, blue: 1.0)
 
@@ -22,7 +23,15 @@ public struct NewTradeView: View {
 
     public var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("New Trade").font(.system(size: 17, weight: .semibold))
+            HStack(spacing: 12) {
+                directionSwitch.frame(width: 128)
+                Text("New Trade").font(.system(size: 17, weight: .semibold))
+                Spacer()
+            }
+            Text(model.direction == .buyFirst
+                 ? "Buy now, sell later. You profit when the price rises."
+                 : "Sell now, buy back later. You profit when the price falls.")
+                .font(.system(size: 12)).foregroundStyle(Theme.secondaryText)
 
             VStack(alignment: .leading, spacing: 4) {
                 label("Exchange", ok: !model.exchange.isEmpty)
@@ -33,15 +42,6 @@ public struct NewTradeView: View {
                 label("Pair", ok: pairIsKnown)
                 pairField
                 if listOpen { pairList }
-            }
-
-            VStack(alignment: .leading, spacing: 5) {
-                label("Direction", ok: nil)
-                directionSwitch
-                Text(model.direction == .buyFirst
-                     ? "Buy now, sell later. You profit when the price rises."
-                     : "Sell now, buy back later. You profit when the price falls.")
-                    .font(.system(size: 12)).foregroundStyle(Theme.secondaryText)
             }
 
             if let error = model.error {
@@ -55,7 +55,7 @@ public struct NewTradeView: View {
                 Button {
                     Task { if let request = await model.validate() { onCreate(request) } }
                 } label: { Text(model.isChecking ? "Checking…" : "Create")}
-                .keyboardShortcut(.defaultAction)
+                .keyboardShortcut(listOpen && !model.suggestions.isEmpty ? nil : .defaultAction)
                 .buttonStyle(PillStyle(fill: Self.accent, flexible: false, minHeight: 30))
                 .disabled(model.isChecking || model.pairText.trimmingCharacters(in: .whitespaces).isEmpty)
             }
@@ -96,7 +96,7 @@ public struct NewTradeView: View {
         } label: {
             pill {
                 HStack(spacing: 8) {
-                    Image(systemName: "diamond.fill").font(.system(size: 14)).foregroundStyle(Color(red: 0.98, green: 0.78, blue: 0.2))
+                    ExchangeLogo(exchange: model.exchange, size: 18)
                     Text(model.exchange.capitalized).font(.system(size: 13))
                     Spacer()
                     Image(systemName: "chevron.down").font(.system(size: 10, weight: .semibold))
@@ -111,7 +111,11 @@ public struct NewTradeView: View {
             HStack(spacing: 6) {
                 TextField("GRAM/USDT", text: $model.pairText)
                     .textFieldStyle(.plain).font(.system(size: 13)).focused($pairFocused)
-                    .onChange(of: model.pairText) { _, text in if pairFocused, text != lastPicked { listOpen = true } }
+                    .onChange(of: model.pairText) { _, text in if pairFocused, text != lastPicked { listOpen = true; highlight = 0 } }
+                    .onKeyPress(.downArrow) { move(1) }
+                    .onKeyPress(.upArrow) { move(-1) }
+                    .onKeyPress(.return) { choose() }
+                    .onKeyPress(.escape) { listOpen ? { listOpen = false; return .handled }() : .ignored }
                 Button { listOpen.toggle(); pairFocused = true } label: {
                     Image(systemName: listOpen ? "chevron.up" : "chevron.down").font(.system(size: 10, weight: .semibold))
                         .frame(width: 22, height: 22).contentShape(Rectangle())
@@ -121,13 +125,35 @@ public struct NewTradeView: View {
         }
     }
 
+    private func move(_ step: Int) -> KeyPress.Result {
+        let count = model.suggestions.count
+        guard count > 0 else { return .ignored }
+        if !listOpen { listOpen = true; return .handled }
+        highlight = min(max(highlight + step, 0), count - 1)
+        return .handled
+    }
+
+    private func choose() -> KeyPress.Result {
+        let items = model.suggestions
+        guard listOpen, items.indices.contains(highlight) else { return .ignored }
+        pick(items[highlight])
+        return .handled
+    }
+
+    private func pick(_ item: Instrument) {
+        model.pick(item)
+        lastPicked = model.pairText
+        listOpen = false
+    }
+
     private var directionSwitch: some View {
         HStack(spacing: 0) {
             ForEach([Direction.buyFirst, Direction.sellFirst], id: \.self) { option in
                 Button { model.direction = option } label: {
                     Text(option == .buyFirst ? "BUY" : "SELL").font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(model.direction == option ? Color.white : (option == .buyFirst ? Theme.positive : Theme.negative))
                         .frame(maxWidth: .infinity, minHeight: 28)
-                        .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(model.direction == option ? Self.accent : .clear))
+                        .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(model.direction == option ? (option == .buyFirst ? Theme.positive : Theme.negative) : .clear))
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -148,20 +174,20 @@ public struct NewTradeView: View {
                 Text(model.instruments.isEmpty ? "The pair list is not available: type the pair" : "No such pair")
                     .font(.system(size: 13)).foregroundStyle(Theme.secondaryText).padding(10)
             } else {
-                ScrollView {
+                ScrollViewReader { proxy in
+                  ScrollView {
                     LazyVStack(alignment: .leading, spacing: 0) {
-                        ForEach(items, id: \.self) { item in
-                            Button {
-                                model.pick(item)
-                                lastPicked = model.pairText
-                                listOpen = false
-                            } label: {
+                        ForEach(Array(items.enumerated()), id: \.element) { index, item in
+                            Button { pick(item) } label: {
                                 Text("\(item.base)/\(item.quote)").font(.system(size: 13)).frame(maxWidth: .infinity, alignment: .leading)
                                     .padding(.horizontal, 10).padding(.vertical, 4).contentShape(Rectangle())
+                                    .background(index == highlight ? Self.accent.opacity(0.6) : .clear)
                             }
-                            .buttonStyle(.plain)
+                            .buttonStyle(.plain).id(index)
                         }
                     }
+                  }
+                  .onChange(of: highlight) { _, index in proxy.scrollTo(index) }
                 }
                 .frame(height: min(CGFloat(items.count) * 26, 156))
             }

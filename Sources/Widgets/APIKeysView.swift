@@ -20,7 +20,7 @@ public struct APIKeysView: View {
             Text("API Keys").font(.system(size: 16, weight: .semibold))
 
             HStack(spacing: 10) {
-                Image(systemName: "diamond.fill").font(.system(size: 22)).foregroundStyle(Color(red: 0.98, green: 0.78, blue: 0.2)).frame(width: 32)
+                ExchangeLogo(exchange: "binance", size: 28).frame(width: 32)
                 VStack(alignment: .leading, spacing: 3) {
                     HStack(spacing: 8) {
                         Text("Binance").font(.system(size: 15, weight: .semibold))
