@@ -38,14 +38,20 @@ public final class NewTradeModel {
         if adapter.id == exchange { instruments = loaded } // the exchange may have been switched meanwhile
     }
 
-    /// Pairs matching what is typed (any case and separator; `gram`, `gram/us`, `GRAMUSDT`), best first, at most 100.
+    /// Pairs matching what is typed (any case and separator; `gram`, `gram/us`, `GRAMUSDT`), best first, at most 100:
+    /// exact base, then names starting with the text, then the rest; USDT pairs first within each group.
     /// Nothing typed: USDT pairs, alphabetical.
     public var suggestions: [Instrument] {
         let query = String(pairText.uppercased().filter { $0.isLetter || $0.isNumber })
         guard !query.isEmpty else { return Array(instruments.filter { $0.quote == "USDT" }.prefix(100)) }
-        let hits = instruments.filter { ($0.base + $0.quote).contains(query) }
-        let starts = hits.filter { ($0.base + $0.quote).hasPrefix(query) }
-        return Array((starts + hits.filter { !($0.base + $0.quote).hasPrefix(query) }).prefix(100))
+        func rank(_ i: Instrument) -> Int? {
+            let name = i.base + i.quote
+            guard name.contains(query) else { return nil }
+            let group = i.base == query ? 0 : name.hasPrefix(query) ? 1 : 2
+            return group * 2 + (i.quote == "USDT" ? 0 : 1)
+        }
+        let ranked = instruments.compactMap { i in rank(i).map { (i, $0) } }
+        return Array(ranked.enumerated().sorted { ($0.element.1, $0.offset) < ($1.element.1, $1.offset) }.map(\.element.0).prefix(100))
     }
 
     public func pick(_ instrument: Instrument) { pairText = "\(instrument.base)/\(instrument.quote)"; error = nil }

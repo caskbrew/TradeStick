@@ -25,15 +25,13 @@ public struct NewTradeView: View {
         VStack(alignment: .leading, spacing: 10) {
             Text("New Trade").font(.system(size: 17, weight: .semibold))
 
+            pairField
+                .overlay(alignment: .topLeading) { if listOpen { pairList.offset(y: 36) } } // floats over the rows below, the window keeps its size
+                .zIndex(1)
+
             VStack(alignment: .leading, spacing: 4) {
                 label("Exchange", ok: !model.exchange.isEmpty)
                 exchangePicker
-            }
-
-            VStack(alignment: .leading, spacing: 4) {
-                label("Pair", ok: pairIsKnown)
-                pairField
-                if listOpen { pairList }
             }
 
             if let error = model.error {
@@ -167,11 +165,13 @@ public struct NewTradeView: View {
                   }
                   .onChange(of: highlight) { _, index in proxy.scrollTo(index) }
                 }
-                .frame(height: min(CGFloat(items.count) * 26, 156))
+                .frame(height: min(CGFloat(items.count) * 26, 104))
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(Color(white: 0.17)))
         .background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(Theme.field))
-        .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous).strokeBorder(Color.white.opacity(0.08)))
+        .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous).strokeBorder(Color.white.opacity(0.12)))
+        .shadow(color: .black.opacity(0.4), radius: 8, y: 3)
     }
 }
