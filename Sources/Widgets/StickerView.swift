@@ -198,14 +198,14 @@ struct StickerHeader: View {
                     DurationLabel(model: model)
                 }
                 HStack(spacing: 8) {
-                    Text("\(model.trade.direction == .buyFirst ? "BUY" : "SELL") · Spot · \(model.trade.exchange.capitalized)")
-                        .font(.system(size: 11)).foregroundStyle(Theme.secondaryText)
+                    Text("\(model.trade.direction == .buyFirst ? "BUY" : "SELL") · \(model.trade.exchange.capitalized)")
+                        .font(.system(size: 11)).foregroundStyle(Theme.secondaryText).lineLimit(1)
                     if live { LiveDot() } else if model.wantsPrice { ProgressView().controlSize(.small).scaleEffect(0.6).frame(width: 12, height: 12).help("Connecting to the exchange…") }
                 }
             }
             .overlay(WindowDragArea())
             Spacer(minLength: 4)
-            if model.status != .open { StatusBadge(status: model.status) }
+            if model.status != .open && model.status != .empty { StatusBadge(status: model.status) }
             // Each button is a 26pt circle centred on its glyph: the click area is the circle, not the glyph.
             HStack(spacing: -3) {
             Button { model.togglePin() } label: {

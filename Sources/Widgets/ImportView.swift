@@ -20,18 +20,20 @@ public struct ImportView: View {
             HStack {
                 Text(model.title).font(.system(size: 16, weight: .semibold))
                 Spacer()
-                Toggle("Group by order", isOn: Binding(get: { model.grouped }, set: { model.setGrouped($0) }))
+                if model.state != .loading { Toggle("Group by order", isOn: Binding(get: { model.grouped }, set: { model.setGrouped($0) }))
                     .toggleStyle(.checkbox).tint(Self.accent).font(.system(size: 13))
-                    .help("One row per order, like the exchange's web history. Off: one row per fill")
+                    .help("One row per order, like the exchange's web history. Off: one row per fill") }
             }
             HStack {
                 Text(model.pair).font(.system(size: 14)).padding(.horizontal, 12).frame(height: 28)
                     .background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(Theme.field))
                 Spacer()
-                Picker("", selection: $model.filter) {
-                    ForEach(ImportModel.Filter.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+                if model.state != .loading {
+                    Picker("", selection: $model.filter) {
+                        ForEach(ImportModel.Filter.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+                    }
+                    .labelsHidden().pickerStyle(.menu).fixedSize()
                 }
-                .labelsHidden().pickerStyle(.menu).fixedSize()
             }
             table
             if let error = model.error {
@@ -39,13 +41,13 @@ public struct ImportView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             HStack(spacing: 8) {
-                Text(summary).font(.system(size: 13)).foregroundStyle(model.canAdd ? .white : Theme.secondaryText)
+                if model.state != .loading { Text(summary).font(.system(size: 13)).foregroundStyle(model.canAdd ? .white : Theme.secondaryText) }
                 Spacer()
                 Button("Cancel", action: onClose).keyboardShortcut(.cancelAction)
                     .buttonStyle(PillStyle(fill: Theme.field, flexible: false, minHeight: 36))
-                Button("Import \(model.selection.count)") { if model.add() { onClose() } }
+                if model.state != .loading { Button("Import \(model.selection.count)") { if model.add() { onClose() } }
                     .keyboardShortcut(.defaultAction)
-                    .buttonStyle(PillStyle(fill: Self.accent, flexible: false, minHeight: 36)).disabled(!model.canAdd)
+                    .buttonStyle(PillStyle(fill: Self.accent, flexible: false, minHeight: 36)).disabled(!model.canAdd) }
             }
         }
         .padding(14)

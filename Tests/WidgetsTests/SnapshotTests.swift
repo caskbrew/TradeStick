@@ -104,7 +104,7 @@ import Testing
 
     @Test func newTrade() async throws {
         let gram = Instrument(base: "GRAM", quote: "USDT")
-        let model = NewTradeModel(adapters: [FakeExchange(id: "binance", listed: [gram])])
+        let model = NewTradeModel(adapters: [FakeExchange(id: "binance", listed: [gram])], defaults: UserDefaults(suiteName: UUID().uuidString)!)
         await model.loadInstruments()
         model.pairText = "GRAM/USDT"
         try render(NewTradeView(model: model, onCreate: { _ in }, onCancel: {}), name: "dialog-new-trade")

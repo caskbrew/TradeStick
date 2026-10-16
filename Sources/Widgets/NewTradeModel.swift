@@ -1,3 +1,4 @@
+import Foundation
 import Domain
 import MarketData
 import Observation
@@ -23,19 +24,33 @@ public final class NewTradeModel {
 
     public let exchanges: [String]
     @ObservationIgnored private let adapters: [String: any ExchangeAdapter]
+    @ObservationIgnored private let defaults: UserDefaults
 
-    public init(adapters: [any ExchangeAdapter]) {
+    /// - Parameter defaults: where the last loaded pair list of each exchange is kept, to show it at once next time.
+    public init(adapters: [any ExchangeAdapter], defaults: UserDefaults = .standard) {
+        self.defaults = defaults
         self.adapters = Dictionary(uniqueKeysWithValues: adapters.map { ($0.id, $0) })
         self.exchanges = adapters.map(\.id)
         self.exchange = adapters.first?.id ?? ""
+        self.instruments = Self.cached(exchange, in: defaults)
+    }
+
+    private static func cached(_ exchange: String, in defaults: UserDefaults) -> [Instrument] {
+        (defaults.stringArray(forKey: "instruments.\(exchange)") ?? []).compactMap { text in
+            let parts = text.split(separator: "/").map(String.init)
+            return parts.count == 2 ? Instrument(base: parts[0], quote: parts[1]) : nil
+        }
     }
 
     public func loadInstruments() async {
         guard let adapter = adapters[exchange] else { return }
+        let id = adapter.id
+        instruments = Self.cached(id, in: defaults) // shown while the fresh list loads
         instrumentsLoading = true
         defer { instrumentsLoading = false }
-        let loaded = (try? await adapter.instruments()) ?? []
-        if adapter.id == exchange { instruments = loaded } // the exchange may have been switched meanwhile
+        guard let loaded = try? await adapter.instruments(), !loaded.isEmpty else { return } // keep the old list on a failure
+        defaults.set(loaded.map(\.description), forKey: "instruments.\(id)")
+        if id == exchange { instruments = loaded } // the exchange may have been switched meanwhile
     }
 
     /// Pairs matching what is typed (any case and separator; `gram`, `gram/us`, `GRAMUSDT`), best first, at most 100:

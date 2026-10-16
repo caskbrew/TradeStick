@@ -87,6 +87,7 @@ public struct NewTradeView: View {
                     .onKeyPress(.upArrow) { move(-1) }
                     .onKeyPress(.return) { choose() }
                     .onKeyPress(.escape) { listOpen ? { listOpen = false; return .handled }() : .ignored }
+                if model.instrumentsLoading { ProgressView().controlSize(.small).scaleEffect(0.6).frame(width: 14, height: 14).help("Updating the pair list…") }
                 Button { listOpen.toggle(); pairFocused = true } label: {
                     Image(systemName: listOpen ? "chevron.up" : "chevron.down").font(.system(size: 10, weight: .semibold))
                         .frame(width: 22, height: 22).contentShape(Rectangle())

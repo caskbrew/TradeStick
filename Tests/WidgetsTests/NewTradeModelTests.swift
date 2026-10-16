@@ -17,7 +17,7 @@ struct BrokenExchange: ExchangeAdapter {
     let gram = Instrument(base: "GRAM", quote: "USDT")
 
     func model(_ adapters: [any ExchangeAdapter]? = nil) -> NewTradeModel {
-        NewTradeModel(adapters: adapters ?? [FakeExchange(id: "fake", listed: [gram])])
+        NewTradeModel(adapters: adapters ?? [FakeExchange(id: "fake", listed: [gram])], defaults: UserDefaults(suiteName: UUID().uuidString)!)
     }
 
     @Test func listedPairInAnyNotationIsAccepted() async {
@@ -226,7 +226,7 @@ struct BrokenExchange: ExchangeAdapter {
     ]
 
     func loaded() async -> NewTradeModel {
-        let m = NewTradeModel(adapters: [FakeExchange(id: "fake", listed: pairs)])
+        let m = NewTradeModel(adapters: [FakeExchange(id: "fake", listed: pairs)], defaults: UserDefaults(suiteName: UUID().uuidString)!)
         await m.loadInstruments()
         return m
     }
@@ -254,8 +254,21 @@ struct BrokenExchange: ExchangeAdapter {
         let m = await loaded()
         m.pick(Instrument(base: "GRAM", quote: "USDT"))
         #expect(m.pairText == "GRAM/USDT")
-        let broken = NewTradeModel(adapters: [BrokenExchange()])
+        let broken = NewTradeModel(adapters: [BrokenExchange()], defaults: UserDefaults(suiteName: UUID().uuidString)!)
         await broken.loadInstruments()
         #expect(broken.instruments.isEmpty && broken.suggestions.isEmpty)
+    }
+
+    @Test func lastLoadedPairsAreShownAtOnceNextTime() async {
+        let defaults = UserDefaults(suiteName: UUID().uuidString)!
+        let first = NewTradeModel(adapters: [FakeExchange(id: "fake", listed: [Instrument(base: "GRAM", quote: "USDT")])], defaults: defaults)
+        #expect(first.instruments.isEmpty)
+        await first.loadInstruments()
+        let second = NewTradeModel(adapters: [BrokenExchange()], defaults: defaults) // new window, nothing loaded yet
+        #expect(second.instruments.isEmpty) // another exchange id: nothing cached
+        let again = NewTradeModel(adapters: [FakeExchange(id: "fake", listed: [])], defaults: defaults)
+        #expect(again.instruments == [Instrument(base: "GRAM", quote: "USDT")])
+        await again.loadInstruments() // an empty or failed refresh keeps the old list
+        #expect(again.instruments == [Instrument(base: "GRAM", quote: "USDT")])
     }
 }
