@@ -198,8 +198,9 @@ struct StickerHeader: View {
                     DurationLabel(model: model)
                 }
                 HStack(spacing: 8) {
-                    Text("\(model.trade.direction == .buyFirst ? "BUY" : "SELL") · \(model.trade.exchange.capitalized)")
-                        .font(.system(size: 11)).foregroundStyle(Theme.secondaryText).lineLimit(1)
+                    Text("\(model.trade.direction == .buyFirst ? "BUY" : "SELL") · Spot · \(model.trade.exchange.capitalized)")
+                        .font(.system(size: 11)).foregroundStyle(Theme.secondaryText)
+                        .lineLimit(1).minimumScaleFactor(0.75).layoutPriority(1) // one line: shrinks a little instead of wrapping
                     if live { LiveDot() } else if model.wantsPrice { ProgressView().controlSize(.small).scaleEffect(0.6).frame(width: 12, height: 12).help("Connecting to the exchange…") }
                 }
             }
