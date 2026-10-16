@@ -66,6 +66,20 @@ public final class ImportModel {
         self.commit = commit
     }
 
+    @ObservationIgnored private var loadTask: Task<Void, Never>?
+
+    /// Starts loading once. The load is the model's own task, not the view's: a view that is re-created or briefly
+    /// removed (which cancels its `.task`) must not turn the pending request into an error.
+    public func startLoading() {
+        guard loadTask == nil, !hasLoaded else { return }
+        loadTask = Task { await load(); loadTask = nil }
+    }
+
+    public func retry() {
+        loadTask = nil
+        startLoading()
+    }
+
     public func load() async {
         state = .loading
         error = nil
@@ -75,6 +89,8 @@ public final class ImportModel {
             rebuild()
             state = .loaded
             hasLoaded = true
+        } catch is CancellationError {
+            return
         } catch {
             state = .failed("\(error)")
         }

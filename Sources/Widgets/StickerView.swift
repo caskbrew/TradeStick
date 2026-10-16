@@ -407,6 +407,7 @@ struct CompactNumbers: View {
             VStack(alignment: .trailing, spacing: 2) {
                 Text(total.map { NumberFormat.signedQuote($0, fixed: model.quoteFixed) } ?? "—").font(.system(size: 32, weight: .semibold, design: .rounded)).monospacedDigit()
                     .lineLimit(1).minimumScaleFactor(0.4)
+                    .frame(height: 38) // a shrunk font must not shrink the line: the sticker keeps its height
                     .foregroundStyle(Theme.pnl(total.map { NumberFormat.displayedQuote($0, fixed: model.quoteFixed) }))
                 HStack(spacing: 6) {
                     Text(model.trade.quote).font(.system(size: 11, weight: .medium)).foregroundStyle(Theme.secondaryText)
@@ -438,6 +439,7 @@ struct LabeledValue: View {
             Spacer(minLength: 6)
             Text(value).font(.system(size: 12, weight: .medium)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.7)
         }
+        .frame(height: 15)
     }
 }
 

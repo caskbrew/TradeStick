@@ -54,7 +54,7 @@ public struct ImportView: View {
         .frame(width: 720, height: 440)
         .background(GlassBackground())
         .environment(\.colorScheme, .dark)
-        .task { if !model.hasLoaded { await model.load() } }
+        .onAppear { model.startLoading() }
     }
 
     private var summary: String {
@@ -76,7 +76,7 @@ public struct ImportView: View {
         case .failed(let text):
             VStack(spacing: 10) {
                 Label(text, systemImage: "xmark.octagon.fill").foregroundStyle(Theme.negative).fixedSize(horizontal: false, vertical: true)
-                Button("Retry") { Task { await model.load() } }.buttonStyle(PillStyle(fill: Theme.field, flexible: false, minHeight: 30))
+                Button("Retry") { model.retry() }.buttonStyle(PillStyle(fill: Theme.field, flexible: false, minHeight: 30))
             }.frame(maxWidth: .infinity, maxHeight: .infinity)
         case .loaded where model.visibleRows.isEmpty:
             Text(model.rows.isEmpty ? "No trades for this pair on the exchange." : "No new trades.")

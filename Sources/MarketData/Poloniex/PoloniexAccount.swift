@@ -6,6 +6,7 @@ public struct PoloniexAPIError: Error, Equatable, CustomStringConvertible, Senda
     public let status: Int
     public let code: Int?
     public let message: String
+    public init(status: Int, code: Int?, message: String) { self.status = status; self.code = code; self.message = message }
     public var description: String { code.map { "\(message) (\($0))" } ?? message }
 }
 
