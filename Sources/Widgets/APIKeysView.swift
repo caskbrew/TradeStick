@@ -16,11 +16,11 @@ public struct APIKeysView: View {
     }
 
     public var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("API Keys").font(.system(size: 18, weight: .semibold))
+        VStack(alignment: .leading, spacing: 8) {
+            Text("API Keys").font(.system(size: 16, weight: .semibold))
 
-            HStack(spacing: 12) {
-                Image(systemName: "diamond.fill").font(.system(size: 26)).foregroundStyle(Color(red: 0.98, green: 0.78, blue: 0.2)).frame(width: 40)
+            HStack(spacing: 10) {
+                Image(systemName: "diamond.fill").font(.system(size: 22)).foregroundStyle(Color(red: 0.98, green: 0.78, blue: 0.2)).frame(width: 32)
                 VStack(alignment: .leading, spacing: 3) {
                     HStack(spacing: 8) {
                         Text("Binance").font(.system(size: 15, weight: .semibold))
@@ -35,7 +35,7 @@ public struct APIKeysView: View {
                 }
                 Spacer()
                 Button("Test") { Task { await model.test() } }
-                    .buttonStyle(PillStyle(fill: Theme.field, flexible: false, minHeight: 34)).padding(.horizontal, 0)
+                    .buttonStyle(PillStyle(fill: Theme.field, flexible: false, minHeight: 28)).padding(.horizontal, 0)
                     .disabled(!model.canSubmit)
             }
 
@@ -74,8 +74,8 @@ public struct APIKeysView: View {
                     .buttonStyle(PillStyle(fill: Color(red: 0.04, green: 0.45, blue: 1.0), flexible: false, minHeight: 34)).disabled(!model.canSubmit)
             }
         }
-        .padding(20)
-        .frame(width: 640)
+        .padding(14)
+        .frame(width: 600)
         .background(GlassBackground())
         .environment(\.colorScheme, .dark)
         .onAppear { keyFocused = true }
@@ -98,17 +98,17 @@ public struct APIKeysView: View {
 
     private func row<Content: View>(_ title: String, @ViewBuilder _ content: () -> Content) -> some View {
         HStack(spacing: 12) {
-            Text(title).font(.system(size: 13)).foregroundStyle(Theme.secondaryText).frame(width: 64, alignment: .leading)
+            Text(title).font(.system(size: 12)).foregroundStyle(Theme.secondaryText).frame(width: 64, alignment: .leading)
             HStack(spacing: 8) { content() }
                 .textFieldStyle(.plain).font(.system(size: 13, design: .monospaced))
-                .padding(.horizontal, 12).frame(height: 38)
+                .padding(.horizontal, 12).frame(height: 30)
                 .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Theme.field))
         }
     }
 
     private func iconButton(_ symbol: String, help: String, _ action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Image(systemName: symbol).font(.system(size: 14)).foregroundStyle(Theme.secondaryText).frame(width: 26, height: 26).contentShape(Rectangle())
+            Image(systemName: symbol).font(.system(size: 14)).foregroundStyle(Theme.secondaryText).frame(width: 24, height: 24).contentShape(Rectangle())
         }
         .buttonStyle(.plain).help(help)
     }

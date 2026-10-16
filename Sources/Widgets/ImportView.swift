@@ -16,16 +16,16 @@ public struct ImportView: View {
     }
 
     public var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text(model.title).font(.system(size: 18, weight: .semibold))
+                Text(model.title).font(.system(size: 16, weight: .semibold))
                 Spacer()
                 Toggle("Group by order", isOn: Binding(get: { model.grouped }, set: { model.setGrouped($0) }))
                     .toggleStyle(.checkbox).tint(Self.accent).font(.system(size: 13))
                     .help("One row per order, like the exchange's web history. Off: one row per fill")
             }
             HStack {
-                Text(model.pair).font(.system(size: 14)).padding(.horizontal, 12).frame(height: 34)
+                Text(model.pair).font(.system(size: 14)).padding(.horizontal, 12).frame(height: 28)
                     .background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(Theme.field))
                 Spacer()
                 Picker("", selection: $model.filter) {
@@ -48,8 +48,8 @@ public struct ImportView: View {
                     .buttonStyle(PillStyle(fill: Self.accent, flexible: false, minHeight: 36)).disabled(!model.canAdd)
             }
         }
-        .padding(20)
-        .frame(width: 720, height: 520)
+        .padding(14)
+        .frame(width: 720, height: 440)
         .background(GlassBackground())
         .environment(\.colorScheme, .dark)
         .task { if !model.hasLoaded { await model.load() } }
@@ -111,7 +111,7 @@ public struct ImportView: View {
             Text("Status").frame(maxWidth: .infinity, alignment: .trailing)
         }
         .font(.system(size: 12)).foregroundStyle(Theme.secondaryText)
-        .padding(.horizontal, 12).frame(height: 34).background(Color.white.opacity(0.05))
+        .padding(.horizontal, 12).frame(height: 28).background(Color.white.opacity(0.05))
     }
 
     private func rowView(_ row: ImportModel.Row) -> some View {
@@ -128,7 +128,7 @@ public struct ImportView: View {
             status(row).frame(maxWidth: .infinity, alignment: .trailing)
         }
         .font(.system(size: 13).monospacedDigit())
-        .padding(.horizontal, 12).frame(height: 36)
+        .padding(.horizontal, 12).frame(height: 30)
         .overlay(alignment: .bottom) { Rectangle().fill(Theme.divider).frame(height: 1) }
         .contentShape(Rectangle())
         .onTapGesture { model.toggle(row.id) }
