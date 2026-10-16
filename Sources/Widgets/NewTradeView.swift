@@ -32,9 +32,7 @@ public struct NewTradeView: View {
                 .overlay(alignment: .topLeading) { if listOpen { pairList.offset(y: 36) } } // floats over the rows below, the window keeps its size
                 .zIndex(1)
 
-            // Fixed room: the open pair list covers this area and the buttons without resizing the window.
-            Text(model.error ?? "").font(.system(size: 12)).foregroundStyle(Theme.negative)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            if let error = model.error { Text(error).font(.system(size: 12)).foregroundStyle(Theme.negative) }
 
             HStack(spacing: 8) {
                 Button(action: onCancel) { Text("Cancel") }.keyboardShortcut(.cancelAction)
@@ -44,7 +42,7 @@ public struct NewTradeView: View {
             }
         }
         .padding(16)
-        .frame(width: 340, height: 190)
+        .frame(width: 340)
         .contentShape(Rectangle())
         .onTapGesture { listOpen = false } // a click on empty space closes the list
         .background(GlassBackground())
@@ -142,7 +140,7 @@ public struct NewTradeView: View {
                         ForEach(Array(items.enumerated()), id: \.element) { index, item in
                             Button { pick(item) } label: {
                                 Text("\(item.base)/\(item.quote)").font(.system(size: 13)).frame(maxWidth: .infinity, alignment: .leading)
-                                    .padding(.horizontal, 10).padding(.vertical, 4).contentShape(Rectangle())
+                                    .padding(.horizontal, 10).padding(.vertical, 3).contentShape(Rectangle())
                                     .background(index == highlight ? Self.accent.opacity(0.6) : .clear)
                             }
                             .buttonStyle(.plain)
@@ -151,7 +149,7 @@ public struct NewTradeView: View {
                   }
                   .onChange(of: highlight) { _, index in if items.indices.contains(index) { proxy.scrollTo(items[index]) } }
                 }
-                .frame(height: min(CGFloat(items.count) * 26, 78))
+                .frame(height: min(CGFloat(items.count) * 24, 48)) // two rows: what fits over the buttons, the rest scrolls
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
