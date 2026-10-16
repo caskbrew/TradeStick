@@ -48,6 +48,7 @@ public struct StickerView: View {
             .padding(.horizontal, 10).padding(.vertical, 8)
             .frame(width: Self.width)
             .background(GlassBackground(radius: 14))
+            .background(WindowDragArea())
             .foregroundStyle(.white)
             .environment(\.colorScheme, .dark)
             .contextMenu { StickerMenuItems(model: model, actions: actions) } // same items as the `⋯` menu (FR-WIN-11)
@@ -193,6 +194,7 @@ struct StickerHeader: View {
                 }
             }
             .frame(width: 30, height: 30)
+            .overlay(WindowDragArea())
             .task { await model.loadIcon() }
 
             VStack(alignment: .leading, spacing: 2) {
@@ -206,6 +208,7 @@ struct StickerHeader: View {
                     if live { LiveDot() } else if model.wantsPrice { ProgressView().controlSize(.small).scaleEffect(0.6).frame(width: 12, height: 12).help("Connecting to the exchange…") }
                 }
             }
+            .overlay(WindowDragArea())
             Spacer(minLength: 4)
             if model.status != .open { StatusBadge(status: model.status) }
             // Each button is a 26pt circle centred on its glyph: the click area is the circle, not the glyph.
@@ -468,5 +471,21 @@ struct PillStyle: ButtonStyle {
             .frame(maxWidth: flexible ? .infinity : nil, minHeight: minHeight)
             .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(fill.opacity(configuration.isPressed ? 0.7 : 1)))
             .foregroundStyle(.white.opacity(isEnabled ? 1 : 0.35))
+    }
+}
+
+/// Drags the window by pressing anywhere on it, at once, even when the app is not active (the first click does
+/// not get lost on activating the app) and with any mouse or trackpad. Does nothing while the window is pinned,
+/// that is, while `isMovableByWindowBackground` is off.
+struct WindowDragArea: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView { DragView() }
+    func updateNSView(_ view: NSView, context: Context) {}
+
+    final class DragView: NSView {
+        override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+        override func mouseDown(with event: NSEvent) {
+            guard let window, window.isMovableByWindowBackground else { return }
+            window.performDrag(with: event)
+        }
     }
 }
