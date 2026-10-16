@@ -257,7 +257,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let new = NSMenuItem(title: "New Tx", action: #selector(showNewTrade), keyEquivalent: "n")
         new.target = self
         menu.addItem(new)
-        let keys = NSMenuItem(title: "API Keys", action: #selector(openAPIKeysWindow), keyEquivalent: ",")
+        let keys = NSMenuItem(title: "API Keys", action: #selector(openAPIKeysWindow), keyEquivalent: "k")
         keys.target = self
         menu.addItem(keys)
 
