@@ -62,6 +62,8 @@ public protocol ExchangeAdapter: Sendable {
     var id: String { get }
     /// Is the pair listed and tradable on this exchange (FR-NEW-2)?
     func supports(_ instrument: Instrument) async throws -> Bool
+    /// Every pair that can be traded on this exchange, for the New Trade pair list.
+    func instruments() async throws -> [Instrument]
     /// One-off price, used for a fast first value (FR-PRICE-5).
     func snapshot(for instrument: Instrument) async throws -> PriceTick
     /// One connection attempt. Yields `.connected` once open, then ticks; ends or throws when the connection drops.

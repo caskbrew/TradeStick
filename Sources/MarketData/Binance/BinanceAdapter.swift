@@ -35,6 +35,13 @@ public final class BinanceAdapter: ExchangeAdapter, Sendable {
         return try BinanceParsing.isTradableSpot(exchangeInfo: data, symbol: symbol)
     }
 
+    public func instruments() async throws -> [Instrument] {
+        let url = restBase.appending(path: "api/v3/exchangeInfo").appending(queryItems: [.init(name: "permissions", value: "SPOT"), .init(name: "symbolStatus", value: "TRADING")])
+        let (data, status) = try await fetch(url)
+        guard status == 200 else { throw URLError(.badServerResponse) }
+        return try BinanceParsing.tradableSpotInstruments(exchangeInfo: data)
+    }
+
     public func snapshot(for instrument: Instrument) async throws -> PriceTick {
         let url = restBase.appending(path: "api/v3/ticker/24hr").appending(queryItems: [.init(name: "symbol", value: BinanceParsing.symbol(instrument))])
         let (data, status) = try await fetch(url)

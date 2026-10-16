@@ -114,3 +114,17 @@ final class Recorder: @unchecked Sendable {
         await #expect(throws: (any Error).self) { try await api.myTrades(creds, gram) }
     }
 }
+
+@Suite struct BinanceInstrumentsTests {
+    @Test func onlyTradingSpotPairsAreListedSorted() throws {
+        let body = Data(#"""
+        {"symbols":[
+          {"symbol":"GRAMUSDT","status":"TRADING","isSpotTradingAllowed":true,"baseAsset":"GRAM","quoteAsset":"USDT"},
+          {"symbol":"BTCUSDT","status":"TRADING","isSpotTradingAllowed":true,"baseAsset":"BTC","quoteAsset":"USDT"},
+          {"symbol":"OLDUSDT","status":"BREAK","isSpotTradingAllowed":true,"baseAsset":"OLD","quoteAsset":"USDT"},
+          {"symbol":"MARGINONLY","status":"TRADING","isSpotTradingAllowed":false,"baseAsset":"MAR","quoteAsset":"USDT"}]}
+        """#.utf8)
+        let list = try BinanceParsing.tradableSpotInstruments(exchangeInfo: body)
+        #expect(list == [Instrument(base: "BTC", quote: "USDT"), Instrument(base: "GRAM", quote: "USDT")])
+    }
+}

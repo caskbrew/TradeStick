@@ -25,6 +25,10 @@ public final class FakeExchange: ExchangeAdapter, @unchecked Sendable {
         lock.withLock { _listed.contains(instrument) }
     }
 
+    public func instruments() async throws -> [Instrument] {
+        lock.withLock { _listed.sorted { ($0.base, $0.quote) < ($1.base, $1.quote) } }
+    }
+
     public func snapshot(for instrument: Instrument) async throws -> PriceTick {
         guard let tick = lock.withLock({ _snapshot }) else { throw Dropped() }
         return tick

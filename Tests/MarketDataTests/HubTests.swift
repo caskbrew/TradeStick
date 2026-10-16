@@ -28,6 +28,7 @@ actor SleepRecorder {
 struct DownExchange: ExchangeAdapter {
     let id = "down"
     func supports(_ instrument: Instrument) async throws -> Bool { false }
+    func instruments() async throws -> [Instrument] { [] }
     func snapshot(for instrument: Instrument) async throws -> PriceTick { throw FakeExchange.Dropped() }
     func connect(to instrument: Instrument) -> AsyncThrowingStream<FeedEvent, any Error> {
         AsyncThrowingStream { $0.finish(throwing: FakeExchange.Dropped()) }

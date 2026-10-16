@@ -8,6 +8,7 @@ import Testing
 struct BrokenExchange: ExchangeAdapter {
     let id = "broken"
     func supports(_ instrument: Instrument) async throws -> Bool { throw FakeExchange.Dropped() }
+    func instruments() async throws -> [Instrument] { throw FakeExchange.Dropped() }
     func snapshot(for instrument: Instrument) async throws -> PriceTick { throw FakeExchange.Dropped() }
     func connect(to instrument: Instrument) -> AsyncThrowingStream<FeedEvent, any Error> { AsyncThrowingStream { $0.finish() } }
 }
@@ -215,5 +216,44 @@ struct BrokenExchange: ExchangeAdapter {
         m.toggleAll()
         #expect(m.selection.isEmpty && m.selectedAmount == 0)
         #expect(m.fixedQuote)
+    }
+}
+
+@MainActor @Suite struct PairSuggestionTests {
+    let pairs: Set<Instrument> = [
+        Instrument(base: "GRAM", quote: "USDT"), Instrument(base: "BTC", quote: "USDT"), Instrument(base: "ETH", quote: "BTC"),
+        Instrument(base: "GRAM", quote: "BTC"), Instrument(base: "TRAM", quote: "USDT"),
+    ]
+
+    func loaded() async -> NewTradeModel {
+        let m = NewTradeModel(adapters: [FakeExchange(id: "fake", listed: pairs)])
+        await m.loadInstruments()
+        return m
+    }
+
+    @Test func emptyInputListsUsdtPairs() async {
+        let m = await loaded()
+        #expect(m.suggestions.map(\.base) == ["BTC", "GRAM", "TRAM"])
+    }
+
+    @Test func typedTextFiltersWithAnyCaseAndSeparatorPrefixFirst() async {
+        let m = await loaded()
+        m.pairText = "gram"
+        #expect(m.suggestions.map(\.description).count == 2 && m.suggestions.allSatisfy { $0.base == "GRAM" })
+        m.pairText = "ram/us"
+        #expect(m.suggestions.map(\.base) == ["GRAM", "TRAM"]) // contains, in list order
+        m.pairText = "tram"
+        #expect(m.suggestions == [Instrument(base: "TRAM", quote: "USDT")])
+        m.pairText = "zzz"
+        #expect(m.suggestions.isEmpty)
+    }
+
+    @Test func pickingFillsTheFieldAndTheListSurvivesAFailedLoad() async {
+        let m = await loaded()
+        m.pick(Instrument(base: "GRAM", quote: "USDT"))
+        #expect(m.pairText == "GRAM/USDT")
+        let broken = NewTradeModel(adapters: [BrokenExchange()])
+        await broken.loadInstruments()
+        #expect(broken.instruments.isEmpty && broken.suggestions.isEmpty)
     }
 }

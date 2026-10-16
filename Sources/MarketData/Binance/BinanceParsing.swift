@@ -37,6 +37,18 @@ enum BinanceParsing {
         return PriceTick(price: try decimal(m.lastPrice), open24h: try m.openPrice.map(decimal), eventTime: now)
     }
 
+    /// `GET /api/v3/exchangeInfo`: all pairs that are trading and spot-allowed.
+    static func tradableSpotInstruments(exchangeInfo data: Data) throws -> [Instrument] {
+        struct Info: Decodable {
+            struct Symbol: Decodable { let status: String; let isSpotTradingAllowed: Bool; let baseAsset: String; let quoteAsset: String }
+            let symbols: [Symbol]
+        }
+        return try JSONDecoder().decode(Info.self, from: data).symbols
+            .filter { $0.status == "TRADING" && $0.isSpotTradingAllowed }
+            .map { Instrument(base: $0.baseAsset, quote: $0.quoteAsset) }
+            .sorted { ($0.base, $0.quote) < ($1.base, $1.quote) }
+    }
+
     /// `GET /api/v3/exchangeInfo?symbol=…`: listed, trading and spot-allowed.
     static func isTradableSpot(exchangeInfo data: Data, symbol: String) throws -> Bool {
         struct Info: Decodable {
