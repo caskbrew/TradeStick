@@ -15,11 +15,15 @@ import Testing
 
     @Test func publicPairListPriceAndSocketWorkOnEveryExchange() async throws {
         for (adapter, btc) in Self.exchanges {
+            print("LIVE \(adapter.id): start"); let t0 = Date()
             let pairs = try await adapter.instruments()
+            print("LIVE \(adapter.id): pairs \(pairs.count) in \(Date().timeIntervalSince(t0))s")
             #expect(pairs.count > 100 && pairs.contains(btc), "\(adapter.id): \(pairs.count) pairs")
             #expect(try await adapter.supports(btc), "\(adapter.id) supports BTC/USDT")
             #expect(try await adapter.supports(Instrument(base: "NOPEXYZ", quote: "USDT")) == false, "\(adapter.id) rejects an unknown pair")
+            print("LIVE \(adapter.id): supports ok \(Date().timeIntervalSince(t0))s")
             let snapshot = try await adapter.snapshot(for: btc)
+            print("LIVE \(adapter.id): snapshot ok \(Date().timeIntervalSince(t0))s")
             #expect(snapshot.price > 1000, "\(adapter.id) price \(snapshot.price)")
             #expect(snapshot.open24h != nil)
 
