@@ -82,6 +82,21 @@ import Testing
         await waitUntil { loss.currentPrice != nil }
         try await Task.sleep(for: .milliseconds(50))
         try render(loss, name: "5-sellfirst-loss")
+
+        // 6. Connection dropped: the sticker must keep its size (compare with 2-open-live without the list).
+        let (drop, fake3, store3) = try make()
+        try exampleA(store3, drop.trade.id)
+        drop.reload()
+        await drop.refreshSubscription()
+        await waitUntil { fake3.connectCount == 1 }
+        fake3.emit(PriceTick(price: dec("0.055"), open24h: dec("0.0532"), eventTime: Date()))
+        await waitUntil { drop.currentPrice != nil }
+        try await Task.sleep(for: .milliseconds(50))
+        try render(drop, name: "6a-connected")
+        fake3.drop()
+        await waitUntil { drop.price.connection != .connected }
+        try await Task.sleep(for: .milliseconds(50))
+        try render(drop, name: "6b-reconnecting")
     }
 }
 

@@ -319,20 +319,23 @@ struct PriceRow: View {
     let usable: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .firstTextBaseline, spacing: 10) {
-                Text(model.currentPrice.map(NumberFormat.price) ?? "—")
-                    .font(.system(size: 24, weight: .semibold, design: .rounded)).monospacedDigit()
-                    .opacity(usable || model.currentPrice == nil ? 1 : 0.5)
-                if let change = model.price.change24h { ChangePill(change: change, dimmed: !usable) }
-                Spacer(minLength: 0)
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+            Text(model.currentPrice.map(NumberFormat.price) ?? "—")
+                .font(.system(size: 24, weight: .semibold, design: .rounded)).monospacedDigit()
+                .opacity(usable || model.currentPrice == nil ? 1 : 0.5)
+            if usable, let change = model.price.change24h { ChangePill(change: change, dimmed: false) } // hidden while the price is stale: the warning needs the room
+            Spacer(minLength: 0)
+            // Two short lines at the right, a little above the price baseline; they fit the row, so it never grows.
+            VStack(alignment: .trailing, spacing: 0) {
                 FreshnessLabel(state: model.price, freshness: freshness)
+                if model.price.connection == .reconnecting || model.price.connection == .disconnected, model.price.tick != nil || model.price.connection == .disconnected {
+                    Label(model.price.connection == .disconnected ? "No connection" : "Reconnecting…", systemImage: "exclamationmark.triangle.fill")
+                        .font(.system(size: 11)).foregroundStyle(Theme.warning).lineLimit(1).fixedSize()
+                }
             }
-            if model.price.connection == .reconnecting || model.price.connection == .disconnected, model.price.tick != nil || model.price.connection == .disconnected {
-                Label(model.price.connection == .disconnected ? "No connection" : "Reconnecting…", systemImage: "exclamationmark.triangle.fill")
-                    .font(.system(size: 11)).foregroundStyle(Theme.warning)
-            }
+            .alignmentGuide(.firstTextBaseline) { $0[.firstTextBaseline] + 11 }
         }
+        .frame(height: 30, alignment: .top)
     }
 }
 
