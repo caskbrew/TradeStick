@@ -297,10 +297,8 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
             onCreate: { [weak self] request in self?.create(request) },
             onCancel: { [weak self] in self?.closeNewTrade() }
         )
-        let window = NSWindow(contentViewController: NSHostingController(rootView: view))
+        let window = DialogWindow(content: NSHostingController(rootView: view))
         window.title = "New Trade"
-        window.styleMask = [.titled, .closable]
-        window.isReleasedWhenClosed = false
         window.center()
         newTradeWindow = window
         NSApp.activate()
