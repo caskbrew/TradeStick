@@ -23,15 +23,7 @@ public struct NewTradeView: View {
 
     public var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 12) {
-                directionSwitch.frame(width: 128)
-                Text("New Trade").font(.system(size: 17, weight: .semibold))
-                Spacer()
-            }
-            Text(model.direction == .buyFirst
-                 ? "Buy now, sell later. You profit when the price rises."
-                 : "Sell now, buy back later. You profit when the price falls.")
-                .font(.system(size: 12)).foregroundStyle(Theme.secondaryText)
+            Text("New Trade").font(.system(size: 17, weight: .semibold))
 
             VStack(alignment: .leading, spacing: 4) {
                 label("Exchange", ok: !model.exchange.isEmpty)
@@ -49,15 +41,10 @@ public struct NewTradeView: View {
             }
 
             HStack(spacing: 8) {
-                Spacer()
                 Button(action: onCancel) { Text("Cancel") }.keyboardShortcut(.cancelAction)
-                    .buttonStyle(PillStyle(fill: Theme.field, flexible: false, minHeight: 30))
-                Button {
-                    Task { if let request = await model.validate() { onCreate(request) } }
-                } label: { Text(model.isChecking ? "Checking…" : "Create")}
-                .keyboardShortcut(listOpen && !model.suggestions.isEmpty ? nil : .defaultAction)
-                .buttonStyle(PillStyle(fill: Self.accent, flexible: false, minHeight: 30))
-                .disabled(model.isChecking || model.pairText.trimmingCharacters(in: .whitespaces).isEmpty)
+                    .buttonStyle(PillStyle(fill: Theme.field, flexible: true, minHeight: 30))
+                create("Create BUY", .buyFirst, Theme.positive)
+                create("Create SELL", .sellFirst, Theme.negative)
             }
         }
         .padding(16)
@@ -146,22 +133,13 @@ public struct NewTradeView: View {
         listOpen = false
     }
 
-    private var directionSwitch: some View {
-        HStack(spacing: 0) {
-            ForEach([Direction.buyFirst, Direction.sellFirst], id: \.self) { option in
-                Button { model.direction = option } label: {
-                    Text(option == .buyFirst ? "BUY" : "SELL").font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(model.direction == option ? Color.white : (option == .buyFirst ? Theme.positive : Theme.negative))
-                        .frame(maxWidth: .infinity, minHeight: 28)
-                        .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(model.direction == option ? (option == .buyFirst ? Theme.positive : Theme.negative) : .clear))
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-            }
-        }
-        .padding(1)
-        .background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(Theme.field))
-        .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous).strokeBorder(Color.white.opacity(0.08)))
+    private func create(_ title: String, _ direction: Direction, _ color: Color) -> some View {
+        Button {
+            model.direction = direction
+            Task { if let request = await model.validate() { onCreate(request) } }
+        } label: { Text(model.isChecking ? "Checking…" : title) }
+        .buttonStyle(PillStyle(fill: color, flexible: true, minHeight: 30))
+        .disabled(model.isChecking || model.pairText.trimmingCharacters(in: .whitespaces).isEmpty)
     }
 
     /// The exchange's pairs filtered by what is typed.
