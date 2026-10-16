@@ -37,7 +37,8 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     static let isInstalled = Bundle.main.bundleIdentifier == "com.caskbrew.tradestickies"
     static let dataFolder = isInstalled ? "TradeStickies" : "TradeStickies-Dev"
     private let icons = CoinIcons(directory: FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?.appending(path: "\(AppController.dataFolder)/icons"))
-    private let adapters: [any ExchangeAdapter] = [BinanceAdapter()]
+    private let adapters: [any ExchangeAdapter] = [BinanceAdapter(), PoloniexAdapter()]
+    private let accounts: [any ExchangeAccount] = [BinanceAccountAPI(), PoloniexAccountAPI()]
     private var statusItem: NSStatusItem!
     private var windows: [UUID: StickerWindow] = [:]
     private var newTradeWindow: NSWindow?
@@ -272,6 +273,9 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
             menu.addItem(item)
         }
         menu.addItem(.separator())
+        let about = NSMenuItem(title: "About TradeStickies", action: #selector(showAbout), keyEquivalent: "")
+        about.target = self
+        menu.addItem(about)
         let keys = NSMenuItem(title: "API Keys", action: #selector(openAPIKeysWindow), keyEquivalent: ",")
         keys.target = self
         menu.addItem(keys)
@@ -305,17 +309,27 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         window.makeKeyAndOrderFront(nil)
     }
 
+    @objc private func showAbout() {
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev build"
+        NSApp.activate()
+        NSApp.orderFrontStandardAboutPanel(options: [.applicationName: "TradeStickies", .applicationVersion: version, .version: ""])
+    }
+
     @objc private func openAPIKeysWindow() { showAPIKeys() }
 
-    private func showAPIKeys() {
+    private func showAPIKeys(exchange: String? = nil) {
         if let existing = apiKeysWindow {
-            NSApp.activate()
-            existing.makeKeyAndOrderFront(nil)
-            return
+            if exchange == nil {
+                NSApp.activate()
+                existing.makeKeyAndOrderFront(nil)
+                return
+            }
+            existing.close() // reopen on the requested exchange
         }
-        let api = BinanceAccountAPI()
-        let model = APIKeysModel(store: credentials, check: { try await api.check($0) })
-        let view = APIKeysView(model: model, onClose: { [weak self] in self?.apiKeysWindow?.close(); self?.apiKeysWindow = nil })
+        let models = accounts.map { account in
+            APIKeysModel(exchange: account.id, store: credentials, check: { try await account.check($0) })
+        }
+        let view = APIKeysView(models: models, initial: exchange, onClose: { [weak self] in self?.apiKeysWindow?.close(); self?.apiKeysWindow = nil })
         let window = DialogWindow(content: NSHostingController(rootView: view))
         window.title = "API Keys"
         window.center()
@@ -330,13 +344,13 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func showImport(for sticker: StickerModel) {
         let trade = sticker.trade
         importWindows[trade.id]?.close() // always start fresh: the list is re-read from the exchange
-        guard let keys = credentials.load(exchange: trade.exchange) else { showAPIKeys(); return }
-        let api = BinanceAccountAPI()
+        guard let account = accounts.first(where: { $0.id == trade.exchange }) else { return }
+        guard let keys = credentials.load(exchange: trade.exchange) else { showAPIKeys(exchange: trade.exchange); return }
         let instrument = Instrument(base: trade.base, quote: trade.quote)
         let store = self.store!
         let model = ImportModel(
-            title: "Import from Binance", pair: "\(trade.base) / \(trade.quote)", quote: trade.quote,
-            fetch: { try await api.myTrades(keys, instrument) },
+            title: "Import from \(trade.exchange.capitalized)", pair: "\(trade.base) / \(trade.quote)", quote: trade.quote,
+            fetch: { try await account.trades(keys, instrument) },
             existing: { (try? store.externalIDs(tradeID: trade.id)) ?? [] },
             commit: { sticker.importTrades($0) }
         )
@@ -344,7 +358,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
             self?.importWindows[trade.id]?.close()
             self?.importWindows[trade.id] = nil
         })))
-        window.title = "Import from Binance"
+        window.title = "Import from \(trade.exchange.capitalized)"
         window.center()
         importWindows[trade.id] = window
         NSApp.activate()

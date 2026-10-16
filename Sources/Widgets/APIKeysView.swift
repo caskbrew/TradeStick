@@ -1,29 +1,52 @@
 import AppKit
 import SwiftUI
 
-/// "API Keys" card: a dark glass panel like the stickers (reference: Binance row with status, masked key and secret).
+/// "API Keys" window: one card per exchange, switched with the exchange drop-down.
 public struct APIKeysView: View {
+    let models: [APIKeysModel]
+    let onClose: () -> Void
+    @State private var selected: String
+
+    public init(models: [APIKeysModel], initial: String? = nil, onClose: @escaping () -> Void) {
+        self.models = models
+        self.onClose = onClose
+        _selected = State(initialValue: models.contains { $0.exchange == initial } ? initial! : models.first?.exchange ?? "")
+    }
+
+    public var body: some View {
+        if let model = models.first(where: { $0.exchange == selected }) {
+            APIKeysCard(model: model, exchanges: models.map(\.exchange), select: { selected = $0 }, onClose: onClose).id(selected)
+        }
+    }
+}
+
+/// A dark glass panel like the stickers (reference: exchange row with status, masked key and secret).
+struct APIKeysCard: View {
     @Bindable var model: APIKeysModel
+    let exchanges: [String]
+    let select: (String) -> Void
     let onClose: () -> Void
     @FocusState private var keyFocused: Bool
     @State private var revealKey: Bool
     @State private var editingSecret = false
 
-    public init(model: APIKeysModel, onClose: @escaping () -> Void) {
+    init(model: APIKeysModel, exchanges: [String], select: @escaping (String) -> Void, onClose: @escaping () -> Void) {
         self.model = model
+        self.exchanges = exchanges
+        self.select = select
         self.onClose = onClose
         _revealKey = State(initialValue: !model.hasSavedKey) // a key being typed or pasted is shown; a saved one is masked
     }
 
-    public var body: some View {
+    var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("API Keys").font(.system(size: 16, weight: .semibold))
 
             HStack(spacing: 10) {
-                ExchangeLogo(exchange: "binance", size: 28).frame(width: 32)
+                ExchangeLogo(exchange: model.exchange, size: 28).frame(width: 32)
                 VStack(alignment: .leading, spacing: 3) {
                     HStack(spacing: 8) {
-                        Text("Binance").font(.system(size: 15, weight: .semibold))
+                        exchangeMenu
                         if model.connected {
                             HStack(spacing: 5) { Circle().fill(Theme.positive).frame(width: 7, height: 7); Text("Connected") }
                                 .font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.positive)
@@ -79,6 +102,20 @@ public struct APIKeysView: View {
         .background(GlassBackground())
         .environment(\.colorScheme, .dark)
         .onAppear { keyFocused = true }
+    }
+
+    /// The exchange name as a drop-down of all exchanges.
+    private var exchangeMenu: some View {
+        Menu {
+            ForEach(exchanges, id: \.self) { id in Button(id.capitalized) { select(id) } }
+        } label: {
+            HStack(spacing: 5) {
+                Text(model.exchange.capitalized).font(.system(size: 15, weight: .semibold))
+                Image(systemName: "chevron.down").font(.system(size: 9, weight: .bold)).foregroundStyle(Theme.secondaryText)
+            }
+            .contentShape(Rectangle())
+        }
+        .menuStyle(.button).buttonStyle(.plain).menuIndicator(.hidden).fixedSize()
     }
 
     private var subtitle: String {

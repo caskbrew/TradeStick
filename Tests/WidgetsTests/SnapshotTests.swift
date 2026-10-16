@@ -116,7 +116,7 @@ import Testing
         let defaults = UserDefaults(suiteName: UUID().uuidString)!
         defaults.set(Date(), forKey: "apiKeyChecked.binance"); defaults.set(true, forKey: "apiKeyReadOnly.binance")
         let model = APIKeysModel(store: store, defaults: defaults, check: { _ in APIKeyCheck(readOnly: true) })
-        try render(APIKeysView(model: model, onClose: {}), name: "dialog-api-keys")
+        try render(APIKeysView(models: [model], onClose: {}), name: "dialog-api-keys")
     }
 
     @Test func importTrades() async throws {

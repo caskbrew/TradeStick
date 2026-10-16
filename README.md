@@ -1,6 +1,6 @@
 # TradeStickies
 
-A macOS menu-bar app: a floating sticker window per crypto trade with live price and PnL (Binance).
+A macOS menu-bar app: a floating sticker window per crypto trade with live price and PnL (Binance, Poloniex).
 
 ## Install
 

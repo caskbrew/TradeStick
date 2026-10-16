@@ -14,7 +14,7 @@ public final class APIKeysModel {
         case failed(String)
     }
 
-    public let exchange = "binance"
+    public let exchange: String
     public var keyText: String
     public var secretText = ""
     public private(set) var status: Status = .idle
@@ -35,22 +35,24 @@ public final class APIKeysModel {
     private var readOnlyKey: String { "apiKeyReadOnly.\(exchange)" }
 
     public init(
+        exchange: String = "binance",
         store: any CredentialStore,
         defaults: UserDefaults = .standard,
         clock: @escaping () -> Date = { Date() },
         check: @escaping @Sendable (APICredentials) async throws -> APIKeyCheck
     ) {
+        self.exchange = exchange
         self.store = store
         self.check = check
         self.defaults = defaults
         self.clock = clock
-        let saved = store.load(exchange: "binance")
+        let saved = store.load(exchange: exchange)
         keyText = saved?.key ?? ""
         hasSavedKey = saved != nil
-        let when = saved == nil ? nil : defaults.object(forKey: "apiKeyChecked.binance") as? Date
+        let when = saved == nil ? nil : defaults.object(forKey: "apiKeyChecked.\(exchange)") as? Date
         lastChecked = when
         connected = when != nil
-        readOnly = when == nil ? nil : defaults.object(forKey: "apiKeyReadOnly.binance") as? Bool
+        readOnly = when == nil ? nil : defaults.object(forKey: "apiKeyReadOnly.\(exchange)") as? Bool
     }
 
     /// Typed values; an empty secret field means "keep the saved secret" when the key is unchanged.

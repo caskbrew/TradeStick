@@ -242,8 +242,7 @@ struct StickerMenuItems: View {
     var body: some View {
         let expanded = model.trade.isExpanded
         Button("Add Tx manual") { model.addTransaction() }.keyboardShortcut("b")
-        Button("Add Tx from Binance") { model.importHistory() }.keyboardShortcut("b", modifiers: [.command, .shift])
-            .disabled(model.trade.exchange != "binance")
+        Button("Add Tx from \(model.trade.exchange.capitalized)") { model.importHistory() }.keyboardShortcut("b", modifiers: [.command, .shift])
         Button("\(expanded ? "Hide" : "Show") history") { model.toggleList() }
             .keyboardShortcut("l").disabled(model.status == .empty)
         if model.status == .open {
