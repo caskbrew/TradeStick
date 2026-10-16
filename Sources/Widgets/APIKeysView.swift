@@ -57,6 +57,7 @@ struct APIKeysCard: View {
                     Text(subtitle).font(.system(size: 12)).foregroundStyle(model.readOnly == false ? Theme.warning : Theme.secondaryText)
                 }
                 Spacer()
+                if case .working = model.status { ProgressView().controlSize(.small) } // the check is running
                 Button("Test") { Task { await model.test() } }
                     .buttonStyle(PillStyle(fill: Theme.field, flexible: false, minHeight: 28)).padding(.horizontal, 0)
                     .disabled(!model.canSubmit)
@@ -153,7 +154,7 @@ struct APIKeysCard: View {
     @ViewBuilder private var statusView: some View {
         switch model.status {
         case .idle: EmptyView()
-        case .working(let text): HStack(spacing: 6) { ProgressView().controlSize(.small); Text(text) }.font(.system(size: 12))
+        case .working: EmptyView() // the spinner next to Test shows it
         case .ok: EmptyView() // the Connected badge says it
         case .failed(let text):
             Label(text, systemImage: "xmark.octagon.fill").foregroundStyle(Theme.negative).font(.system(size: 12)).fixedSize(horizontal: false, vertical: true)
