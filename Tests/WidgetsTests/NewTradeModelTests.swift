@@ -244,6 +244,8 @@ struct BrokenExchange: ExchangeAdapter {
         #expect(m.suggestions.map(\.base) == ["GRAM", "TRAM"]) // contains, in list order
         m.pairText = "tram"
         #expect(m.suggestions == [Instrument(base: "TRAM", quote: "USDT")])
+        m.pairText = "gram/"
+        #expect(!m.suggestions.isEmpty && m.suggestions.allSatisfy { $0.base == "GRAM" })
         m.pairText = "zzz"
         #expect(m.suggestions.isEmpty)
     }

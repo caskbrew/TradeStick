@@ -23,10 +23,9 @@ public struct NewTradeView: View {
 
     public var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack {
+            HStack(spacing: 14) {
                 Text("New Trade").font(.system(size: 17, weight: .semibold))
-                Spacer()
-                exchangePicker.frame(width: 140)
+                exchangePicker
             }
 
             pairField
@@ -34,14 +33,8 @@ public struct NewTradeView: View {
                 .zIndex(1)
 
             // Fixed room: the open pair list covers this area and the buttons without resizing the window.
-            Group {
-                if let error = model.error {
-                    Text(error).foregroundStyle(Theme.negative)
-                } else {
-                    Text("Type or pick a pair, then choose BUY or SELL.").foregroundStyle(Theme.secondaryText)
-                }
-            }
-            .font(.system(size: 12)).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            Text(model.error ?? "").font(.system(size: 12)).foregroundStyle(Theme.negative)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
 
             HStack(spacing: 8) {
                 Button(action: onCancel) { Text("Cancel") }.keyboardShortcut(.cancelAction)
@@ -145,18 +138,18 @@ public struct NewTradeView: View {
             } else {
                 ScrollViewReader { proxy in
                   ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 0) {
+                    VStack(alignment: .leading, spacing: 0) {
                         ForEach(Array(items.enumerated()), id: \.element) { index, item in
                             Button { pick(item) } label: {
                                 Text("\(item.base)/\(item.quote)").font(.system(size: 13)).frame(maxWidth: .infinity, alignment: .leading)
                                     .padding(.horizontal, 10).padding(.vertical, 4).contentShape(Rectangle())
                                     .background(index == highlight ? Self.accent.opacity(0.6) : .clear)
                             }
-                            .buttonStyle(.plain).id(index)
+                            .buttonStyle(.plain)
                         }
                     }
                   }
-                  .onChange(of: highlight) { _, index in proxy.scrollTo(index) }
+                  .onChange(of: highlight) { _, index in if items.indices.contains(index) { proxy.scrollTo(items[index]) } }
                 }
                 .frame(height: min(CGFloat(items.count) * 26, 78))
             }
