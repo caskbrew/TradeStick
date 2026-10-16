@@ -23,20 +23,25 @@ public struct NewTradeView: View {
 
     public var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("New Trade").font(.system(size: 17, weight: .semibold))
+            HStack {
+                Text("New Trade").font(.system(size: 17, weight: .semibold))
+                Spacer()
+                exchangePicker.frame(width: 140)
+            }
 
             pairField
                 .overlay(alignment: .topLeading) { if listOpen { pairList.offset(y: 36) } } // floats over the rows below, the window keeps its size
                 .zIndex(1)
 
-            VStack(alignment: .leading, spacing: 4) {
-                label("Exchange", ok: !model.exchange.isEmpty)
-                exchangePicker
+            // Fixed room: the open pair list covers this area and the buttons without resizing the window.
+            Group {
+                if let error = model.error {
+                    Text(error).foregroundStyle(Theme.negative)
+                } else {
+                    Text("Type or pick a pair, then choose BUY or SELL.").foregroundStyle(Theme.secondaryText)
+                }
             }
-
-            if let error = model.error {
-                Text(error).font(.system(size: 12)).foregroundStyle(Theme.negative)
-            }
+            .font(.system(size: 12)).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
 
             HStack(spacing: 8) {
                 Button(action: onCancel) { Text("Cancel") }.keyboardShortcut(.cancelAction)
@@ -46,26 +51,14 @@ public struct NewTradeView: View {
             }
         }
         .padding(16)
-        .frame(width: 340)
+        .frame(width: 340, height: 190)
+        .contentShape(Rectangle())
+        .onTapGesture { listOpen = false } // a click on empty space closes the list
         .background(GlassBackground())
         .environment(\.colorScheme, .dark)
         .onAppear { pairFocused = true }
         .task { await model.loadInstruments() }
         .onChange(of: model.exchange) { _, _ in Task { await model.loadInstruments() } }
-    }
-
-    /// The typed pair is on the exchange's list (or the list is not available and something is typed).
-    private var pairIsKnown: Bool {
-        let candidates = InstrumentParser.candidates(model.pairText)
-        guard !candidates.isEmpty else { return false }
-        return model.instruments.isEmpty || candidates.contains { model.instruments.contains($0) }
-    }
-
-    private func label(_ text: String, ok: Bool?) -> some View {
-        HStack(spacing: 6) {
-            Text(text).font(.system(size: 12)).foregroundStyle(Theme.secondaryText)
-            if ok == true { Circle().fill(Theme.positive).frame(width: 6, height: 6) }
-        }
     }
 
     private func pill<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
@@ -165,7 +158,7 @@ public struct NewTradeView: View {
                   }
                   .onChange(of: highlight) { _, index in proxy.scrollTo(index) }
                 }
-                .frame(height: min(CGFloat(items.count) * 26, 104))
+                .frame(height: min(CGFloat(items.count) * 26, 78))
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
