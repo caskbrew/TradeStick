@@ -257,9 +257,12 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let new = NSMenuItem(title: "New Tx", action: #selector(showNewTrade), keyEquivalent: "n")
         new.target = self
         menu.addItem(new)
+        let keys = NSMenuItem(title: "API Keys", action: #selector(openAPIKeysWindow), keyEquivalent: ",")
+        keys.target = self
+        menu.addItem(keys)
 
+        menu.addItem(.separator())
         let trades = (try? store.trades()) ?? []
-        if !trades.isEmpty { menu.addItem(.separator()) }
         for trade in trades {
             let visible = windows[trade.id]?.isVisible ?? false
             let item = NSMenuItem(
@@ -272,13 +275,10 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
             item.toolTip = visible ? "Bring this sticker to the current desktop" : "Show this sticker"
             menu.addItem(item)
         }
-        menu.addItem(.separator())
-        let about = NSMenuItem(title: "About TradeStickies", action: #selector(showAbout), keyEquivalent: "")
+        if !trades.isEmpty { menu.addItem(.separator()) }
+        let about = NSMenuItem(title: "About", action: #selector(showAbout), keyEquivalent: "")
         about.target = self
         menu.addItem(about)
-        let keys = NSMenuItem(title: "API Keys", action: #selector(openAPIKeysWindow), keyEquivalent: ",")
-        keys.target = self
-        menu.addItem(keys)
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "Quit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
     }
