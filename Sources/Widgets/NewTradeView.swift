@@ -1,3 +1,4 @@
+import AppKit
 import Domain
 import Presentation
 import SwiftUI
@@ -48,6 +49,7 @@ public struct NewTradeView: View {
         .background(GlassBackground())
         .environment(\.colorScheme, .dark)
         .onAppear { pairFocused = true }
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { _ in pairFocused = true } // the window is not key yet in onAppear
         .task { await model.loadInstruments() }
         .onChange(of: model.exchange) { _, _ in Task { await model.loadInstruments() } }
     }

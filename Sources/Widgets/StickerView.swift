@@ -37,12 +37,7 @@ public struct StickerView: View {
               VStack(alignment: .leading, spacing: 4) {
                 StickerHeader(model: model, actions: actions, live: usable)
                 PriceRow(model: model, freshness: freshness, usable: usable)
-                if model.status == .empty {
-                    Button { model.addTransaction() } label: { Label("Add first transaction", systemImage: "plus").frame(maxWidth: .infinity) }
-                        .buttonStyle(PillStyle(fill: Theme.field))
-                } else {
-                    CompactNumbers(model: model, usable: usable)
-                }
+                CompactNumbers(model: model, usable: usable)
               }
             }
             .padding(.horizontal, 10).padding(.vertical, 8)
@@ -270,7 +265,6 @@ struct StickerMenuItems: View {
         Button("Default") { model.zoom(by: 0) }.keyboardShortcut("0")
         Divider()
         Button(model.isPinned ? "Unpin Window" : "Pin Window") { model.togglePin() }.keyboardShortcut("p")
-        Divider()
         Button("Hide Window", action: actions.hide).keyboardShortcut("w")
         Divider()
         Button("Delete Trade…", role: .destructive, action: actions.delete).keyboardShortcut(.delete, modifiers: [.option, .command])
