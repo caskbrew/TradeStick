@@ -280,6 +280,10 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         about.target = self
         menu.addItem(about)
         menu.addItem(.separator())
+        let restart = NSMenuItem(title: "Restart", action: #selector(restart), keyEquivalent: "")
+        restart.target = self
+        restart.isEnabled = Bundle.main.bundlePath.hasSuffix(".app") // a bare `swift run` binary cannot be reopened
+        menu.addItem(restart)
         menu.addItem(NSMenuItem(title: "Quit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
     }
 
@@ -307,6 +311,15 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         newTradeWindow = window
         NSApp.activate()
         window.makeKeyAndOrderFront(nil)
+    }
+
+    /// Starts a fresh copy of the app a moment after this one has quit (handy after `brew upgrade`).
+    @objc private func restart() {
+        let relaunch = Process()
+        relaunch.executableURL = URL(fileURLWithPath: "/bin/sh")
+        relaunch.arguments = ["-c", "sleep 0.7; /usr/bin/open -n \"$0\"", Bundle.main.bundlePath]
+        try? relaunch.run()
+        NSApp.terminate(nil)
     }
 
     @objc private func showAbout() {
