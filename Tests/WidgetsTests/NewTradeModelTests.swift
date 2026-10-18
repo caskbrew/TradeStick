@@ -69,23 +69,23 @@ struct BrokenExchange: ExchangeAdapter {
         })
     }
 
-    @Test func aWorkingKeyIsSavedAndTheSecretFieldIsCleared() async {
+    @Test func aWorkingKeyIsSavedAndTheSecretFieldIsCleared() async throws {
         let store = InMemoryCredentialStore()
         let m = model(store)
         m.keyText = " KEY "; m.secretText = "SEC\n"
         await m.save()
-        #expect(store.load(exchange: "binance") == APICredentials(key: "KEY", secret: "SEC"))
+        #expect(try store.load(exchange: "binance") == APICredentials(key: "KEY", secret: "SEC"))
         #expect(m.secretText == "" && m.hasSavedKey)
         #expect(m.status == .ok("Saved") && m.connected && m.readOnly == false && m.lastChecked != nil)
         #expect(m.warnings == ["Trading is enabled for this key"])
     }
 
-    @Test func aRejectedKeyIsNotSaved() async {
+    @Test func aRejectedKeyIsNotSaved() async throws {
         let store = InMemoryCredentialStore()
         let m = model(store, ok: false)
         m.keyText = "K"; m.secretText = "S"
         await m.save()
-        #expect(store.load(exchange: "binance") == nil)
+        #expect(try store.load(exchange: "binance") == nil)
         #expect(m.status == .failed("Not saved: Invalid API-key (-2015)") && !m.connected)
     }
 
@@ -103,7 +103,7 @@ struct BrokenExchange: ExchangeAdapter {
         try store.save(APICredentials(key: "K", secret: "S"), exchange: "binance")
         let m = model(store)
         m.remove()
-        #expect(store.load(exchange: "binance") == nil && !m.hasSavedKey && m.keyText == "")
+        #expect(try store.load(exchange: "binance") == nil && !m.hasSavedKey && m.keyText == "")
     }
 }
 

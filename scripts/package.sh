@@ -36,6 +36,8 @@ cat > $APP/Contents/Info.plist <<PLIST
 </dict></plist>
 PLIST
 
-codesign --force --deep --sign - $APP
+# A designated requirement that does not change from build to build (the ad-hoc default is the code hash, which
+# does): the Keychain items of the app stay readable after an update.
+codesign --force --deep --sign - -r='designated => identifier "com.caskbrew.tradestickies"' $APP
 ditto -c -k --keepParent $APP dist/TradeStickies-$V.zip
 echo "dist/TradeStickies-$V.zip"; shasum -a 256 dist/TradeStickies-$V.zip

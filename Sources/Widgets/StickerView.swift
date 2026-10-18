@@ -325,26 +325,19 @@ struct PriceRow: View {
                 .opacity(usable || model.currentPrice == nil ? 1 : 0.5)
             if usable, let change = model.price.change24h { ChangePill(change: change, dimmed: false) } // hidden while the price is stale: the warning needs the room
             Spacer(minLength: 0)
-            // Two short lines at the right, a little above the price baseline; they fit the row, so it never grows.
+            // One orange line at the right, a little above the price baseline; it fits the row, so the row never grows.
             VStack(alignment: .trailing, spacing: 0) {
-                FreshnessLabel(state: model.price, freshness: freshness)
                 if model.price.connection == .reconnecting || model.price.connection == .disconnected, model.price.tick != nil || model.price.connection == .disconnected {
-                    // One triangle for the pair of lines: on the first one; here only when there is no "Price … old" line above.
-                    Label(model.price.connection == .disconnected ? "No connection" : "Reconnecting…", systemImage: "exclamationmark.triangle.fill")
-                        .labelStyle(TitleOnlyUnless(showsIcon: model.price.receivedAt == nil))
+                    let age = model.price.receivedAt.map { " · \(Elapsed.duration(Date().timeIntervalSince($0))) old" } ?? ""
+                    Label("No connection\(age)", systemImage: "exclamationmark.triangle.fill")
                         .font(.system(size: 11)).foregroundStyle(Theme.warning).lineLimit(1).fixedSize()
+                } else {
+                    FreshnessLabel(state: model.price, freshness: freshness)
                 }
             }
             .alignmentGuide(.firstTextBaseline) { $0[.firstTextBaseline] + 11 }
         }
         .frame(height: 30, alignment: .top)
-    }
-}
-
-struct TitleOnlyUnless: LabelStyle {
-    let showsIcon: Bool
-    func makeBody(configuration: Configuration) -> some View {
-        if showsIcon { Label(configuration) } else { configuration.title }
     }
 }
 

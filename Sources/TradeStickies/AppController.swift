@@ -345,7 +345,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let trade = sticker.trade
         importWindows[trade.id]?.close() // always start fresh: the list is re-read from the exchange
         guard let account = accounts.first(where: { $0.id == trade.exchange }) else { return }
-        guard let keys = credentials.load(exchange: trade.exchange) else { showAPIKeys(exchange: trade.exchange); return }
+        guard let keys = (try? credentials.load(exchange: trade.exchange)) ?? nil else { showAPIKeys(exchange: trade.exchange); return }
         let instrument = Instrument(base: trade.base, quote: trade.quote)
         let store = self.store!
         let model = ImportModel(
@@ -354,10 +354,16 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
             existing: { (try? store.externalIDs(tradeID: trade.id)) ?? [] },
             commit: { sticker.importTrades($0) }
         )
-        let window = DialogWindow(content: NSHostingController(rootView: ImportView(model: model, onClose: { [weak self] in
+        let host = NSHostingController(rootView: ImportView(model: model, onClose: { [weak self] in
             self?.importWindows[trade.id]?.close()
             self?.importWindows[trade.id] = nil
-        })))
+        }))
+        host.sizingOptions = [] // the user sets the height, the content follows
+        let window = DialogWindow(content: host)
+        window.styleMask.insert(.resizable) // a borderless window is resized by its edges
+        window.setContentSize(NSSize(width: 720, height: 440))
+        window.contentMinSize = NSSize(width: 720, height: 340)
+        window.contentMaxSize = NSSize(width: 720, height: 2000)
         window.title = "Import from \(trade.exchange.capitalized)"
         window.center()
         importWindows[trade.id] = window

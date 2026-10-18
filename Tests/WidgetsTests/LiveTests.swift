@@ -79,7 +79,7 @@ import Testing
     /// and is recognised as already imported where it was imported.
     @Test func binanceKeyWorksAndHistoryLoadsForTheDevTrades() async throws {
         let store = KeychainCredentialStore(service: "com.caskbrew.tradestickies.dev")
-        guard let keys = store.load(exchange: "binance") else { print("LIVE: no Binance key in the dev Keychain, skipped"); return }
+        guard let keys = (try? store.load(exchange: "binance")) ?? nil else { print("LIVE: no Binance key in the dev Keychain, skipped"); return }
         let api = BinanceAccountAPI()
         let check = try await api.check(keys)
         print("LIVE Binance key works; read-only: \(check.readOnly.map(String.init) ?? "unknown"), warnings: \(check.warnings.count)")

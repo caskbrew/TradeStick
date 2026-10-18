@@ -43,7 +43,7 @@ public struct ImportView: View {
             HStack(spacing: 8) {
                 if model.state != .loading { Text(summary).font(.system(size: 13)).foregroundStyle(model.canAdd ? .white : Theme.secondaryText) }
                 Spacer()
-                Button("Cancel", action: onClose).keyboardShortcut(.cancelAction)
+                Button("Close", action: onClose).keyboardShortcut(.cancelAction)
                     .buttonStyle(PillStyle(fill: Theme.field, flexible: false, minHeight: 36))
                 if model.state != .loading { Button("Import \(model.selection.count)") { if model.add() { onClose() } }
                     .keyboardShortcut(.defaultAction)
@@ -51,7 +51,7 @@ public struct ImportView: View {
             }
         }
         .padding(14)
-        .frame(width: 720, height: 440)
+        .frame(width: 720).frame(minHeight: 340, idealHeight: 440, maxHeight: .infinity) // the window is resizable in height
         .background(GlassBackground())
         .environment(\.colorScheme, .dark)
         .onAppear { model.startLoading() }

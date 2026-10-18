@@ -4,13 +4,15 @@ import Security
 
 /// Where API keys live. Secrets never go to the database, defaults or logs.
 public protocol CredentialStore: Sendable {
-    func load(exchange: String) -> APICredentials?
+    /// Nil only when nothing is stored; a Keychain that refuses access throws, so it is never mistaken for "no key".
+    func load(exchange: String) throws -> APICredentials?
     func save(_ credentials: APICredentials, exchange: String) throws
     func remove(exchange: String) throws
 }
 
 public struct KeychainError: Error, CustomStringConvertible {
     let status: OSStatus
+    public init(status: OSStatus) { self.status = status }
     public var description: String { (SecCopyErrorMessageString(status, nil) as String?) ?? "Keychain error \(status)" }
 }
 
@@ -24,13 +26,15 @@ public struct KeychainCredentialStore: CredentialStore {
         [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service, kSecAttrAccount as String: exchange]
     }
 
-    public func load(exchange: String) -> APICredentials? {
+    public func load(exchange: String) throws -> APICredentials? {
         var q = query(exchange)
         q[kSecReturnData as String] = true
         q[kSecMatchLimit as String] = kSecMatchLimitOne
         var out: CFTypeRef?
-        guard SecItemCopyMatching(q as CFDictionary, &out) == errSecSuccess, let data = out as? Data,
-              let dict = try? JSONSerialization.jsonObject(with: data) as? [String: String],
+        let status = SecItemCopyMatching(q as CFDictionary, &out)
+        if status == errSecItemNotFound { return nil }
+        guard status == errSecSuccess else { throw KeychainError(status: status) }
+        guard let data = out as? Data, let dict = try? JSONSerialization.jsonObject(with: data) as? [String: String],
               let key = dict["key"], let secret = dict["secret"] else { return nil }
         return APICredentials(key: key, secret: secret)
     }
@@ -39,7 +43,10 @@ public struct KeychainCredentialStore: CredentialStore {
         let data = try JSONSerialization.data(withJSONObject: ["key": credentials.key, "secret": credentials.secret])
         let update = SecItemUpdate(query(exchange) as CFDictionary, [kSecValueData as String: data] as CFDictionary)
         if update == errSecSuccess { return }
-        guard update == errSecItemNotFound else { throw KeychainError(status: update) }
+        if update != errSecItemNotFound { // an item this build may not touch (made by another signature): replace it
+            let gone = SecItemDelete(query(exchange) as CFDictionary)
+            guard gone == errSecSuccess || gone == errSecItemNotFound else { throw KeychainError(status: update) }
+        }
         var add = query(exchange)
         add[kSecValueData as String] = data
         add[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlocked
@@ -58,7 +65,7 @@ public final class InMemoryCredentialStore: CredentialStore, @unchecked Sendable
     private let lock = NSLock()
     private var items: [String: APICredentials] = [:]
     public init() {}
-    public func load(exchange: String) -> APICredentials? { lock.withLock { items[exchange] } }
+    public func load(exchange: String) throws -> APICredentials? { lock.withLock { items[exchange] } }
     public func save(_ credentials: APICredentials, exchange: String) throws { lock.withLock { items[exchange] = credentials } }
     public func remove(exchange: String) throws { _ = lock.withLock { items.removeValue(forKey: exchange) } }
 }

@@ -145,6 +145,7 @@ struct TransactionList: View {
     @State private var hovering: UUID?
 
     private static let rowHeight = StickerModel.listRowHeight
+    private static let maxRows = 24 // more than that scrolls
 
     var body: some View {
         let rows = model.transactions.sorted { ($0.occurredAt, $0.sequence) > ($1.occurredAt, $1.sequence) }
@@ -153,8 +154,8 @@ struct TransactionList: View {
                 Text(error).font(.system(size: 12)).foregroundStyle(Theme.negative)
             }
             header
-            if rows.count > 8 {
-                ScrollView { rowsStack(rows) }.frame(height: 8 * Self.rowHeight)
+            if rows.count > Self.maxRows {
+                ScrollView { rowsStack(rows) }.frame(height: CGFloat(Self.maxRows) * Self.rowHeight)
             } else {
                 rowsStack(rows)
             }

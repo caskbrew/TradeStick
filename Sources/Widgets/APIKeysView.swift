@@ -91,9 +91,9 @@ struct APIKeysCard: View {
                 Button("Remove") { model.remove(); editingSecret = false; revealKey = true }
                     .buttonStyle(PillStyle(fill: Theme.negative.opacity(0.9), flexible: false, minHeight: 34)).disabled(!model.hasSavedKey)
                 Spacer()
-                Button("Cancel", action: onClose).keyboardShortcut(.cancelAction)
+                Button("Close", action: onClose).keyboardShortcut(.cancelAction)
                     .buttonStyle(PillStyle(fill: Theme.field, flexible: false, minHeight: 34))
-                Button("Save") { Task { await model.save(); if model.status == .ok("Saved") { editingSecret = false; revealKey = false } } }
+                Button("Save") { Task { await model.save(); if model.status == .ok("Saved") { onClose() } } }
                     .keyboardShortcut(.defaultAction)
                     .buttonStyle(PillStyle(fill: Color(red: 0.04, green: 0.45, blue: 1.0), flexible: false, minHeight: 34)).disabled(!model.canSubmit)
             }

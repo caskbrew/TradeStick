@@ -2,6 +2,7 @@ import Domain
 import Foundation
 import MarketData
 import Persistence
+import Security
 import SwiftUI
 import Testing
 @testable import Widgets
@@ -220,6 +221,29 @@ extension UITests {
         let poloWindow = TestWindow(APIKeysView(models: [slow, polo], initial: "poloniex", onClose: {}))
         poloWindow.snapshot("window-api-keys-poloniex")
         #expect(poloWindow.size == idle)
+    }
+
+    @Test func savingAKeyClosesTheWindow() async throws {
+        let model = keysModel("binance") { _ in APIKeyCheck(readOnly: true) }
+        let box = Box(0)
+        let window = TestWindow(APIKeysView(models: [model], onClose: { box.value += 1 }))
+        model.keyText = "KEY"; model.secretText = "SECRET"
+        window.click(x: 600 - 14 - 30, y: window.size.height - 31) // Save: the last button of the bottom row
+        try await Task.sleep(for: .milliseconds(300))
+        #expect(model.status == .ok("Saved") && box.value == 1)
+    }
+
+    @Test func aKeychainThatRefusesIsReportedNotTreatedAsNoKey() async throws {
+        struct Refusing: CredentialStore {
+            func load(exchange: String) throws -> APICredentials? { throw KeychainError(status: errSecAuthFailed) }
+            func save(_ credentials: APICredentials, exchange: String) throws {}
+            func remove(exchange: String) throws {}
+        }
+        let model = APIKeysModel(exchange: "binance", store: Refusing(), defaults: UserDefaults(suiteName: UUID().uuidString)!, check: { _ in APIKeyCheck() })
+        guard case .failed(let text) = model.status else { Issue.record("no error shown"); return }
+        #expect(text.contains("can't be read"))
+        let window = TestWindow(APIKeysView(models: [model], onClose: {}))
+        window.snapshot("window-api-keys-keychain-refused")
     }
 
     @Test func apiKeysShowsAFailedCheck() async throws {

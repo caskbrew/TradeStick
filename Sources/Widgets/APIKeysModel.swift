@@ -46,7 +46,10 @@ public final class APIKeysModel {
         self.check = check
         self.defaults = defaults
         self.clock = clock
-        let saved = store.load(exchange: exchange)
+        var loadError: String?
+        let saved: APICredentials?
+        do { saved = try store.load(exchange: exchange) } catch { saved = nil; loadError = "\(error)" }
+        if let loadError { status = .failed("The saved key can't be read from Keychain (\(loadError)). Enter it again and press Save.") }
         keyText = saved?.key ?? ""
         hasSavedKey = saved != nil
         let when = saved == nil ? nil : defaults.object(forKey: "apiKeyChecked.\(exchange)") as? Date
@@ -61,7 +64,7 @@ public final class APIKeysModel {
         let secret = secretText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !key.isEmpty else { return nil }
         if !secret.isEmpty { return APICredentials(key: key, secret: secret) }
-        if let saved = store.load(exchange: exchange), saved.key == key { return saved }
+        if let saved = (try? store.load(exchange: exchange)) ?? nil, saved.key == key { return saved }
         return nil
     }
 
@@ -83,7 +86,7 @@ public final class APIKeysModel {
         status = .working("Checking…")
         do {
             let result = try await check(credentials)
-            record(result, saved: store.load(exchange: exchange) == credentials)
+            record(result, saved: ((try? store.load(exchange: exchange)) ?? nil) == credentials)
             status = .ok("Key works")
         } catch {
             connected = false
