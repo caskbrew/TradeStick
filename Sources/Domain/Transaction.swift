@@ -20,7 +20,7 @@ public struct Transaction: Identifiable, Equatable, Sendable {
     public var occurredAt: Date
     /// Creation order; breaks ties between equal `occurredAt`.
     public var sequence: Int
-    /// Exchange fee in the quote currency, already part of `amount` (added to a buy, taken off a sell). Imported fills only.
+    /// Exchange fee in the quote currency, kept apart from `amount`; the ledger counts it (see `cost`). Imported fills only.
     public var fee: Decimal?
 
     public init(id: UUID = UUID(), side: Side, quantity: Decimal, amount: Decimal, occurredAt: Date, sequence: Int, fee: Decimal? = nil) {
@@ -33,5 +33,8 @@ public struct Transaction: Identifiable, Equatable, Sendable {
         self.fee = fee
     }
 
+    /// The trade's own price, as the exchange reports it (the fee is not in it).
     public var rate: Decimal? { quantity > 0 ? amount / quantity : nil }
+    /// What the position really paid (buy) or received (sell): the amount with the fee on top / taken off. The ledger uses this.
+    public var cost: Decimal { side == .buy ? amount + (fee ?? 0) : amount - (fee ?? 0) }
 }

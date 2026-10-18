@@ -1,3 +1,4 @@
+import Foundation
 import GRDB
 
 enum Schema {
@@ -44,6 +45,16 @@ enum Schema {
         // The fee (quote currency) of an imported fill; it is already inside `amount`, kept to show it.
         migrator.registerMigration("v4") { db in
             try db.alter(table: "tradeTransaction") { t in t.add(column: "fee", .text) }
+        }
+
+        // 0.2.2 stored the fee inside `amount` of imported fills: take it out again (the ledger adds it by `Transaction.cost`).
+        migrator.registerMigration("v5") { db in
+            for row in try Row.fetchAll(db, sql: "SELECT id, side, amount, fee FROM tradeTransaction WHERE fee IS NOT NULL") {
+                guard let amount = Decimal(string: row["amount"] as String, locale: Locale(identifier: "en_US_POSIX")),
+                      let fee = Decimal(string: row["fee"] as String, locale: Locale(identifier: "en_US_POSIX")) else { continue }
+                let raw = (row["side"] as String) == "buy" ? amount - fee : amount + fee
+                try db.execute(sql: "UPDATE tradeTransaction SET amount = ? WHERE id = ?", arguments: ["\(raw)", row["id"] as String])
+            }
         }
 
         return migrator

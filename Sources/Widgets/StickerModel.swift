@@ -126,7 +126,7 @@ public final class StickerModel {
     public func pnl(of tx: Transaction) -> Decimal? {
         guard let price = currentPrice else { return nil }
         let value = tx.quantity * price
-        return tx.side == .buy ? value - tx.amount : tx.amount - value
+        return tx.side == .buy ? value - tx.cost : tx.cost - value
     }
 
     /// First transaction to the last one when closed, to `now` while open; nil without transactions.

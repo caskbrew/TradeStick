@@ -10,6 +10,17 @@ import Testing
         tx(.sell, "600", "40", minute: 3, seq: 3),
     ]
 
+    @Test func feesCountAsCostOfABuyAndLessProceedsOfASell() throws {
+        var buy = tx(.buy, "100", "1000", minute: 1, seq: 1); buy.fee = 10
+        var sell = tx(.sell, "40", "480", minute: 2, seq: 2); sell.fee = 8
+        #expect(buy.rate == 10 && sell.rate == 12) // the price is the trade's own
+        let open = try TradeCalculator.summarize(direction: .buyFirst, transactions: [buy])
+        #expect(open.openCost == 1010 && open.entryPrice == 10.1)
+        let part = try TradeCalculator.summarize(direction: .buyFirst, transactions: [buy, sell])
+        // closed cost 1010 * 40 / 100 = 404; proceeds 480 - 8 = 472
+        #expect(part.realized == 68 && part.openCost == 606)
+    }
+
     @Test func emptyTradeIsEmpty() throws {
         let s = try TradeCalculator.summarize(direction: .buyFirst, transactions: [])
         #expect(s.status == .empty)

@@ -130,7 +130,7 @@ public final class TradeStore: Sendable {
             var next = try Int.fetchOne(db, sql: "SELECT MAX(sequence) FROM tradeTransaction WHERE tradeID = ?", arguments: [tradeID.uuidString]) ?? 0
             let added = fresh.map { t -> (Transaction, String) in
                 next += 1
-                return (Transaction(side: t.side, quantity: t.quantity, amount: t.netAmount, occurredAt: t.occurredAt, sequence: next, fee: t.feeQuote > 0 ? t.feeQuote : nil), t.externalID)
+                return (Transaction(side: t.side, quantity: t.quantity, amount: t.amount, occurredAt: t.occurredAt, sequence: next, fee: t.feeQuote > 0 ? t.feeQuote : nil), t.externalID)
             }
             try Self.validate(trade.direction, existing + added.map(\.0))
             for (tx, externalID) in added {

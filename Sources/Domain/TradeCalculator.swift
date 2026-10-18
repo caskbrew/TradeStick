@@ -20,25 +20,25 @@ public enum TradeCalculator {
         var realized: Decimal = 0, openingAmount: Decimal = 0
 
         for tx in ordered {
-            guard tx.quantity > 0, tx.amount > 0 else {
+            guard tx.quantity > 0, tx.amount > 0, tx.cost > 0 else {
                 throw .nonPositiveValue(transactionID: tx.id)
             }
             switch tx.side {
-            case .buy: boughtQuantity += tx.quantity; boughtAmount += tx.amount
-            case .sell: soldQuantity += tx.quantity; soldAmount += tx.amount
+            case .buy: boughtQuantity += tx.quantity; boughtAmount += tx.cost
+            case .sell: soldQuantity += tx.quantity; soldAmount += tx.cost
             }
 
             if tx.side == direction.openingSide {
                 openQuantity += tx.quantity
-                openCost += tx.amount
-                openingAmount += tx.amount
+                openCost += tx.cost
+                openingAmount += tx.cost
             } else {
                 guard tx.quantity <= openQuantity else {
                     throw .closingExceedsOpen(transactionID: tx.id, available: openQuantity)
                 }
                 // Multiply before dividing, and take the whole cost on a full close, to avoid repeating-decimal residue.
                 let closedCost = tx.quantity == openQuantity ? openCost : openCost * tx.quantity / openQuantity
-                realized += direction == .buyFirst ? tx.amount - closedCost : closedCost - tx.amount
+                realized += direction == .buyFirst ? tx.cost - closedCost : closedCost - tx.cost
                 openQuantity -= tx.quantity
                 openCost -= closedCost
             }

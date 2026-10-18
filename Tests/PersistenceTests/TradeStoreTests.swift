@@ -222,7 +222,7 @@ func at(_ minute: Int) -> Date { Date(timeIntervalSince1970: 1_700_000_000 + Dou
         #expect(try store.externalIDs(tradeID: trade.id).isEmpty)
     }
 
-    @Test func importedFeeIsPartOfTheAmountAndIsKept() throws {
+    @Test func importedFeeIsKeptApartFromTheAmount() throws {
         let store = try TradeStore.inMemory()
         let trade = try store.createTrade(exchange: "binance", base: "G", quote: "USDT", direction: .buyFirst)
         var buy = ImportedTrade(externalID: "1", side: .buy, quantity: 10, amount: 100, occurredAt: Date(timeIntervalSince1970: 1000))
@@ -231,6 +231,18 @@ func at(_ minute: Int) -> Date { Date(timeIntervalSince1970: 1_700_000_000 + Dou
         sell.feeQuote = 0.7
         try store.importTrades(tradeID: trade.id, [buy, sell])
         let txs = try store.transactions(tradeID: trade.id)
-        #expect(txs.map(\.amount) == [100.5, 119.3] && txs.map(\.fee) == [0.5, 0.7])
+        #expect(txs.map(\.amount) == [100, 120] && txs.map(\.fee) == [0.5, 0.7] && txs.map(\.cost) == [100.5, 119.3] && txs.map(\.rate) == [10, 12])
+    }
+
+    @Test func migrationV5TakesTheFeeOutOfAmountsStoredByV022() throws {
+        let queue = try DatabaseQueue()
+        try Schema.migrator().migrate(queue, upTo: "v4")
+        try queue.write { db in
+            try db.execute(sql: "INSERT INTO trade (id, exchange, base, quote, direction, createdAt) VALUES ('t','binance','G','USDT','buyFirst',0)")
+            try db.execute(sql: "INSERT INTO tradeTransaction (id, tradeID, side, quantity, amount, occurredAt, sequence, fee) VALUES ('a','t','buy','10','100.5',1,1,'0.5'), ('b','t','sell','10','119.3',2,2,'0.7'), ('c','t','buy','1','5',3,3,NULL)")
+        }
+        try Schema.migrator().migrate(queue)
+        let amounts = try queue.read { try String.fetchAll($0, sql: "SELECT amount FROM tradeTransaction ORDER BY sequence") }
+        #expect(amounts == ["100", "120", "5"])
     }
 }
