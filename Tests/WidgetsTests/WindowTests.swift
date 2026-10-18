@@ -212,7 +212,7 @@ extension UITests {
         try await Task.sleep(for: .milliseconds(150))
         window.settle()
         window.snapshot("window-api-keys-checking")
-        #expect(window.size == idle)
+        #expect(window.size == idle, "\(window.size) vs \(idle)")
         await check.value
         window.settle()
         window.snapshot("window-api-keys-connected")
@@ -255,7 +255,7 @@ extension UITests {
         window.settle()
         window.snapshot("window-api-keys-failed")
         #expect(bad.status == .failed("Invalid API key (21001)"))
-        #expect(window.size.width == idle.width)
+        #expect(window.size == idle, "\(window.size) vs \(idle)")
     }
 
     func fills() -> [ImportedTrade] {
@@ -335,6 +335,8 @@ extension UITests {
         window.snapshot("window-sticker-empty")
         #expect(model.status == .empty)
         #expect(window.size.width == StickerView.width)
+        let (normal, _) = try await UITests.StickerLayoutTests().sticker(UITests.StickerLayoutTests.cases[0])
+        #expect(window.size == normal.size, "empty \(window.size) vs normal \(normal.size)")
     }
 }
 }

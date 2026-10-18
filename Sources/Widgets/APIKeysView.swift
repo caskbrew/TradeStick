@@ -56,7 +56,11 @@ struct APIKeysCard: View {
                     }
                     Text(subtitle).font(.system(size: 12)).foregroundStyle(model.readOnly == false ? Theme.warning : Theme.secondaryText)
                 }
-                Spacer()
+                Spacer(minLength: 8)
+                if case .failed(let text) = model.status { // beside Test, a fixed box: an error never resizes the window
+                    Text(text).font(.system(size: 10)).foregroundStyle(Theme.negative).lineLimit(3).multilineTextAlignment(.trailing)
+                        .frame(maxWidth: 270, minHeight: 36, maxHeight: 36, alignment: .trailing).help(text)
+                }
                 if case .working = model.status { ProgressView().controlSize(.small) } // the check is running
                 Button("Test") { Task { await model.test() } }
                     .buttonStyle(PillStyle(fill: Theme.field, flexible: false, minHeight: 28)).padding(.horizontal, 0)
@@ -84,8 +88,6 @@ struct APIKeysCard: View {
                     SecureField(model.hasSavedKey ? "new secret" : "", text: $model.secretText)
                 }
             }
-
-            statusView
 
             HStack(spacing: 8) {
                 Button("Remove") { model.remove(); editingSecret = false; revealKey = true }
@@ -149,15 +151,5 @@ struct APIKeysCard: View {
             Image(systemName: symbol).font(.system(size: 14)).foregroundStyle(Theme.secondaryText).frame(width: 24, height: 24).contentShape(Rectangle())
         }
         .buttonStyle(.plain).help(help)
-    }
-
-    @ViewBuilder private var statusView: some View {
-        switch model.status {
-        case .idle: EmptyView()
-        case .working: EmptyView() // the spinner next to Test shows it
-        case .ok: EmptyView() // the Connected badge says it
-        case .failed(let text):
-            Label(text, systemImage: "xmark.octagon.fill").foregroundStyle(Theme.negative).font(.system(size: 12)).fixedSize(horizontal: false, vertical: true)
-        }
     }
 }

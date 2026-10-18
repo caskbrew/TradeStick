@@ -319,7 +319,7 @@ struct PriceRow: View {
     let usable: Bool
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 10) {
+        HStack(alignment: .center, spacing: 10) {
             Text(model.currentPrice.map(NumberFormat.shownPrice) ?? "—")
                 .font(.system(size: 24, weight: .semibold, design: .rounded)).monospacedDigit()
                 .opacity(usable || model.currentPrice == nil ? 1 : 0.5)
@@ -328,14 +328,13 @@ struct PriceRow: View {
             // One orange line at the right, a little above the price baseline; it fits the row, so the row never grows.
             VStack(alignment: .trailing, spacing: 0) {
                 if model.price.connection == .reconnecting || model.price.connection == .disconnected, model.price.tick != nil || model.price.connection == .disconnected {
-                    let age = model.price.receivedAt.map { " · \(Elapsed.duration(Date().timeIntervalSince($0))) old" } ?? ""
+                    let age = model.price.receivedAt.map { " · \(Elapsed.duration(Date().timeIntervalSince($0)))" } ?? ""
                     Label("No connection\(age)", systemImage: "exclamationmark.triangle.fill")
                         .font(.system(size: 11)).foregroundStyle(Theme.warning).lineLimit(1).fixedSize()
                 } else {
                     FreshnessLabel(state: model.price, freshness: freshness)
                 }
             }
-            .alignmentGuide(.firstTextBaseline) { $0[.firstTextBaseline] + 11 }
         }
         .frame(height: 30, alignment: .top)
     }
@@ -422,6 +421,7 @@ struct CompactNumbers: View {
                     }
                 }
                 .lineLimit(1).fixedSize()
+                .frame(height: 17) // without the percent (an empty trade) the sticker keeps its height
             }
             .layoutPriority(1)
             .opacity(dim ? 0.45 : 1)
