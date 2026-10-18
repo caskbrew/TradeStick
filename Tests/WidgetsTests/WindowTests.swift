@@ -348,6 +348,47 @@ extension UITests {
         #expect(model.transactions.compactMap(\.fee).count == 2)
     }
 
+    /// The history with many digit counts in every column: the width never changes and each row has the same height.
+    @Test func historyKeepsItsWidthForAnyNumberOfDigits() async throws {
+        struct Case { let name: String; let base: String; let quote: String; let price: String; let fills: [(Side, String, String, String)] } // side, qty, amount, fee
+        var many: [(Side, String, String, String)] = []
+        for i in 0..<30 { many.append((.buy, String(100 + i * 37), String(5 + i), "0.0" + String(i % 10))) }
+        let cases = [
+            Case(name: "normal", base: "GRAM", quote: "USDT", price: "0.055", fills: [(.buy, "1000", "50", "0.05"), (.buy, "500", "30", "0.03"), (.sell, "600", "40", "0.04")]),
+            Case(name: "tiny", base: "PEPE", quote: "USDT", price: "0.00001234", fills: [(.buy, "123456789", "1234.5", "0.0012"), (.sell, "100000000", "1300", "0.0013")]),
+            Case(name: "huge", base: "BTC", quote: "USDT", price: "123456.78", fills: [(.buy, "12.34567891", "1523456.78", "1523.45"), (.sell, "1.5", "185185.17", "185.18")]),
+            Case(name: "btc-quote", base: "ETH", quote: "BTC", price: "0.05123456", fills: [(.buy, "1234.5678", "63.12345678", "0.00063123"), (.sell, "10", "0.51234567", "0.0000512")]),
+            Case(name: "fee-digits", base: "GRAM", quote: "USDT", price: "0.055", fills: [(.buy, "100", "5", "0"), (.buy, "10000", "550", "0.5"), (.buy, "100000", "5500", "5.5"), (.buy, "1000000", "55000", "55"), (.buy, "10000000", "550000", "550.55"), (.sell, "10000", "600", "12.34")]),
+            Case(name: "losses-and-gains", base: "SOL", quote: "USDT", price: "150", fills: [(.buy, "1", "200", "0.2"), (.buy, "1000", "100000", "100"), (.sell, "999", "99999", "99.99"), (.buy, "0.00000001", "0.0000015", "0.0000001")]),
+            Case(name: "many-rows", base: "GRAM", quote: "USDT", price: "0.055", fills: many),
+        ]
+        var heights: [String: CGFloat] = [:]
+        for c in cases {
+            let store = try TradeStore.inMemory()
+            let fake = FakeExchange(id: "binance")
+            let trade = try store.createTrade(exchange: "binance", base: c.base, quote: c.quote, direction: .buyFirst)
+            let model = StickerModel(trade: trade, store: store, hub: MarketDataHub(adapters: [fake]), throttle: .milliseconds(1))
+            var fills: [ImportedTrade] = []
+            for (i, f) in c.fills.enumerated() {
+                var t = ImportedTrade(externalID: "f\(i)", side: f.0, quantity: dec(f.1), amount: dec(f.2), occurredAt: Date().addingTimeInterval(Double(i - c.fills.count) * 4000))
+                t.feeQuote = dec(f.3)
+                fills.append(t)
+            }
+            #expect(model.importTrades(fills) == nil, "\(c.name)")
+            await model.refreshSubscription()
+            await waitUntil { fake.connectCount == 1 }
+            fake.emit(PriceTick(price: dec(c.price), open24h: dec(c.price), eventTime: Date()))
+            await waitUntil { model.currentPrice != nil }
+            try await Task.sleep(for: .milliseconds(60))
+            let list = TestWindow(TransactionList(model: model).padding(10).frame(width: ListDrawer.width).background(Color(white: 0.12)).environment(\.colorScheme, .dark))
+            list.snapshot("history-\(c.name)")
+            #expect(list.size.width == ListDrawer.width, "\(c.name): \(list.size)")
+            heights[c.name] = list.size.height
+        }
+        // the header and a row are the same height whatever the digits: 2 rows of "tiny" and "huge" match
+        #expect(heights["tiny"] == heights["huge"] && heights["huge"] == heights["btc-quote"])
+    }
+
     @Test func anEmptyStickerShowsZerosNotAnAddButton() async throws {
         let c = UITests.StickerLayoutTests.Case(name: "empty", base: "GRAM", quote: "USDT", direction: .buyFirst, txs: [], price: "0.055", open: "0.05")
         let (window, model) = try await UITests.StickerLayoutTests().sticker(c)
