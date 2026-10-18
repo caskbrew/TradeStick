@@ -1,6 +1,6 @@
 cask "tradestickies" do
-  version "0.2.1"
-  sha256 "ed4455827435d30b0965248e11ca433f5c47edee436ad935b3d1e31ed941df0f"
+  version "0.2.2"
+  sha256 "bcdf5c01216d514add442892b13baace536f3919a7d905431e0e1629ce439f55"
 
   url "https://github.com/caskbrew/TradeStickies/releases/download/v#{version}/TradeStickies-#{version}.zip"
   name "TradeStickies"
