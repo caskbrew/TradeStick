@@ -241,7 +241,7 @@ extension UITests {
         }
         let model = APIKeysModel(exchange: "binance", store: Refusing(), defaults: UserDefaults(suiteName: UUID().uuidString)!, check: { _ in APIKeyCheck() })
         guard case .failed(let text) = model.status else { Issue.record("no error shown"); return }
-        #expect(text.contains("can't be read"))
+        #expect(text.contains("Keychain refused"))
         let window = TestWindow(APIKeysView(models: [model], onClose: {}))
         window.snapshot("window-api-keys-keychain-refused")
     }

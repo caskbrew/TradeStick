@@ -59,7 +59,7 @@ struct APIKeysCard: View {
                 Spacer(minLength: 8)
                 if case .failed(let text) = model.status { // beside Test, a fixed box: an error never resizes the window
                     Text(text).font(.system(size: 10)).foregroundStyle(Theme.negative).lineLimit(3).multilineTextAlignment(.trailing)
-                        .frame(maxWidth: 270, minHeight: 36, maxHeight: 36, alignment: .trailing).help(text)
+                        .frame(maxWidth: 300, minHeight: 36, maxHeight: 36, alignment: .trailing).help(text)
                 }
                 if case .working = model.status { ProgressView().controlSize(.small) } // the check is running
                 Button("Test") { Task { await model.test() } }

@@ -49,7 +49,7 @@ public final class APIKeysModel {
         var loadError: String?
         let saved: APICredentials?
         do { saved = try store.load(exchange: exchange) } catch { saved = nil; loadError = "\(error)" }
-        if let loadError { status = .failed("The saved key can't be read from Keychain (\(loadError)). Enter it again and press Save.") }
+        if loadError != nil { status = .failed("Keychain refused access to the saved key. Enter it again and press Save.") }
         keyText = saved?.key ?? ""
         hasSavedKey = saved != nil
         let when = saved == nil ? nil : defaults.object(forKey: "apiKeyChecked.\(exchange)") as? Date
