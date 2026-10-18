@@ -217,6 +217,15 @@ struct BrokenExchange: ExchangeAdapter {
         #expect(m.selection.isEmpty && m.selectedAmount == 0)
         #expect(m.fixedQuote)
     }
+
+    @Test func theSelectedSumIncludesFeesAsTheyWillBeAdded() async {
+        var buy = fill("1", amt: 100); buy.feeQuote = 1
+        var sell = fill("2", amt: 50); sell.side = Side.sell; sell.feeQuote = 0.5
+        let m = ImportModel(title: "t", pair: "GRAM / USDT", quote: "USDT", fetch: { [buy, sell] in [buy, sell] }, existing: { [] }, commit: { _ in nil })
+        await m.load()
+        m.toggleAll()
+        #expect(m.selectedAmount == 101 + 49.5)
+    }
 }
 
 @MainActor @Suite struct PairSuggestionTests {
@@ -271,4 +280,5 @@ struct BrokenExchange: ExchangeAdapter {
         await again.loadInstruments() // an empty or failed refresh keeps the old list
         #expect(again.instruments == [Instrument(base: "GRAM", quote: "USDT")])
     }
+
 }

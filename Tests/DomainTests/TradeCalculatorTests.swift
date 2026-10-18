@@ -21,6 +21,13 @@ import Testing
         #expect(part.realized == 68 && part.openCost == 606)
     }
 
+    @Test func feesInASellFirstTrade() throws {
+        var open = tx(.sell, "100", "1200", minute: 1, seq: 1); open.fee = 12  // proceeds 1188
+        var close = tx(.buy, "100", "1000", minute: 2, seq: 2); close.fee = 10 // cost 1010
+        let s = try TradeCalculator.summarize(direction: .sellFirst, transactions: [open, close])
+        #expect(s.realized == d("178"))
+    }
+
     @Test func emptyTradeIsEmpty() throws {
         let s = try TradeCalculator.summarize(direction: .buyFirst, transactions: [])
         #expect(s.status == .empty)

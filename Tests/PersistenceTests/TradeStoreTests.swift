@@ -245,4 +245,23 @@ func at(_ minute: Int) -> Date { Date(timeIntervalSince1970: 1_700_000_000 + Dou
         let amounts = try queue.read { try String.fetchAll($0, sql: "SELECT amount FROM tradeTransaction ORDER BY sequence") }
         #expect(amounts == ["100", "120", "5"])
     }
+
+    @Test func editingAnImportedFillKeepsItsFee() throws {
+        let store = try TradeStore.inMemory()
+        let trade = try store.createTrade(exchange: "binance", base: "G", quote: "USDT", direction: .buyFirst)
+        var buy = ImportedTrade(externalID: "1", side: .buy, quantity: 10, amount: 100, occurredAt: Date(timeIntervalSince1970: 1000))
+        buy.feeQuote = 0.5
+        try store.importTrades(tradeID: trade.id, [buy])
+        let id = try store.transactions(tradeID: trade.id)[0].id
+        try store.updateTransaction(tradeID: trade.id, id: id, side: .buy, quantity: 10, amount: 110, occurredAt: Date(timeIntervalSince1970: 1000))
+        let tx = try store.transactions(tradeID: trade.id)[0]
+        #expect(tx.amount == 110 && tx.fee == 0.5)
+    }
+
+    @Test func migrationsRunTwiceWithoutChangingData() throws {
+        let queue = try DatabaseQueue()
+        try Schema.migrator().migrate(queue)
+        try Schema.migrator().migrate(queue)
+        #expect(try queue.read { try Int.fetchOne($0, sql: "SELECT COUNT(*) FROM grdb_migrations") } == 5)
+    }
 }
