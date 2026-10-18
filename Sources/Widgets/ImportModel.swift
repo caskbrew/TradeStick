@@ -122,8 +122,8 @@ public final class ImportModel {
     }
 
     public var selectableCount: Int { visibleRows.filter(\.selectable).count }
-    /// Sum of the selected rows' amounts, in the quote currency.
-    public var selectedAmount: Decimal { rows.filter { selection.contains($0.id) }.reduce(0) { $0 + $1.trade.amount } }
+    /// Sum of the selected rows' amounts including fees, in the quote currency.
+    public var selectedAmount: Decimal { rows.filter { selection.contains($0.id) }.reduce(0) { $0 + $1.trade.netAmount } } // with fees, as it will be added
     public var allSelected: Bool { selectableCount > 0 && visibleRows.filter(\.selectable).allSatisfy { selection.contains($0.id) } }
 
     public func toggleAll() { if allSelected { selection.subtract(visibleRows.map(\.id)) } else { selectAll() } }

@@ -126,7 +126,7 @@ public struct ImportView: View {
             Text(NumberFormat.quantity(t.quantity)).frame(width: w.qty, alignment: .trailing)
             Text(NumberFormat.quote(t.amount, fixed: model.fixedQuote)).frame(width: w.amt, alignment: .trailing)
             Text(t.rate.map(NumberFormat.shownPrice) ?? "").frame(width: w.rate, alignment: .trailing)
-            Text(t.feeText ?? "—").lineLimit(1).minimumScaleFactor(0.7).foregroundStyle(Theme.secondaryText).frame(width: w.fee, alignment: .trailing)
+            Text((t.feeText ?? "—") + (t.feeUnpriced.isEmpty ? "" : " *")).help(t.feeUnpriced.isEmpty ? "" : "Fee in \(t.feeUnpriced.joined(separator: ", ")) could not be valued and is not included").lineLimit(1).minimumScaleFactor(0.7).foregroundStyle(Theme.secondaryText).frame(width: w.fee, alignment: .trailing)
             status(row).frame(maxWidth: .infinity, alignment: .trailing)
         }
         .font(.system(size: 13).monospacedDigit())

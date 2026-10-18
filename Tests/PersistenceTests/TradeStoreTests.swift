@@ -221,4 +221,16 @@ func at(_ minute: Int) -> Date { Date(timeIntervalSince1970: 1_700_000_000 + Dou
         try store.addTransaction(tradeID: trade.id, side: .buy, quantity: 1, amount: 1, occurredAt: at(0))
         #expect(try store.externalIDs(tradeID: trade.id).isEmpty)
     }
+
+    @Test func importedFeeIsPartOfTheAmountAndIsKept() throws {
+        let store = try TradeStore.inMemory()
+        let trade = try store.createTrade(exchange: "binance", base: "G", quote: "USDT", direction: .buyFirst)
+        var buy = ImportedTrade(externalID: "1", side: .buy, quantity: 10, amount: 100, occurredAt: Date(timeIntervalSince1970: 1000))
+        buy.feeQuote = 0.5
+        var sell = ImportedTrade(externalID: "2", side: .sell, quantity: 10, amount: 120, occurredAt: Date(timeIntervalSince1970: 2000))
+        sell.feeQuote = 0.7
+        try store.importTrades(tradeID: trade.id, [buy, sell])
+        let txs = try store.transactions(tradeID: trade.id)
+        #expect(txs.map(\.amount) == [100.5, 119.3] && txs.map(\.fee) == [0.5, 0.7])
+    }
 }

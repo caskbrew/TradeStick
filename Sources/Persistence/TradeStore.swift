@@ -130,7 +130,7 @@ public final class TradeStore: Sendable {
             var next = try Int.fetchOne(db, sql: "SELECT MAX(sequence) FROM tradeTransaction WHERE tradeID = ?", arguments: [tradeID.uuidString]) ?? 0
             let added = fresh.map { t -> (Transaction, String) in
                 next += 1
-                return (Transaction(side: t.side, quantity: t.quantity, amount: t.amount, occurredAt: t.occurredAt, sequence: next), t.externalID)
+                return (Transaction(side: t.side, quantity: t.quantity, amount: t.netAmount, occurredAt: t.occurredAt, sequence: next, fee: t.feeQuote > 0 ? t.feeQuote : nil), t.externalID)
             }
             try Self.validate(trade.direction, existing + added.map(\.0))
             for (tx, externalID) in added {
@@ -202,8 +202,8 @@ public final class TradeStore: Sendable {
 
     private static func insert(_ db: Database, _ t: Transaction, tradeID: UUID) throws {
         try db.execute(
-            sql: "INSERT INTO tradeTransaction (id, tradeID, side, quantity, amount, occurredAt, sequence) VALUES (?, ?, ?, ?, ?, ?, ?)",
-            arguments: [t.id.uuidString, tradeID.uuidString, t.side.rawValue, string(t.quantity), string(t.amount), t.occurredAt.timeIntervalSince1970, t.sequence]
+            sql: "INSERT INTO tradeTransaction (id, tradeID, side, quantity, amount, occurredAt, sequence, fee) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            arguments: [t.id.uuidString, tradeID.uuidString, t.side.rawValue, string(t.quantity), string(t.amount), t.occurredAt.timeIntervalSince1970, t.sequence, t.fee.map(string)]
         )
     }
 
@@ -234,7 +234,8 @@ public final class TradeStore: Sendable {
         }
         return Transaction(
             id: id, side: side, quantity: try decimal(row["quantity"]), amount: try decimal(row["amount"]),
-            occurredAt: Date(timeIntervalSince1970: row["occurredAt"]), sequence: row["sequence"]
+            occurredAt: Date(timeIntervalSince1970: row["occurredAt"]), sequence: row["sequence"],
+            fee: (row["fee"] as String?).flatMap { Decimal(string: $0, locale: Locale(identifier: "en_US_POSIX")) }
         )
     }
 }

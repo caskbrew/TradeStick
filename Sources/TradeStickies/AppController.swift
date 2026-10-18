@@ -350,7 +350,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let store = self.store!
         let model = ImportModel(
             title: "Import from \(trade.exchange.capitalized)", pair: "\(trade.base) / \(trade.quote)", quote: trade.quote,
-            fetch: { try await account.trades(keys, instrument) },
+            fetch: { try await account.pricedTrades(keys, instrument) },
             existing: { (try? store.externalIDs(tradeID: trade.id)) ?? [] },
             commit: { sticker.importTrades($0) }
         )

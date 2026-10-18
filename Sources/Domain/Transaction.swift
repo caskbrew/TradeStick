@@ -20,14 +20,17 @@ public struct Transaction: Identifiable, Equatable, Sendable {
     public var occurredAt: Date
     /// Creation order; breaks ties between equal `occurredAt`.
     public var sequence: Int
+    /// Exchange fee in the quote currency, already part of `amount` (added to a buy, taken off a sell). Imported fills only.
+    public var fee: Decimal?
 
-    public init(id: UUID = UUID(), side: Side, quantity: Decimal, amount: Decimal, occurredAt: Date, sequence: Int) {
+    public init(id: UUID = UUID(), side: Side, quantity: Decimal, amount: Decimal, occurredAt: Date, sequence: Int, fee: Decimal? = nil) {
         self.id = id
         self.side = side
         self.quantity = quantity
         self.amount = amount
         self.occurredAt = occurredAt
         self.sequence = sequence
+        self.fee = fee
     }
 
     public var rate: Decimal? { quantity > 0 ? amount / quantity : nil }

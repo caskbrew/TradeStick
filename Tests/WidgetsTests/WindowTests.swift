@@ -329,6 +329,25 @@ extension UITests {
         #expect(window.size.width == width)
     }
 
+    @Test func importedFeesAreShownInTheHistoryWithoutChangingTheWidth() async throws {
+        let layout = UITests.StickerLayoutTests()
+        let (window, model) = try await layout.sticker(UITests.StickerLayoutTests.cases[0])
+        model.setExpanded(true)
+        window.settle()
+        let width = window.size.width
+        var buy = ImportedTrade(externalID: "f1", side: .buy, quantity: 1000, amount: 54, occurredAt: Date().addingTimeInterval(-300))
+        buy.feeQuote = 0.054
+        var sell = ImportedTrade(externalID: "f2", side: .sell, quantity: 100, amount: 5.6, occurredAt: Date().addingTimeInterval(-100))
+        sell.feeQuote = 0.0056
+        #expect(model.importTrades([buy, sell]) == nil)
+        window.settle()
+        let list = TestWindow(TransactionList(model: model).padding(10).frame(width: ListDrawer.width).background(Color(white: 0.12)).environment(\.colorScheme, .dark))
+        list.snapshot("window-history-fees")
+        #expect(list.size.width == ListDrawer.width)
+        #expect(window.size.width == width)
+        #expect(model.transactions.compactMap(\.fee).count == 2)
+    }
+
     @Test func anEmptyStickerShowsZerosNotAnAddButton() async throws {
         let c = UITests.StickerLayoutTests.Case(name: "empty", base: "GRAM", quote: "USDT", direction: .buyFirst, txs: [], price: "0.055", open: "0.05")
         let (window, model) = try await UITests.StickerLayoutTests().sticker(c)

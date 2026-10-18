@@ -93,6 +93,16 @@ public struct BinanceAccountAPI: Sendable {
         return all.sorted { ($0.occurredAt, $0.externalID) < ($1.occurredAt, $1.externalID) }
     }
 
+    /// Open price of the 1h candle containing `date` (public `GET /api/v3/klines`); nil if there is no such pair or no answer.
+    public func hourlyOpen(symbol: String, at date: Date) async -> Decimal? {
+        let ms = Int(date.timeIntervalSince1970 * 1000)
+        guard let url = URL(string: restBase.appending(path: "api/v3/klines").absoluteString + "?symbol=\(symbol)&interval=1h&startTime=\(ms - ms % 3_600_000)&limit=1"),
+              let (data, status) = try? await send(URLRequest(url: url, timeoutInterval: 15)), status == 200,
+              let rows = try? JSONSerialization.jsonObject(with: data) as? [[Any]], let open = rows.first?.dropFirst().first as? String
+        else { return nil }
+        return Decimal(string: open, locale: Locale(identifier: "en_US_POSIX"))
+    }
+
     static func trade(from row: [String: Any]) throws -> ImportedTrade {
         func decimal(_ key: String) throws -> Decimal {
             guard let text = row[key] as? String, let d = Decimal(string: text, locale: Locale(identifier: "en_US_POSIX")) else { throw URLError(.cannotParseResponse) }

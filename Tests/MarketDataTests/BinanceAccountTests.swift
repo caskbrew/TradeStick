@@ -128,3 +128,47 @@ final class Recorder: @unchecked Sendable {
         #expect(list == [Instrument(base: "BTC", quote: "USDT"), Instrument(base: "GRAM", quote: "USDT")])
     }
 }
+
+@Suite struct FeePricingTests {
+    struct Stub: ExchangeAccount {
+        let id = "stub"
+        let history: [ImportedTrade]
+        let bnb: Decimal?
+        func check(_ credentials: APICredentials) async throws -> APIKeyCheck { APIKeyCheck() }
+        func trades(_ credentials: APICredentials, _ instrument: Instrument) async throws -> [ImportedTrade] { history }
+        func feeRate(asset: String, quote: String, at date: Date) async -> Decimal? { asset == "BNB" ? bnb : nil }
+    }
+    let creds = APICredentials(key: "K", secret: "S")
+    let pair = Instrument(base: "GRAM", quote: "USDT")
+    func fill(_ id: String, _ side: Side, _ qty: Decimal, _ amt: Decimal, _ fees: [String: Decimal]) -> ImportedTrade {
+        ImportedTrade(externalID: id, side: side, quantity: qty, amount: amt, occurredAt: Date(timeIntervalSince1970: 1_700_000_000), fees: fees)
+    }
+
+    @Test func feesAreValuedInQuoteAndCountAsCost() async throws {
+        let out = try await Stub(history: [
+            fill("1", .buy, 100, 200, ["USDT": 0.2]),          // quote: as is
+            fill("2", .buy, 100, 200, ["GRAM": 0.1]),          // base: 0.1 * rate 2
+            fill("3", .sell, 100, 300, ["BNB": 0.001]),        // BNB at 600
+            fill("4", .buy, 100, 200, ["ETH": 1]),             // unknown asset: not included
+        ], bnb: 600).pricedTrades(creds, pair)
+        #expect(out.map(\.feeQuote) == [0.2, 0.2, 0.6, 0])
+        #expect(out.map(\.netAmount) == [200.2, 200.2, 299.4, 200])
+        #expect(out[3].feeUnpriced == ["ETH"])
+    }
+
+    @Test func groupedOrderSumsTheFees() {
+        var a = fill("1", .buy, 1, 10, [:]); a.feeQuote = 0.1
+        var b = fill("2", .buy, 1, 10, [:]); b.feeQuote = 0.2; b.feeUnpriced = ["ETH"]
+        let both = [a, b].map { t -> ImportedTrade in var t = t; t.orderID = "o"; return t }
+        let grouped = ImportedTrade.groupedByOrder(both)
+        #expect(grouped.count == 1 && grouped[0].feeQuote == 0.3 && grouped[0].feeUnpriced == ["ETH"] && grouped[0].netAmount == 20.3)
+    }
+
+    @Test func binanceHourlyOpenReadsTheKline() async {
+        let api = BinanceAccountAPI(send: { request in
+            #expect(request.url?.absoluteString.contains("symbol=BNBUSDT&interval=1h&startTime=1699999200000") == true)
+            return (Data(#"[[1699999200000,"612.5","620","610","615","1",1700002799999,"1",1,"1","1","0"]]"#.utf8), 200)
+        })
+        #expect(await api.hourlyOpen(symbol: "BNBUSDT", at: Date(timeIntervalSince1970: 1_700_000_000)) == 612.5)
+    }
+}

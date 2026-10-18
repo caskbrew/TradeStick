@@ -13,11 +13,17 @@ public struct ImportedTrade: Identifiable, Equatable, Sendable {
     public var orderID: String?
     /// Exchange trade ids behind this row (one for a fill, several for a grouped order).
     public var fillIDs: [String]
-    /// Fees per asset, shown for information only; they are not part of the PnL.
+    /// Fees per asset, as the exchange reports them.
     public var fees: [String: Decimal]
+    /// The fees valued in the quote currency (see `ExchangeAccount.pricingFees`); they count as cost on import.
+    public var feeQuote: Decimal = 0
+    /// Fee assets that could not be valued: not included in the amount.
+    public var feeUnpriced: [String] = []
 
     public var id: String { externalID }
     public var rate: Decimal? { quantity > 0 ? amount / quantity : nil }
+    /// What the position really paid or received: a buy costs the fee on top, a sell brings in the fee less.
+    public var netAmount: Decimal { side == .buy ? amount + feeQuote : amount - feeQuote }
 
     public init(
         externalID: String, side: Side, quantity: Decimal, amount: Decimal, occurredAt: Date,
@@ -52,10 +58,13 @@ public struct ImportedTrade: Identifiable, Equatable, Sendable {
             guard parts.count > 1 || parts[0].orderID != nil, let first = parts.first else { return parts[0] }
             var fees: [String: Decimal] = [:]
             for part in parts { for (asset, value) in part.fees { fees[asset, default: 0] += value } }
-            return ImportedTrade(
+            var grouped = ImportedTrade(
                 externalID: key, side: first.side, quantity: parts.reduce(0) { $0 + $1.quantity }, amount: parts.reduce(0) { $0 + $1.amount },
                 occurredAt: parts.map(\.occurredAt).max()!, orderID: first.orderID, fillIDs: parts.flatMap(\.fillIDs), fees: fees
             )
+            grouped.feeQuote = parts.reduce(0) { $0 + $1.feeQuote }
+            grouped.feeUnpriced = Array(Set(parts.flatMap(\.feeUnpriced))).sorted()
+            return grouped
         }
     }
 }

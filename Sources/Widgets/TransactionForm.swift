@@ -166,16 +166,17 @@ struct TransactionList: View {
         VStack(spacing: 0) { ForEach(rows) { tx in row(tx) } }
     }
 
-    private static let sideWidth: CGFloat = 26, amountWidth: CGFloat = 58, rateWidth: CGFloat = 56, agoWidth: CGFloat = 36, pnlWidth: CGFloat = 50, iconWidth: CGFloat = 14
+    private static let sideWidth: CGFloat = 18, amountWidth: CGFloat = 52, rateWidth: CGFloat = 50, agoWidth: CGFloat = 30, pnlWidth: CGFloat = 44, feeWidth: CGFloat = 34, iconWidth: CGFloat = 14
 
     private var header: some View {
         HStack(spacing: 4) {
             Text("Ago").frame(width: Self.agoWidth, alignment: .leading)
-            Text("Side").frame(width: Self.sideWidth, alignment: .leading)
+            Color.clear.frame(width: Self.sideWidth, height: 1) // the B/S chip needs no title
             Text("PnL").frame(width: Self.pnlWidth, alignment: .trailing)
             Text("Qty").frame(maxWidth: .infinity, alignment: .trailing)
             Text("\(model.trade.quote)").frame(width: Self.amountWidth, alignment: .trailing)
             Text("Rate").frame(width: Self.rateWidth, alignment: .trailing)
+            Text("Fee").frame(width: Self.feeWidth, alignment: .trailing)
         }
         .font(.system(size: 10)).foregroundStyle(Theme.secondaryText.opacity(0.7)).lineLimit(1)
     }
@@ -215,6 +216,8 @@ struct TransactionList: View {
                     .minimumScaleFactor(0.6)
                 Text(NumberFormat.quote(tx.amount, fixed: model.quoteFixed)).frame(width: Self.amountWidth, alignment: .trailing)
                 Text(tx.rate.map(NumberFormat.shownPrice) ?? "—").foregroundStyle(Theme.secondaryText).minimumScaleFactor(0.6).frame(width: Self.rateWidth, alignment: .trailing)
+                Text(tx.fee.map { NumberFormat.quote($0, fixed: model.quoteFixed) } ?? "—").foregroundStyle(Theme.secondaryText).minimumScaleFactor(0.6)
+                    .frame(width: Self.feeWidth, alignment: .trailing).help("Fee, included in the amount")
             }
         }
         .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(.white.opacity(hovering == tx.id && confirming == nil ? 0.06 : 0)))

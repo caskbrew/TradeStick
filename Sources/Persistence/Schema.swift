@@ -41,6 +41,11 @@ enum Schema {
             try db.execute(sql: "CREATE UNIQUE INDEX tradeTransaction_external ON tradeTransaction(tradeID, externalID) WHERE externalID IS NOT NULL")
         }
 
+        // The fee (quote currency) of an imported fill; it is already inside `amount`, kept to show it.
+        migrator.registerMigration("v4") { db in
+            try db.alter(table: "tradeTransaction") { t in t.add(column: "fee", .text) }
+        }
+
         return migrator
     }
 }
