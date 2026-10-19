@@ -10,3 +10,4 @@ docs/*.png
 *.png
 !Sources/**/*.png
 dist/
+!docs/readme/*.png

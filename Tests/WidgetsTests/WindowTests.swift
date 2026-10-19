@@ -375,12 +375,10 @@ extension UITests {
         model.openForm(side: .buy)
         model.edit(.quantity, "300"); model.edit(.rate, "0.06")
         window.settle()
-        window.snapshot("window-sticker-form")
         #expect(window.size.width == width)
         model.cancelForm()
         model.setExpanded(true)
         window.settle()
-        window.snapshot("window-sticker-list")
         #expect(window.size.width == width)
     }
 
