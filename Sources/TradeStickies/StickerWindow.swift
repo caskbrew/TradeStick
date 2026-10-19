@@ -7,6 +7,10 @@ import Widgets
 /// Handles ⌘+ ⌘− ⌘0 on the key window itself, so zoom works from the sticker, the form and the list alike,
 /// whatever the keyboard layout. Keys are matched by key code (main row and keypad).
 class ZoomPanel: NSPanel {
+    /// Set while a dialog closes: no sticker may take the key then, or macOS follows it to its desktop.
+    static var keyBlocked = false
+    override var canBecomeKey: Bool { !Self.keyBlocked }
+
     var onZoom: ((CGFloat) -> Void)?
 
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
@@ -24,8 +28,6 @@ class ZoomPanel: NSPanel {
 
 /// Borderless note-like panel (M0 report): normal level, one Space, activating, no title bar.
 final class StickerPanel: ZoomPanel {
-    override var canBecomeKey: Bool { true }
-
     init() {
         super.init(
             contentRect: NSRect(x: 0, y: 0, width: StickerView.width, height: 200),
@@ -46,8 +48,6 @@ final class StickerPanel: ZoomPanel {
 
 /// The add/edit form lives in its own transparent panel next to the sticker, so the sticker itself never widens.
 final class FormPanel: ZoomPanel {
-    override var canBecomeKey: Bool { true }
-
     init() {
         super.init(
             contentRect: NSRect(x: 0, y: 0, width: StickerView.formDrawerWidth, height: 300),

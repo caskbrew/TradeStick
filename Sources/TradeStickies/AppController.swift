@@ -18,8 +18,19 @@ final class DialogWindow: NSWindow {
     /// Closing the last dialog hands the focus back to the previous app first: otherwise AppKit makes a sticker the key
     /// window and macOS switches to the desktop that sticker is on.
     override func close() {
-        if !NSApp.windows.contains(where: { $0 !== self && $0 is DialogWindow && $0.isVisible }) { NSApp.deactivate() }
+        if !NSApp.windows.contains(where: { $0 !== self && $0 is DialogWindow && $0.isVisible }) {
+            ZoomPanel.keyBlocked = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { ZoomPanel.keyBlocked = false }
+            NSApp.deactivate()
+        }
         super.close()
+    }
+
+    /// The size is only final once SwiftUI has laid the content out, so centre after ordering front (same run-loop pass: no visible jump).
+    override func makeKeyAndOrderFront(_ sender: Any?) {
+        super.makeKeyAndOrderFront(sender)
+        contentView?.layoutSubtreeIfNeeded()
+        centerOnScreen()
     }
 
     /// Esc closes the dialog; set by the owner when closing also has to forget the window.
@@ -334,7 +345,6 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let window = DialogWindow(content: NSHostingController(rootView: view))
         window.title = "New Trade"
         window.onEscape = { [weak self] in self?.closeNewTrade() }
-        window.centerOnScreen()
         newTradeWindow = window
         window.makeKeyAndOrderFront(nil)
         activateAfterShowing()
@@ -361,7 +371,6 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
             window.onEscape = close
             aboutWindow = window
         }
-        (aboutWindow as? DialogWindow)?.centerOnScreen()
         aboutWindow?.makeKeyAndOrderFront(nil)
         activateAfterShowing()
     }
@@ -385,7 +394,6 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let window = DialogWindow(content: NSHostingController(rootView: view))
         window.title = "API Keys"
         window.onEscape = close
-        window.centerOnScreen()
         apiKeysWindow = window
         window.makeKeyAndOrderFront(nil)
         activateAfterShowing()
@@ -421,7 +429,6 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         window.contentMinSize = NSSize(width: 720, height: 340)
         window.contentMaxSize = NSSize(width: 720, height: 2000)
         window.title = "Import from \(trade.exchange.capitalized)"
-        window.centerOnScreen()
         importWindows[trade.id] = window
         window.makeKeyAndOrderFront(nil)
         activateAfterShowing()
