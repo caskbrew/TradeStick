@@ -15,6 +15,13 @@ struct DevGuardError: Error, CustomStringConvertible {
 final class DialogWindow: NSWindow {
     override var canBecomeKey: Bool { true }
 
+    /// Closing the last dialog hands the focus back to the previous app first: otherwise AppKit makes a sticker the key
+    /// window and macOS switches to the desktop that sticker is on.
+    override func close() {
+        if !NSApp.windows.contains(where: { $0 !== self && $0 is DialogWindow && $0.isVisible }) { NSApp.deactivate() }
+        super.close()
+    }
+
     /// Esc closes the dialog; set by the owner when closing also has to forget the window.
     var onEscape: (() -> Void)?
     override func cancelOperation(_ sender: Any?) { (onEscape ?? { self.close() })() }
@@ -309,15 +316,13 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         open(trade, activate: true)
     }
 
-    /// Brings this app forward for a dialog without raising the stickers (`NSApp.activate()` pulls every window of the app
-    /// onto the current Space and in front of other apps).
     /// Dialogs are ordered front first (they open on this desktop), then the app activates: it finds a window here and does not switch desktops.
-    private func activateQuietly() { NSRunningApplication.current.activate(options: []) }
+    private func activateAfterShowing() { NSApp.activate() }
 
     @objc private func showNewTrade() {
         if let existing = newTradeWindow {
             existing.makeKeyAndOrderFront(nil)
-            activateQuietly()
+            activateAfterShowing()
             return
         }
         let model = NewTradeModel(adapters: adapters)
@@ -332,7 +337,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         window.centerOnScreen()
         newTradeWindow = window
         window.makeKeyAndOrderFront(nil)
-        activateQuietly()
+        activateAfterShowing()
     }
 
     /// Starts a fresh copy of the app a moment after this one has quit (handy after `brew upgrade`).
@@ -358,7 +363,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         (aboutWindow as? DialogWindow)?.centerOnScreen()
         aboutWindow?.makeKeyAndOrderFront(nil)
-        activateQuietly()
+        activateAfterShowing()
     }
 
     @objc private func openAPIKeysWindow() { showAPIKeys() }
@@ -367,7 +372,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if let existing = apiKeysWindow {
             if exchange == nil {
                 existing.makeKeyAndOrderFront(nil)
-                activateQuietly()
+                activateAfterShowing()
                 return
             }
             existing.close() // reopen on the requested exchange
@@ -383,7 +388,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         window.centerOnScreen()
         apiKeysWindow = window
         window.makeKeyAndOrderFront(nil)
-        activateQuietly()
+        activateAfterShowing()
     }
 
     private var importWindows: [UUID: NSWindow] = [:]
@@ -419,7 +424,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         window.centerOnScreen()
         importWindows[trade.id] = window
         window.makeKeyAndOrderFront(nil)
-        activateQuietly()
+        activateAfterShowing()
     }
 
     private func closeNewTrade() {
