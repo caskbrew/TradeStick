@@ -291,6 +291,19 @@ public final class StickerModel {
         return nil
     }
 
+    /// Recalculates the imported transactions from fills; returns how many changed, or a message (nothing was written).
+    public func reimportTrades(_ trades: [ImportedTrade]) -> (changed: Int, error: String?) {
+        do {
+            let changed = try store.reimportTrades(tradeID: trade.id, trades)
+            if changed > 0 { reload(); Task { await refreshSubscription() } }
+            return (changed, nil)
+        } catch StoreError.ledger(let error) {
+            return (0, Self.message(for: error, transactions: transactions))
+        } catch {
+            return (0, "Could not recalculate: \(error)")
+        }
+    }
+
     public func toggleForm() {
         if form != nil { cancelForm() } else { addTransaction() }
     }

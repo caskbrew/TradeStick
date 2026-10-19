@@ -73,21 +73,34 @@ public struct PoloniexAccountAPI: ExchangeAccount {
 
     /// The user's fills for a pair, oldest first (`GET /trades`, 1000 per page, walking back from now, up to 20 pages).
     public func trades(_ credentials: APICredentials, _ instrument: Instrument) async throws -> [ImportedTrade] {
+        try await rows(credentials, instrument).map(Self.trade(from:)).sorted { ($0.occurredAt, $0.externalID) < ($1.occurredAt, $1.externalID) }
+    }
+
+    public func rawFills(_ credentials: APICredentials, _ instrument: Instrument) async throws -> [RawFill] {
+        try await rows(credentials, instrument).map { row in
+            guard let id = row["id"] as? String else { throw URLError(.cannotParseResponse) }
+            return RawFill(id: id, json: try rawJSON(row))
+        }
+    }
+
+    public func parse(_ raw: RawFill) throws -> ImportedTrade { try Self.trade(from: try jsonObject(raw.json)) }
+
+    func rows(_ credentials: APICredentials, _ instrument: Instrument) async throws -> [[String: Any]] {
         let symbol = PoloniexParsing.symbol(instrument)
         let start = Int(now().timeIntervalSince1970 * 1000) - Self.historyDays * 86_400_000
         var end = Int(now().timeIntervalSince1970 * 1000)
-        var byID: [String: ImportedTrade] = [:]
+        var byID: [String: [String: Any]] = [:]
         for _ in 0..<20 {
             let data = try await signedGET("trades", credentials, items: [
                 ("endTime", String(end)), ("limit", "1000"), ("startTime", String(start)), ("symbols", symbol),
             ])
             guard let rows = try JSONSerialization.jsonObject(with: data) as? [[String: Any]] else { throw URLError(.cannotParseResponse) }
-            for row in rows { let t = try Self.trade(from: row); byID[t.externalID] = t }
+            for row in rows { guard let id = row["id"] as? String else { throw URLError(.cannotParseResponse) }; byID[id] = row }
             let oldest = rows.compactMap { ($0["createTime"] as? NSNumber)?.intValue }.min()
             guard rows.count >= 1000, let oldest, oldest < end else { break }
             end = oldest // the next page: everything up to the oldest fill seen (known fills are deduplicated by id)
         }
-        return byID.values.sorted { ($0.occurredAt, $0.externalID) < ($1.occurredAt, $1.externalID) }
+        return Array(byID.values)
     }
 
     static func trade(from row: [String: Any]) throws -> ImportedTrade {

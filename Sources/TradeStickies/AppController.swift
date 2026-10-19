@@ -361,11 +361,14 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         guard let keys = (try? credentials.load(exchange: trade.exchange)) ?? nil else { showAPIKeys(exchange: trade.exchange); return }
         let instrument = Instrument(base: trade.base, quote: trade.quote)
         let store = self.store!
+        let history = FillHistory(account: account, store: store, instrument: instrument)
         let model = ImportModel(
             title: "Import from \(trade.exchange.capitalized)", pair: "\(trade.base) / \(trade.quote)", quote: trade.quote,
-            fetch: { try await account.pricedTrades(keys, instrument) },
+            fetch: { try await history.refresh(keys) },
             existing: { (try? store.externalIDs(tradeID: trade.id)) ?? [] },
-            commit: { sticker.importTrades($0) }
+            commit: { sticker.importTrades($0) },
+            saved: { try await history.saved() },
+            recalculate: { sticker.reimportTrades($0) }
         )
         let host = NSHostingController(rootView: ImportView(model: model, onClose: { [weak self] in
             self?.importWindows[trade.id]?.close()

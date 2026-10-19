@@ -57,6 +57,21 @@ enum Schema {
             }
         }
 
+        // The exchange's fills kept as they were sent (it keeps only the last months), and a mark on imported transactions
+        // the user edited by hand: a recalculation from the saved fills leaves those alone.
+        migrator.registerMigration("v6") { db in
+            try db.create(table: "exchangeFill") { t in
+                t.column("exchange", .text).notNull()
+                t.column("symbol", .text).notNull()
+                t.column("fillID", .text).notNull()
+                t.column("raw", .text).notNull()
+                t.column("feeRates", .text).notNull().defaults(to: "{}")
+                t.column("fetchedAt", .double).notNull()
+                t.primaryKey(["exchange", "symbol", "fillID"])
+            }
+            try db.alter(table: "tradeTransaction") { t in t.add(column: "edited", .boolean).notNull().defaults(to: false) }
+        }
+
         return migrator
     }
 }

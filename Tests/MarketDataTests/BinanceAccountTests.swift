@@ -93,6 +93,16 @@ final class Recorder: @unchecked Sendable {
         #expect(trades[1].side == .sell && trades[1].feeText == nil && trades[0].feeText == "0.0004 BNB")
     }
 
+    @Test func rawFillsKeepTheExchangesTextAndParseBackToTheSameTrades() async throws {
+        let body = "[" + [row(2, buyer: false, time: 1_700_000_100_000), row(1, buyer: true, fee: "0.0004")].joined(separator: ",") + "]"
+        let api = BinanceAccountAPI(now: { Date() }, send: { _ in (Data(body.utf8), 200) })
+        let raw = try await api.rawFills(creds, gram)
+        #expect(Set(raw.map(\.id)) == ["1", "2"])
+        #expect(raw.allSatisfy { $0.json.contains("\"commissionAsset\":\"BNB\"") && $0.json.contains("\"symbol\":\"GRAMUSDT\"") }) // nothing dropped
+        let parsed = try raw.map(api.parse).sorted { $0.externalID < $1.externalID }
+        #expect(parsed == (try await api.myTrades(creds, gram)))
+    }
+
     @Test func fullPagesAreFollowedWithFromId() async throws {
         let recorder = Recorder()
         let page1 = "[" + (1...1000).map { row($0, buyer: true) }.joined(separator: ",") + "]"
@@ -154,6 +164,20 @@ final class Recorder: @unchecked Sendable {
         #expect(out.map(\.feeQuote) == [0.2, 0.2, 0.6, 0])
         #expect(out.map(\.netAmount) == [200.2, 200.2, 299.4, 200])
         #expect(out[3].feeUnpriced == ["ETH"])
+    }
+
+    @Test func savedRatesPriceAFeeWithoutTheNetwork() async {
+        let stub = Stub(history: [], bnb: nil) // the lookup would fail
+        var rates: [String: [String: Decimal]] = ["3": ["BNB": 600]]
+        let out = await stub.priced([fill("3", .sell, 100, 300, ["BNB": 0.001]), fill("4", .buy, 100, 200, ["BNB": 0.001])], pair, rates: &rates, lookup: false)
+        #expect(out[0].feeQuote == 0.6 && out[0].feeUnpriced.isEmpty)
+        #expect(out[1].feeQuote == 0 && out[1].feeUnpriced == ["BNB"]) // no saved price, no network: unpriced
+    }
+
+    @Test func aLookedUpRateIsReportedForSaving() async {
+        var rates: [String: [String: Decimal]] = [:]
+        _ = await Stub(history: [], bnb: 600).priced([fill("3", .sell, 100, 300, ["BNB": 0.001])], pair, rates: &rates)
+        #expect(rates == ["3": ["BNB": 600]])
     }
 
     @Test func groupedOrderSumsTheFees() {

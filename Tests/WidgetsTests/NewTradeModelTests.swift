@@ -107,6 +107,12 @@ struct BrokenExchange: ExchangeAdapter {
     }
 }
 
+actor Gate {
+    private var opened = false
+    func wait() async { while !opened { try? await Task.sleep(for: .milliseconds(5)) } }
+    func open() { opened = true }
+}
+
 @MainActor @Suite struct ImportModelTests {
     nonisolated func fill(_ id: String, _ side: Side = .buy) -> ImportedTrade {
         ImportedTrade(externalID: id, side: side, quantity: 1, amount: 1, occurredAt: Date(timeIntervalSince1970: Double(Int(id)!)))
@@ -142,6 +148,43 @@ struct BrokenExchange: ExchangeAdapter {
         m.selectAll()
         #expect(!m.add())
         #expect(m.error == "Not enough open quantity" && m.added == nil && m.canAdd)
+    }
+
+    @Test func savedTradesAreShownWhileTheExchangeIsAsked() async throws {
+        let gate = Gate()
+        let m = ImportModel(title: "t", fetch: { await gate.wait(); return [self.fill("1"), self.fill("2"), self.fill("3")] }, existing: { [] }, commit: { _ in nil },
+                            saved: { [self.fill("1"), self.fill("2")] })
+        let task = Task { await m.load() }
+        await waitUntil { m.refreshing }
+        #expect(m.state == .loaded && m.rows.count == 2 && m.refreshing) // the spinner shows next to the saved rows
+        m.toggle("1")
+        await gate.open()
+        await task.value
+        #expect(m.rows.count == 3 && !m.refreshing && m.offline == nil && m.hasLoaded)
+        #expect(m.selection == ["1"]) // what was ticked meanwhile stays ticked
+    }
+
+    @Test func anUnreachableExchangeKeepsTheSavedTradesAndSaysSo() async {
+        let m = ImportModel(title: "t", fetch: { throw URLError(.notConnectedToInternet) }, existing: { [] }, commit: { _ in nil }, saved: { [self.fill("1")] })
+        await m.load()
+        #expect(m.state == .loaded && m.rows.count == 1 && m.offline != nil && !m.refreshing && !m.hasLoaded)
+        let nothingSaved = ImportModel(title: "t", fetch: { throw URLError(.notConnectedToInternet) }, existing: { [] }, commit: { _ in nil }, saved: { [] })
+        await nothingSaved.load()
+        if case .failed = nothingSaved.state {} else { Issue.record("with nothing saved the failure is the whole screen") }
+    }
+
+    @Test func recalculatingHandsBothGroupedAndSingleFillsToTheStore() async {
+        nonisolated(unsafe) var given: [String] = []
+        let m = ImportModel(title: "t", fetch: { [self.fill("1")] }, existing: { [] }, commit: { _ in nil },
+                            recalculate: { given = $0.map(\.externalID); return (1, nil) })
+        #expect(!m.canRecalculate)
+        await m.load()
+        #expect(m.canRecalculate)
+        m.recalculateImported()
+        #expect(given == ["1", "1"] && m.recalculated == 1) // a fill without an order is the same row either way
+        let failing = ImportModel(title: "t", fetch: { [self.fill("1")] }, existing: { [] }, commit: { _ in nil }, recalculate: { _ in (0, "Sells more than held") })
+        await failing.load(); failing.recalculateImported()
+        #expect(failing.error == "Sells more than held" && failing.recalculated == nil)
     }
 
     @Test func aFailedLoadIsShown() async {

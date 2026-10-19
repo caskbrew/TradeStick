@@ -262,6 +262,53 @@ func at(_ minute: Int) -> Date { Date(timeIntervalSince1970: 1_700_000_000 + Dou
         let queue = try DatabaseQueue()
         try Schema.migrator().migrate(queue)
         try Schema.migrator().migrate(queue)
-        #expect(try queue.read { try Int.fetchOne($0, sql: "SELECT COUNT(*) FROM grdb_migrations") } == 5)
+        #expect(try queue.read { try Int.fetchOne($0, sql: "SELECT COUNT(*) FROM grdb_migrations") } == 6)
+    }
+
+    @Test func savedFillsKeepTheirRawTextAndGainFeeRates() throws {
+        let store = try TradeStore.inMemory()
+        let raw = RawFill(id: "1", json: #"{"id":1}"#)
+        #expect(try store.saveFills([StoredFill(exchange: "binance", symbol: "G/USDT", raw: raw)]) == 1)
+        // the same fill again: not new, raw text untouched, the fee price is added
+        #expect(try store.saveFills([StoredFill(exchange: "binance", symbol: "G/USDT", raw: RawFill(id: "1", json: "changed"), feeRates: ["BNB": d("612.5")])]) == 0)
+        let saved = try store.fills(exchange: "binance", symbol: "G/USDT")
+        #expect(saved == [StoredFill(exchange: "binance", symbol: "G/USDT", raw: raw, feeRates: ["BNB": d("612.5")])])
+        #expect(try store.fills(exchange: "poloniex", symbol: "G/USDT").isEmpty && (try store.fills(exchange: "binance", symbol: "X/USDT")).isEmpty)
+    }
+
+    @Test func recalculatingUpdatesImportedFillsButNotOnesEditedByHand() throws {
+        let store = try TradeStore.inMemory()
+        let trade = try store.createTrade(exchange: "binance", base: "G", quote: "USDT", direction: .buyFirst)
+        try store.importTrades(tradeID: trade.id, [fill("1", .buy, 10, 100, 0), fill("2", .buy, 10, 100, 1)])
+        try store.addTransaction(tradeID: trade.id, side: .buy, quantity: 1, amount: 1, occurredAt: at(5)) // manual: no external id
+        let second = try #require(store.transactions(tradeID: trade.id).first { $0.occurredAt == at(1) })
+        try store.updateTransaction(tradeID: trade.id, id: second.id, side: .buy, quantity: 10, amount: 105, occurredAt: at(1)) // by hand
+        var one = fill("1", .buy, 10, 100, 0); one.feeQuote = 0.5
+        var two = fill("2", .buy, 10, 100, 1); two.feeQuote = 0.5
+        #expect(try store.reimportTrades(tradeID: trade.id, [one, two]) == 1) // only the untouched one
+        let all = try store.transactions(tradeID: trade.id)
+        #expect(all.map(\.fee) == [0.5, nil, nil] && all[1].amount == 105)
+        #expect(try store.reimportTrades(tradeID: trade.id, [one, two]) == 0) // nothing left to change
+    }
+
+    @Test func aRecalculationTheLedgerRejectsChangesNothing() throws {
+        let store = try TradeStore.inMemory()
+        let trade = try store.createTrade(exchange: "binance", base: "G", quote: "USDT", direction: .buyFirst)
+        try store.importTrades(tradeID: trade.id, [fill("1", .buy, 10, 100, 0), fill("2", .sell, 10, 120, 1)])
+        var smaller = fill("1", .buy, 5, 50, 0); smaller.feeQuote = 0.1 // the sell would then exceed what was bought
+        #expect(throws: (any Error).self) { try store.reimportTrades(tradeID: trade.id, [smaller]) }
+        #expect(try store.transactions(tradeID: trade.id).first?.quantity == 10)
+    }
+
+    @Test func migrationV6KeepsExistingTransactionsAndMarksThemUnedited() throws {
+        let queue = try DatabaseQueue()
+        try Schema.migrator().migrate(queue, upTo: "v5")
+        try queue.write { db in
+            try db.execute(sql: "INSERT INTO trade (id, exchange, base, quote, direction, createdAt) VALUES ('T', 'binance', 'G', 'USDT', 'buyFirst', 0)")
+            try db.execute(sql: "INSERT INTO tradeTransaction (id, tradeID, side, quantity, amount, occurredAt, sequence, externalID) VALUES ('X', 'T', 'buy', '1', '2', 0, 1, '7')")
+        }
+        try Schema.migrator().migrate(queue)
+        #expect(try queue.read { try Bool.fetchOne($0, sql: "SELECT edited FROM tradeTransaction WHERE id = 'X'") } == false)
+        #expect(try queue.read { try Int.fetchOne($0, sql: "SELECT COUNT(*) FROM exchangeFill") } == 0)
     }
 }

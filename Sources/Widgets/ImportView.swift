@@ -36,13 +36,27 @@ public struct ImportView: View {
                 }
             }
             table
+            if let offline = model.offline {
+                HStack {
+                    Label(offline, systemImage: "wifi.slash").lineLimit(1).help(model.offlineDetail)
+                    Spacer()
+                    Button("Retry") { model.retry() }.buttonStyle(PillStyle(fill: Theme.field, flexible: false, minHeight: 26))
+                }.foregroundStyle(Theme.warning).font(.system(size: 12))
+            }
             if let error = model.error {
                 Label(error, systemImage: "xmark.octagon.fill").foregroundStyle(Theme.negative).font(.system(size: 12))
                     .fixedSize(horizontal: false, vertical: true)
             }
             HStack(spacing: 8) {
-                if model.state != .loading { Text(summary).font(.system(size: 13)).foregroundStyle(model.canAdd ? .white : Theme.secondaryText) }
+                if model.refreshing { ProgressView().controlSize(.small); Text("Updating from the exchange…").font(.system(size: 12)).foregroundStyle(Theme.secondaryText) }
+                else if model.state != .loading { Text(summary).font(.system(size: 13)).foregroundStyle(model.canAdd ? .white : Theme.secondaryText) }
                 Spacer()
+                if let n = model.recalculated { Text(n == 0 ? "Nothing to recalculate" : "Recalculated \(n)").font(.system(size: 12)).foregroundStyle(Theme.secondaryText) }
+                if model.canRecalculate {
+                    Button("Recalculate") { model.recalculateImported() }
+                        .help("Recalculates the transactions imported earlier from the saved exchange data (after fee rules changed). Ones you edited by hand stay as they are")
+                        .buttonStyle(PillStyle(fill: Theme.field, flexible: false, minHeight: 36))
+                }
                 Button("Close", action: onClose).keyboardShortcut(.cancelAction)
                     .buttonStyle(PillStyle(fill: Theme.field, flexible: false, minHeight: 36))
                 if model.state != .loading { Button("Import \(model.selection.count)") { if model.add() { onClose() } }

@@ -290,6 +290,34 @@ extension UITests {
         #expect(window.size == size)
     }
 
+    @Test func savedTradesShowAtOnceWithASpinnerAndKeepTheWindowSizeOffline() async throws {
+        let rows = fills()
+        let refreshing = ImportModel(title: "Import from Binance", pair: "GRAM / USDT", quote: "USDT",
+                                     fetch: { try await Task.sleep(for: .milliseconds(1500)); return rows },
+                                     existing: { ["1"] }, commit: { _ in nil }, saved: { Array(rows.prefix(2)) }, recalculate: { _ in (0, nil) })
+        let window = TestWindow(ImportView(model: refreshing, onClose: {}))
+        let size = window.size
+        try await Task.sleep(for: .milliseconds(300))
+        window.settle()
+        #expect(refreshing.state == .loaded && refreshing.refreshing && refreshing.rows.count == 2)
+        window.snapshot("window-import-refreshing")
+        try await Task.sleep(for: .milliseconds(1500))
+        window.settle()
+        refreshing.recalculateImported()
+        window.settle()
+        window.snapshot("window-import-recalculated")
+        #expect(!refreshing.refreshing && refreshing.rows.count == 3 && window.size == size)
+
+        let offline = ImportModel(title: "Import from Binance", pair: "GRAM / USDT", quote: "USDT",
+                                  fetch: { throw URLError(.notConnectedToInternet) }, existing: { ["1"] }, commit: { _ in nil }, saved: { rows })
+        let offlineWindow = TestWindow(ImportView(model: offline, onClose: {}))
+        try await Task.sleep(for: .milliseconds(300))
+        offlineWindow.settle()
+        #expect(offline.offline != nil && offline.rows.count == 3)
+        offlineWindow.snapshot("window-import-offline")
+        #expect(offlineWindow.size == size)
+    }
+
     @Test func importShowsAFailureAndAnEmptyList() async throws {
         let failing = ImportModel(title: "Import from Poloniex", pair: "GRAM / USDT", quote: "USDT",
                                   fetch: { throw PoloniexAPIError(status: 401, code: nil, message: "Invalid API key") },

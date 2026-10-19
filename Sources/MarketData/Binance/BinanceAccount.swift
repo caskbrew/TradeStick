@@ -77,20 +77,31 @@ public struct BinanceAccountAPI: Sendable {
 
     /// The user's fills for a pair, oldest first (`GET /api/v3/myTrades`, 1000 per page, up to 20 pages).
     public func myTrades(_ credentials: APICredentials, _ instrument: Instrument) async throws -> [ImportedTrade] {
+        try await myRows(credentials, instrument).map(Self.trade(from:)).sorted { ($0.occurredAt, $0.externalID) < ($1.occurredAt, $1.externalID) }
+    }
+
+    /// The same fills as the exchange sent them, one JSON text each.
+    public func rawTrades(_ credentials: APICredentials, _ instrument: Instrument) async throws -> [RawFill] {
+        try await myRows(credentials, instrument).map { row in
+            guard let id = row["id"] as? Int else { throw URLError(.cannotParseResponse) }
+            return RawFill(id: String(id), json: try rawJSON(row))
+        }
+    }
+
+    func myRows(_ credentials: APICredentials, _ instrument: Instrument) async throws -> [[String: Any]] {
         let symbol = BinanceParsing.symbol(instrument)
-        var all: [ImportedTrade] = []
+        var all: [[String: Any]] = []
         var fromID = 0
         for _ in 0..<20 {
             let data = try await signedGET("api/v3/myTrades", credentials, items: [
                 .init(name: "symbol", value: symbol), .init(name: "fromId", value: String(fromID)), .init(name: "limit", value: "1000"),
             ])
             guard let rows = try JSONSerialization.jsonObject(with: data) as? [[String: Any]] else { throw URLError(.cannotParseResponse) }
-            let page = try rows.map(Self.trade(from:))
-            all += page
+            all += rows
             guard rows.count == 1000, let last = rows.last?["id"] as? Int else { break }
             fromID = last + 1
         }
-        return all.sorted { ($0.occurredAt, $0.externalID) < ($1.occurredAt, $1.externalID) }
+        return all
     }
 
     /// Open price of the 1h candle containing `date` (public `GET /api/v3/klines`); nil if there is no such pair or no answer.

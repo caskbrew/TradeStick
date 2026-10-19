@@ -141,6 +141,77 @@ public final class TradeStore: Sendable {
         }
     }
 
+    /// Recalculates imported transactions from fills (matched by exchange id), e.g. the saved ones after the fee rules changed.
+    /// Transactions edited by hand are left alone. All or none; returns how many changed.
+    @discardableResult
+    public func reimportTrades(tradeID: UUID, _ trades: [ImportedTrade]) throws -> Int {
+        try dbQueue.write { db in
+            guard let trade = try Self.fetchTrade(db, tradeID) else { throw StoreError.tradeNotFound(tradeID) }
+            var all = try Self.fetchTransactions(db, tradeID)
+            let wanted = Dictionary(trades.map { ($0.externalID, $0) }, uniquingKeysWith: { a, _ in a })
+            var changed: [Int] = []
+            for row in try Row.fetchAll(db, sql: "SELECT id, externalID FROM tradeTransaction WHERE tradeID = ? AND externalID IS NOT NULL AND edited = 0", arguments: [tradeID.uuidString]) {
+                guard let id = UUID(uuidString: row["id"]), let index = all.firstIndex(where: { $0.id == id }), let t = wanted[row["externalID"] as String] else { continue }
+                let fee = t.feeQuote > 0 ? t.feeQuote : nil
+                let tx = all[index]
+                guard (tx.side, tx.quantity, tx.amount, tx.occurredAt.timeIntervalSince1970, tx.fee) != (t.side, t.quantity, t.amount, t.occurredAt.timeIntervalSince1970, fee) else { continue }
+                all[index].side = t.side; all[index].quantity = t.quantity; all[index].amount = t.amount
+                all[index].occurredAt = t.occurredAt; all[index].fee = fee
+                changed.append(index)
+            }
+            try Self.validate(trade.direction, all)
+            for index in changed {
+                let tx = all[index]
+                try db.execute(
+                    sql: "UPDATE tradeTransaction SET side = ?, quantity = ?, amount = ?, occurredAt = ?, fee = ? WHERE id = ?",
+                    arguments: [tx.side.rawValue, Self.string(tx.quantity), Self.string(tx.amount), tx.occurredAt.timeIntervalSince1970, tx.fee.map(Self.string), tx.id.uuidString]
+                )
+            }
+            return changed.count
+        }
+    }
+
+    // MARK: Saved exchange fills
+
+    /// Keeps the fills (a fill already saved keeps its raw text and gains new fee rates). Returns how many were new.
+    @discardableResult
+    public func saveFills(_ fills: [StoredFill], now: Date = Date()) throws -> Int {
+        try dbQueue.write { db in
+            var added = 0
+            for fill in fills {
+                let key: [any DatabaseValueConvertible] = [fill.exchange, fill.symbol, fill.raw.id]
+                let old = try String.fetchOne(db, sql: "SELECT feeRates FROM exchangeFill WHERE exchange = ? AND symbol = ? AND fillID = ?", arguments: StatementArguments(key))
+                let rates = (old.map(Self.rates) ?? [:]).merging(fill.feeRates) { _, new in new }
+                if old == nil {
+                    added += 1
+                    try db.execute(sql: "INSERT INTO exchangeFill (exchange, symbol, fillID, raw, feeRates, fetchedAt) VALUES (?, ?, ?, ?, ?, ?)",
+                                   arguments: StatementArguments(key + [fill.raw.json, Self.ratesText(rates), now.timeIntervalSince1970]))
+                } else {
+                    try db.execute(sql: "UPDATE exchangeFill SET feeRates = ? WHERE exchange = ? AND symbol = ? AND fillID = ?", arguments: StatementArguments([Self.ratesText(rates)] + key))
+                }
+            }
+            return added
+        }
+    }
+
+    public func fills(exchange: String, symbol: String) throws -> [StoredFill] {
+        try dbQueue.read { db in
+            try Row.fetchAll(db, sql: "SELECT * FROM exchangeFill WHERE exchange = ? AND symbol = ? ORDER BY fetchedAt, rowid", arguments: [exchange, symbol]).map {
+                StoredFill(exchange: exchange, symbol: symbol, raw: RawFill(id: $0["fillID"], json: $0["raw"]), feeRates: Self.rates($0["feeRates"] as String))
+            }
+        }
+    }
+
+    private static func ratesText(_ rates: [String: Decimal]) -> String {
+        let data = try? JSONSerialization.data(withJSONObject: rates.mapValues(string), options: [.sortedKeys])
+        return data.flatMap { String(data: $0, encoding: .utf8) } ?? "{}"
+    }
+
+    private static func rates(_ text: String) -> [String: Decimal] {
+        guard let object = try? JSONSerialization.jsonObject(with: Data(text.utf8)) as? [String: String] else { return [:] }
+        return object.compactMapValues { Decimal(string: $0, locale: Locale(identifier: "en_US_POSIX")) }
+    }
+
     /// Keeps the transaction's creation order (`sequence`).
     @discardableResult
     public func updateTransaction(tradeID: UUID, id: UUID, side: Side, quantity: Decimal, amount: Decimal, occurredAt: Date) throws -> Transaction {
@@ -154,7 +225,7 @@ public final class TradeStore: Sendable {
             all[index].occurredAt = occurredAt
             try Self.validate(trade.direction, all)
             try db.execute(
-                sql: "UPDATE tradeTransaction SET side = ?, quantity = ?, amount = ?, occurredAt = ? WHERE id = ?",
+                sql: "UPDATE tradeTransaction SET side = ?, quantity = ?, amount = ?, occurredAt = ?, edited = 1 WHERE id = ?",
                 arguments: [side.rawValue, Self.string(quantity), Self.string(amount), occurredAt.timeIntervalSince1970, id.uuidString]
             )
             return all[index]

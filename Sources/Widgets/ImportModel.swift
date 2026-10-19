@@ -40,12 +40,21 @@ public final class ImportModel {
     public private(set) var error: String?
     public private(set) var added: Int?
     public private(set) var hasLoaded = false
+    /// The saved trades are shown while the exchange is still asked: a spinner tells the user so.
+    public private(set) var refreshing = false
+    /// Set when the exchange could not be reached but saved trades are shown.
+    public private(set) var offline: String?
+    public private(set) var offlineDetail = ""
+    /// How many imported transactions the last recalculation changed.
+    public private(set) var recalculated: Int?
 
     @ObservationIgnored private let fetch: @Sendable () async throws -> [ImportedTrade]
     @ObservationIgnored private let existing: () -> Set<String>
     @ObservationIgnored private var fills: [ImportedTrade] = []
     @ObservationIgnored private var known: Set<String> = []
     @ObservationIgnored private let commit: ([ImportedTrade]) -> String?
+    @ObservationIgnored private let saved: (() async throws -> [ImportedTrade])?
+    @ObservationIgnored private let recalculate: (([ImportedTrade]) -> (changed: Int, error: String?))?
 
     /// - Parameters:
     ///   - existing: exchange trade ids this trade already has.
@@ -56,8 +65,12 @@ public final class ImportModel {
         quote: String = "",
         fetch: @escaping @Sendable () async throws -> [ImportedTrade],
         existing: @escaping () -> Set<String>,
-        commit: @escaping ([ImportedTrade]) -> String?
+        commit: @escaping ([ImportedTrade]) -> String?,
+        saved: (() async throws -> [ImportedTrade])? = nil,
+        recalculate: (([ImportedTrade]) -> (changed: Int, error: String?))? = nil
     ) {
+        self.saved = saved
+        self.recalculate = recalculate
         self.title = title
         self.pair = pair
         self.fixedQuote = NumberFormat.isTwoDecimalCurrency(quote)
@@ -83,8 +96,16 @@ public final class ImportModel {
     public func load() async {
         state = .loading
         error = nil
+        offline = nil
+        known = existing()
+        if let saved, let local = try? await saved(), !local.isEmpty { // what was kept from earlier, shown at once
+            fills = local
+            rebuild()
+            state = .loaded
+            refreshing = true
+        }
+        defer { refreshing = false }
         do {
-            known = existing()
             fills = try await fetch()
             rebuild()
             state = .loaded
@@ -92,8 +113,17 @@ public final class ImportModel {
         } catch is CancellationError {
             return
         } catch {
-            state = .failed("\(error)")
+            if state == .loaded { offline = "No connection to the exchange · showing saved trades"; offlineDetail = "\(error)" } else { state = .failed("\(error)") }
         }
+    }
+
+    public var canRecalculate: Bool { recalculate != nil && state == .loaded }
+
+    /// Recalculates the imported transactions from the saved fills (fee rules may have changed); hand-edited ones stay.
+    public func recalculateImported() {
+        guard let recalculate else { return }
+        let result = recalculate(ImportedTrade.groupedByOrder(fills) + fills)
+        if let message = result.error { error = message } else { error = nil; recalculated = result.changed }
     }
 
     public func setGrouped(_ value: Bool) {
@@ -112,7 +142,7 @@ public final class ImportModel {
             let all = direct || (!fillsKnown.isEmpty && fillsKnown == ids)
             return Row(trade: trade, alreadyAdded: all, partlyAdded: !all && !fillsKnown.isEmpty)
         }
-        selection = []
+        selection.formIntersection(rows.filter(\.selectable).map(\.id)) // a refresh keeps what the user already ticked
     }
 
     /// Rows as shown: filtered, then in the chosen time order.
