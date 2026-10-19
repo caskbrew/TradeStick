@@ -93,6 +93,11 @@ public final class StickerModel {
         return saved > 0 ? min(max(CGFloat(saved), 1), 2) : 1
     }()
     public static let scaleRange: ClosedRange<CGFloat> = 1...2
+    public static let zoomStep: CGFloat = 0.1
+    /// The percentage a step of `delta` would lead to (clamped), for the menu titles.
+    public func zoomPercent(by delta: CGFloat) -> Int {
+        Int((min(max(scale + delta, Self.scaleRange.lowerBound), Self.scaleRange.upperBound) * 100).rounded())
+    }
     /// Unscaled height of the card; the form panel matches it.
     public private(set) var cardHeight: CGFloat = 0
     @ObservationIgnored private var rawContent = CGSize.zero

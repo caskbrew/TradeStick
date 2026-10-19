@@ -259,12 +259,14 @@ struct Fixture {
         f.model.onContentSize = { sizes.append($0) }
         f.model.zoom(by: 0)
         f.model.contentSizeChanged(CGSize(width: 330, height: 100))
-        f.model.zoom(by: 0.1)
+        #expect(f.model.zoomPercent(by: StickerModel.zoomStep) == 110 && f.model.zoomPercent(by: -StickerModel.zoomStep) == 100)
+        f.model.zoom(by: StickerModel.zoomStep)
         let last = try #require(sizes.last)
         #expect(f.model.scale == 1.1 && abs(last.width - 363) < 0.001 && abs(last.height - 110) < 0.001)
-        for _ in 0..<20 { f.model.zoom(by: 0.1) }
-        #expect(f.model.scale == 2)
-        for _ in 0..<30 { f.model.zoom(by: -0.1) }
+        #expect(f.model.zoomPercent(by: StickerModel.zoomStep) == 120)
+        for _ in 0..<20 { f.model.zoom(by: StickerModel.zoomStep) }
+        #expect(f.model.scale == 2 && f.model.zoomPercent(by: StickerModel.zoomStep) == 200)
+        for _ in 0..<30 { f.model.zoom(by: -StickerModel.zoomStep) }
         #expect(f.model.scale == 1)
         f.model.zoom(by: 0)
         #expect(f.model.scale == 1)

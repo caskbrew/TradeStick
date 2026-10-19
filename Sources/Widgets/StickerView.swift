@@ -242,9 +242,9 @@ struct StickerMenuItems: View {
 
     var body: some View {
         let expanded = model.trade.isExpanded
-        Button("Add Tx manual") { model.addTransaction() }.keyboardShortcut("b")
-        Button("Add Tx from \(model.trade.exchange.capitalized)") { model.importHistory() }.keyboardShortcut("b", modifiers: [.command, .shift])
-        Button("\(expanded ? "Hide" : "Show") history") { model.toggleList() }
+        Button("Add Transaction") { model.addTransaction() }.keyboardShortcut("b")
+        Button("Import Transaction") { model.importHistory() }.keyboardShortcut("b", modifiers: [.command, .shift])
+        Button("\(expanded ? "Hide" : "Show") Transactions") { model.toggleList() }
             .keyboardShortcut("l").disabled(model.status == .empty)
         if model.status == .open {
             Divider()
@@ -260,14 +260,16 @@ struct StickerMenuItems: View {
             }
         }
         Divider()
-        Button("Zoom In") { model.zoom(by: 0.1) }.keyboardShortcut("+")
-        Button("Zoom Out") { model.zoom(by: -0.1) }.keyboardShortcut("-")
-        Button("Default") { model.zoom(by: 0) }.keyboardShortcut("0")
+        Button("Zoom \(model.zoomPercent(by: StickerModel.zoomStep))%") { model.zoom(by: StickerModel.zoomStep) }
+            .keyboardShortcut("+").disabled(model.scale >= StickerModel.scaleRange.upperBound)
+        Button("Zoom \(model.zoomPercent(by: -StickerModel.zoomStep))%") { model.zoom(by: -StickerModel.zoomStep) }
+            .keyboardShortcut("-").disabled(model.scale <= StickerModel.scaleRange.lowerBound)
+        Button("Zoom 100%") { model.zoom(by: 0) }.keyboardShortcut("0")
         Divider()
         Button(model.isPinned ? "Unpin Window" : "Pin Window") { model.togglePin() }.keyboardShortcut("p")
         Button("Hide Window", action: actions.hide).keyboardShortcut("w")
         Divider()
-        Button("Delete Trade…", role: .destructive, action: actions.delete).keyboardShortcut(.delete, modifiers: [.option, .command])
+        Button("Delete Stick…", role: .destructive, action: actions.delete).keyboardShortcut(.delete, modifiers: [.option, .command])
     }
 }
 

@@ -13,8 +13,8 @@ class ZoomPanel: NSPanel {
         let mods = event.modifierFlags.intersection(.deviceIndependentFlagsMask).subtracting([.numericPad, .capsLock])
         guard mods == .command || mods == [.command, .shift], let onZoom else { return super.performKeyEquivalent(with: event) }
         switch event.keyCode {
-        case 24, 69: onZoom(0.1) // = / +, keypad +
-        case 27, 78: onZoom(-0.1) // −, keypad −
+        case 24, 69: onZoom(StickerModel.zoomStep) // = / +, keypad +
+        case 27, 78: onZoom(-StickerModel.zoomStep) // −, keypad −
         case 29, 82: onZoom(0) // 0, keypad 0
         default: return super.performKeyEquivalent(with: event)
         }
