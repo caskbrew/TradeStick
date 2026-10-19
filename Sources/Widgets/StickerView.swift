@@ -246,19 +246,6 @@ struct StickerMenuItems: View {
         Button("Import Transaction") { model.importHistory() }.keyboardShortcut("b", modifiers: [.command, .shift])
         Button("\(expanded ? "Hide" : "Show") Transactions") { model.toggleList() }
             .keyboardShortcut("l").disabled(model.status == .empty)
-        if model.status == .open {
-            Divider()
-            let closing = model.trade.direction == .buyFirst ? "Sell" : "Buy back"
-            Button("\(closing) all at market · \(NumberFormat.quantity(model.summary.openQuantity)) \(model.trade.base)") {
-                Task { await model.requestClose(recoverInvestment: false) }
-            }
-            .keyboardShortcut("e")
-            .disabled(model.closePlan(recoverInvestment: false) == nil)
-            if model.trade.direction == .buyFirst {
-                Button(recoverTitle) { Task { await model.requestClose(recoverInvestment: true) } }.keyboardShortcut("r")
-                                        .disabled(model.closePlan(recoverInvestment: true) == nil)
-            }
-        }
         Divider()
         Button("Zoom \(model.zoomPercent(by: StickerModel.zoomStep))%") { model.zoom(by: StickerModel.zoomStep) }
             .keyboardShortcut("+").disabled(model.scale >= StickerModel.scaleRange.upperBound)
@@ -273,14 +260,6 @@ struct StickerMenuItems: View {
     }
 }
 
-extension StickerMenuItems {
-    fileprivate var recoverTitle: String {
-        guard let quantity = model.recoverQuantity else { return "Sell enough to recover the investment" }
-        let invested = model.summary.boughtAmount - model.summary.soldAmount
-        return "Sell \(NumberFormat.quantity(quantity)) \(model.trade.base) to recover \(NumberFormat.quote(invested, fixed: NumberFormat.isTwoDecimalCurrency(model.trade.quote))) \(model.trade.quote)"
-    }
-}
-
 /// Invisible buttons that own the keyboard shortcuts while the sticker is the key window.
 struct ShortcutLayer: View {
     let model: StickerModel
@@ -291,8 +270,6 @@ struct ShortcutLayer: View {
             Button("") { model.toggleForm() }.keyboardShortcut("b")
             Button("") { model.importHistory() }.keyboardShortcut("b", modifiers: [.command, .shift])
             Button("") { model.toggleList() }.keyboardShortcut("l")
-            Button("") { Task { await model.requestClose(recoverInvestment: false) } }.keyboardShortcut("e")
-            Button("") { Task { await model.requestClose(recoverInvestment: true) } }.keyboardShortcut("r")
             Button("") { model.togglePin() }.keyboardShortcut("p")
             Button("") { actions.hide() }.keyboardShortcut("w")
             Button("") { actions.delete() }.keyboardShortcut(.delete, modifiers: [.command, .option])
