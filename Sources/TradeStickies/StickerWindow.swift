@@ -32,8 +32,9 @@ final class StickerPanel: ZoomPanel {
             styleMask: [.borderless], backing: .buffered, defer: false
         )
         level = .normal
-        // Lives on one desktop, but ordering it front (menu item) pulls it to the desktop you are on.
-        collectionBehavior = [.moveToActiveSpace]
+        // Stays on its own desktop. (`.moveToActiveSpace` would drag it to the current desktop whenever the app is
+        // activated, e.g. by opening About.) `show(activate: true)` turns it on for a moment, see below.
+        collectionBehavior = []
         hidesOnDeactivate = false
         isMovableByWindowBackground = true
         isOpaque = false
@@ -136,8 +137,10 @@ final class StickerWindow: NSObject, NSWindowDelegate {
             if content.height > 0 { prepareList() } else { listPending = true } // the sticker has no final frame yet
         }
         if activate {
+            panel.collectionBehavior = [.moveToActiveSpace] // asked for from the menu: bring it to the desktop you are on
             NSApp.activate()
             panel.makeKeyAndOrderFront(nil)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [panel] in panel.collectionBehavior = [] }
         } else {
             panel.orderFront(nil)
         }
