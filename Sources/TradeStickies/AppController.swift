@@ -280,7 +280,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         about.target = self
         menu.addItem(about)
         menu.addItem(.separator())
-        let restart = NSMenuItem(title: "Restart", action: #selector(restart), keyEquivalent: "")
+        let restart = NSMenuItem(title: "Restart", action: #selector(restart), keyEquivalent: "r")
         restart.target = self
         restart.isEnabled = Bundle.main.bundlePath.hasSuffix(".app") // a bare `swift run` binary cannot be reopened
         menu.addItem(restart)
