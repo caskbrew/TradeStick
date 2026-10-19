@@ -15,6 +15,17 @@ struct DevGuardError: Error, CustomStringConvertible {
 final class DialogWindow: NSWindow {
     override var canBecomeKey: Bool { true }
 
+    /// Esc closes the dialog; set by the owner when closing also has to forget the window.
+    var onEscape: (() -> Void)?
+    override func cancelOperation(_ sender: Any?) { (onEscape ?? { self.close() })() }
+
+    /// Exactly in the middle of the screen the pointer is on (`center()` sits above the middle).
+    func centerOnScreen() {
+        let screen = NSScreen.screens.first { NSMouseInRect(NSEvent.mouseLocation, $0.frame, false) } ?? NSScreen.main
+        guard let area = screen?.visibleFrame else { return }
+        setFrameOrigin(NSPoint(x: area.midX - frame.width / 2, y: area.midY - frame.height / 2))
+    }
+
     convenience init(content: NSViewController) {
         self.init(contentViewController: content)
         styleMask = [.borderless]
@@ -311,7 +322,8 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         )
         let window = DialogWindow(content: NSHostingController(rootView: view))
         window.title = "New Trade"
-        window.center()
+        window.onEscape = { [weak self] in self?.closeNewTrade() }
+        window.centerOnScreen()
         newTradeWindow = window
         NSApp.activate()
         window.makeKeyAndOrderFront(nil)
@@ -335,9 +347,10 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
             let close = { [weak self] in self?.aboutWindow?.close(); self?.aboutWindow = nil }
             let window = DialogWindow(content: NSHostingController(rootView: AboutView(version: version, icon: icon, onClose: close)))
             window.title = "About TradeStickies"
-            window.center()
+            window.onEscape = close
             aboutWindow = window
         }
+        (aboutWindow as? DialogWindow)?.centerOnScreen()
         NSApp.activate()
         aboutWindow?.makeKeyAndOrderFront(nil)
     }
@@ -356,10 +369,12 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let models = accounts.map { account in
             APIKeysModel(exchange: account.id, store: credentials, check: { try await account.check($0) })
         }
-        let view = APIKeysView(models: models, initial: exchange, onClose: { [weak self] in self?.apiKeysWindow?.close(); self?.apiKeysWindow = nil })
+        let close = { [weak self] in self?.apiKeysWindow?.close(); self?.apiKeysWindow = nil }
+        let view = APIKeysView(models: models, initial: exchange, onClose: close)
         let window = DialogWindow(content: NSHostingController(rootView: view))
         window.title = "API Keys"
-        window.center()
+        window.onEscape = close
+        window.centerOnScreen()
         apiKeysWindow = window
         NSApp.activate()
         window.makeKeyAndOrderFront(nil)
@@ -395,7 +410,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         window.contentMinSize = NSSize(width: 720, height: 340)
         window.contentMaxSize = NSSize(width: 720, height: 2000)
         window.title = "Import from \(trade.exchange.capitalized)"
-        window.center()
+        window.centerOnScreen()
         importWindows[trade.id] = window
         NSApp.activate()
         window.makeKeyAndOrderFront(nil)
