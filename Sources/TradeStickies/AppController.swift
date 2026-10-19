@@ -255,9 +255,11 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func menuNeedsUpdate(_ menu: NSMenu) {
         menu.removeAllItems()
         let new = NSMenuItem(title: "New Stick", action: #selector(showNewTrade), keyEquivalent: "n")
+        new.keyEquivalentModifierMask = [.command, .shift]
         new.target = self
         menu.addItem(new)
         let keys = NSMenuItem(title: "API Keys", action: #selector(openAPIKeysWindow), keyEquivalent: "k")
+        keys.keyEquivalentModifierMask = [.command, .shift]
         keys.target = self
         menu.addItem(keys)
 
@@ -281,6 +283,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(about)
         menu.addItem(.separator())
         let restart = NSMenuItem(title: "Restart", action: #selector(restart), keyEquivalent: "r")
+        restart.keyEquivalentModifierMask = [.command, .shift]
         restart.target = self
         restart.isEnabled = Bundle.main.bundlePath.hasSuffix(".app") // a bare `swift run` binary cannot be reopened
         menu.addItem(restart)
