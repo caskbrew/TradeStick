@@ -308,9 +308,13 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         open(trade, activate: true)
     }
 
+    /// Brings this app forward for a dialog without raising the stickers (`NSApp.activate()` pulls every window of the app
+    /// onto the current Space and in front of other apps).
+    private func activateQuietly() { NSRunningApplication.current.activate(options: []) }
+
     @objc private func showNewTrade() {
         if let existing = newTradeWindow {
-            NSApp.activate()
+            activateQuietly()
             existing.makeKeyAndOrderFront(nil)
             return
         }
@@ -325,7 +329,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         window.onEscape = { [weak self] in self?.closeNewTrade() }
         window.centerOnScreen()
         newTradeWindow = window
-        NSApp.activate()
+        activateQuietly()
         window.makeKeyAndOrderFront(nil)
     }
 
@@ -351,7 +355,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
             aboutWindow = window
         }
         (aboutWindow as? DialogWindow)?.centerOnScreen()
-        NSApp.activate()
+        activateQuietly()
         aboutWindow?.makeKeyAndOrderFront(nil)
     }
 
@@ -360,7 +364,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func showAPIKeys(exchange: String? = nil) {
         if let existing = apiKeysWindow {
             if exchange == nil {
-                NSApp.activate()
+                activateQuietly()
                 existing.makeKeyAndOrderFront(nil)
                 return
             }
@@ -376,7 +380,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         window.onEscape = close
         window.centerOnScreen()
         apiKeysWindow = window
-        NSApp.activate()
+        activateQuietly()
         window.makeKeyAndOrderFront(nil)
     }
 
@@ -412,7 +416,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         window.title = "Import from \(trade.exchange.capitalized)"
         window.centerOnScreen()
         importWindows[trade.id] = window
-        NSApp.activate()
+        activateQuietly()
         window.makeKeyAndOrderFront(nil)
     }
 
