@@ -31,7 +31,16 @@ final class DialogWindow: NSWindow {
         super.makeKeyAndOrderFront(sender)
         contentView?.layoutSubtreeIfNeeded()
         centerOnScreen()
+        // SwiftUI may still change the window's size after this pass; keep it centred unless the user has already moved it.
+        for delay in [0.05, 0.3] {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+                guard let self, isVisible, frame.origin == centeredOrigin || delay == 0.05 else { return }
+                centerOnScreen()
+            }
+        }
     }
+
+    private var centeredOrigin = NSPoint.zero
 
     /// Esc closes the dialog; set by the owner when closing also has to forget the window.
     var onEscape: (() -> Void)?
@@ -39,9 +48,11 @@ final class DialogWindow: NSWindow {
 
     /// Exactly in the middle of the screen the pointer is on (`center()` sits above the middle).
     func centerOnScreen() {
-        let screen = NSScreen.screens.first { NSMouseInRect(NSEvent.mouseLocation, $0.frame, false) } ?? NSScreen.main
+        let mouse = NSEvent.mouseLocation // in the menu bar the pointer sits on the very edge of its screen: allow a point of slack
+        let screen = NSScreen.screens.first { $0.frame.insetBy(dx: -1, dy: -1).contains(mouse) } ?? NSScreen.main
         guard let area = screen?.visibleFrame else { return }
-        setFrameOrigin(NSPoint(x: area.midX - frame.width / 2, y: area.midY - frame.height / 2))
+        centeredOrigin = NSPoint(x: (area.midX - frame.width / 2).rounded(), y: (area.midY - frame.height / 2).rounded())
+        setFrameOrigin(centeredOrigin)
     }
 
     convenience init(content: NSViewController) {
