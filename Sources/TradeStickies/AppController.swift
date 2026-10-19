@@ -15,6 +15,13 @@ struct DevGuardError: Error, CustomStringConvertible {
 final class DialogWindow: NSWindow {
     override var canBecomeKey: Bool { true }
 
+    /// Closing the last dialog hands the focus back to the previous app first: otherwise AppKit makes a sticker the key
+    /// window, and a sticker (it follows the active Space) jumps to the desktop the dialog was on.
+    override func close() {
+        if !NSApp.windows.contains(where: { $0 !== self && $0 is DialogWindow && $0.isVisible }) { NSApp.deactivate() }
+        super.close()
+    }
+
     /// Esc closes the dialog; set by the owner when closing also has to forget the window.
     var onEscape: (() -> Void)?
     override func cancelOperation(_ sender: Any?) { (onEscape ?? { self.close() })() }
