@@ -284,6 +284,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(.separator())
         let restart = NSMenuItem(title: "Restart", action: #selector(restart), keyEquivalent: "r")
         restart.keyEquivalentModifierMask = [.command, .shift]
+        restart.image = NSImage(systemSymbolName: "arrow.clockwise", accessibilityDescription: "Restart") // like the one macOS gives Quit
         restart.target = self
         restart.isEnabled = Bundle.main.bundlePath.hasSuffix(".app") // a bare `swift run` binary cannot be reopened
         menu.addItem(restart)
