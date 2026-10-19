@@ -318,6 +318,16 @@ extension UITests {
         #expect(offlineWindow.size == size)
     }
 
+    @Test func aboutShowsTheStepsAndLinksToGitHub() async throws {
+        let icon = NSImage(contentsOfFile: "Sources/TradeStickies/Resources/AppIcon.png")
+        let window = TestWindow(AboutView(version: "0.2.4", icon: icon, onClose: {}))
+        window.snapshot("window-about")
+        #expect(window.size.width == 480 && window.size.height < 700, "\(window.size)")
+        #expect(AboutView.issues.absoluteString == "https://github.com/caskbrew/TradeStickies/issues/new")
+        #expect(AboutView.issues.absoluteString.hasPrefix(AboutView.repository.absoluteString))
+        #expect(AboutView.steps.count == 4)
+    }
+
     @Test func importShowsAFailureAndAnEmptyList() async throws {
         let failing = ImportModel(title: "Import from Poloniex", pair: "GRAM / USDT", quote: "USDT",
                                   fetch: { throw PoloniexAPIError(status: 401, code: nil, message: "Invalid API key") },

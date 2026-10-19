@@ -325,10 +325,20 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         NSApp.terminate(nil)
     }
 
+    private var aboutWindow: NSWindow?
+
     @objc private func showAbout() {
-        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev build"
+        if aboutWindow == nil {
+            let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev build"
+            let icon = Bundle.module.url(forResource: "AppIcon", withExtension: "png").flatMap { NSImage(contentsOf: $0) }
+            let close = { [weak self] in self?.aboutWindow?.close(); self?.aboutWindow = nil }
+            let window = DialogWindow(content: NSHostingController(rootView: AboutView(version: version, icon: icon, onClose: close)))
+            window.title = "About TradeStickies"
+            window.center()
+            aboutWindow = window
+        }
         NSApp.activate()
-        NSApp.orderFrontStandardAboutPanel(options: [.applicationName: "TradeStickies", .applicationVersion: version, .version: ""])
+        aboutWindow?.makeKeyAndOrderFront(nil)
     }
 
     @objc private func openAPIKeysWindow() { showAPIKeys() }
