@@ -11,6 +11,7 @@ import Testing
     static let exchanges: [(any ExchangeAdapter, Instrument)] = [
         (BinanceAdapter(), Instrument(base: "BTC", quote: "USDT")),
         (PoloniexAdapter(), Instrument(base: "BTC", quote: "USDT")),
+        (BybitAdapter(), Instrument(base: "BTC", quote: "USDT")),
     ]
 
     @Test func publicPairListPriceAndSocketWorkOnEveryExchange() async throws {

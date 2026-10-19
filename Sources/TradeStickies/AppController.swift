@@ -37,8 +37,8 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     static let isInstalled = Bundle.main.bundleIdentifier == "com.caskbrew.tradestickies"
     static let dataFolder = isInstalled ? "TradeStickies" : "TradeStickies-Dev"
     private let icons = CoinIcons(directory: FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?.appending(path: "\(AppController.dataFolder)/icons"))
-    private let adapters: [any ExchangeAdapter] = [BinanceAdapter(), PoloniexAdapter()]
-    private let accounts: [any ExchangeAccount] = [BinanceAccountAPI(), PoloniexAccountAPI()]
+    private let adapters: [any ExchangeAdapter] = [BinanceAdapter(), PoloniexAdapter(), BybitAdapter()]
+    private let accounts: [any ExchangeAccount] = [BinanceAccountAPI(), PoloniexAccountAPI(), BybitAccountAPI()]
     private var statusItem: NSStatusItem!
     private var windows: [UUID: StickerWindow] = [:]
     private var newTradeWindow: NSWindow?

@@ -19,7 +19,7 @@ extension UITests {
     ]
 
     func open(created: @escaping (NewTradeRequest) -> Void = { _ in }, cancelled: @escaping () -> Void = {}) async -> (TestWindow, NewTradeModel) {
-        let model = NewTradeModel(adapters: [FakeExchange(id: "binance", listed: pairs), FakeExchange(id: "poloniex", listed: pairs)],
+        let model = NewTradeModel(adapters: [FakeExchange(id: "binance", listed: pairs), FakeExchange(id: "poloniex", listed: pairs), FakeExchange(id: "bybit", listed: pairs)],
                                   defaults: UserDefaults(suiteName: UUID().uuidString)!)
         let window = TestWindow(NewTradeView(model: model, onCreate: created, onCancel: cancelled))
         await model.loadInstruments()
@@ -108,6 +108,16 @@ extension UITests {
         window.settle()
         #expect(model.instruments.count == 3)
         window.snapshot("window-new-trade-poloniex")
+    }
+
+    @Test func switchingToBybitLoadsItsPairsAndEveryExchangeIsOffered() async throws {
+        let (window, model) = await open()
+        #expect(model.exchanges == ["binance", "poloniex", "bybit"])
+        model.exchange = "bybit"
+        await model.loadInstruments()
+        window.settle()
+        #expect(model.instruments.count == 3)
+        window.snapshot("window-new-trade-bybit")
     }
 }
 
@@ -204,7 +214,8 @@ extension UITests {
     @Test func apiKeysKeepsItsSizeWhileCheckingAndShowsEachExchange() async throws {
         let slow = keysModel("binance") { _ in try await Task.sleep(for: .milliseconds(500)); return APIKeyCheck(readOnly: true) }
         let polo = keysModel("poloniex") { _ in APIKeyCheck() }
-        let window = TestWindow(APIKeysView(models: [slow, polo], onClose: {}))
+        let bybit = keysModel("bybit") { _ in APIKeyCheck(warnings: ["Trading is enabled for this key", "TradeStickies only reads trade history: create a read-only key"], readOnly: false) }
+        let window = TestWindow(APIKeysView(models: [slow, polo, bybit], onClose: {}))
         let idle = window.size
         window.snapshot("window-api-keys-empty")
         slow.keyText = "KEY"; slow.secretText = "SECRET"
@@ -218,9 +229,15 @@ extension UITests {
         window.snapshot("window-api-keys-connected")
         #expect(slow.connected && window.size == idle)
 
-        let poloWindow = TestWindow(APIKeysView(models: [slow, polo], initial: "poloniex", onClose: {}))
+        let poloWindow = TestWindow(APIKeysView(models: [slow, polo, bybit], initial: "poloniex", onClose: {}))
         poloWindow.snapshot("window-api-keys-poloniex")
         #expect(poloWindow.size == idle)
+        let bybitWindow = TestWindow(APIKeysView(models: [slow, polo, bybit], initial: "bybit", onClose: {}))
+        bybit.keyText = "KEY"; bybit.secretText = "SECRET"
+        await bybit.test()
+        bybitWindow.settle()
+        bybitWindow.snapshot("window-api-keys-bybit")
+        #expect(bybitWindow.size == idle)
     }
 
     @Test func savingAKeyClosesTheWindow() async throws {
@@ -444,6 +461,15 @@ extension UITests {
         for _ in 0..<10 { model.zoom(by: StickerModel.zoomStep) }
         #expect(model.scale == StickerModel.scaleRange.upperBound && model.zoomPercent(by: StickerModel.zoomStep) == 200)
         menu().snapshot("menu-sticker-zoom-200")
+    }
+
+    @Test func aBybitStickerHasTheSizeOfAnyOther() async throws {
+        let layout = UITests.StickerLayoutTests()
+        let (other, _) = try await layout.sticker(UITests.StickerLayoutTests.cases[0], exchange: "poloniex")
+        let size = other.size
+        let (bybit, _) = try await layout.sticker(UITests.StickerLayoutTests.cases[0], exchange: "bybit")
+        bybit.snapshot("window-sticker-bybit")
+        #expect(bybit.size == size)
     }
 
     @Test func anEmptyStickerShowsZerosNotAnAddButton() async throws {

@@ -34,7 +34,7 @@ public struct AboutView: View {
                 }
                 Spacer()
             }
-            Text("A floating sticker for every crypto trade: the live price and your profit at the average cost, always on screen. Binance and Poloniex.")
+            Text("A floating sticker for every crypto trade: the live price and your profit at the average cost, always on screen. Binance, Bybit and Poloniex.")
                 .font(.system(size: 13)).fixedSize(horizontal: false, vertical: true)
 
             VStack(alignment: .leading, spacing: 10) {
