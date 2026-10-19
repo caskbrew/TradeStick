@@ -389,6 +389,25 @@ extension UITests {
         #expect(heights["tiny"] == heights["huge"] && heights["huge"] == heights["btc-quote"])
     }
 
+    /// The `⋯` menu items, drawn in a window: titles, and Zoom In / Out greyed at the limits.
+    @Test func theMenuTitlesFollowTheZoomAndDisableAtTheLimits() async throws {
+        let key = "stickerScale", saved = UserDefaults.standard.object(forKey: key)
+        defer { UserDefaults.standard.set(saved, forKey: key) }
+        let (_, model) = try await UITests.StickerLayoutTests().sticker(UITests.StickerLayoutTests.cases[0])
+        func menu() -> TestWindow {
+            TestWindow(VStack(alignment: .leading) { StickerMenuItems(model: model, actions: StickerActions(hide: {}, delete: {})) }
+                .buttonStyle(.plain).padding(12).frame(width: 300).background(Color(white: 0.16)))
+        }
+        model.zoom(by: 0)
+        #expect(model.zoomPercent(by: StickerModel.zoomStep) == 110 && model.zoomPercent(by: -StickerModel.zoomStep) == 100)
+        menu().snapshot("menu-sticker-zoom-100")
+        model.zoom(by: 0.5)
+        menu().snapshot("menu-sticker-zoom-150")
+        for _ in 0..<10 { model.zoom(by: StickerModel.zoomStep) }
+        #expect(model.scale == StickerModel.scaleRange.upperBound && model.zoomPercent(by: StickerModel.zoomStep) == 200)
+        menu().snapshot("menu-sticker-zoom-200")
+    }
+
     @Test func anEmptyStickerShowsZerosNotAnAddButton() async throws {
         let c = UITests.StickerLayoutTests.Case(name: "empty", base: "GRAM", quote: "USDT", direction: .buyFirst, txs: [], price: "0.055", open: "0.05")
         let (window, model) = try await UITests.StickerLayoutTests().sticker(c)
