@@ -28,6 +28,7 @@ final class DialogWindow: NSWindow {
 
     /// The size is only final once SwiftUI has laid the content out, so centre after ordering front (same run-loop pass: no visible jump).
     override func makeKeyAndOrderFront(_ sender: Any?) {
+        if !isVisible { alphaValue = 0 } // invisible until it has its final place and size
         super.makeKeyAndOrderFront(sender)
         contentView?.layoutSubtreeIfNeeded()
         centerOnScreen()
@@ -36,6 +37,7 @@ final class DialogWindow: NSWindow {
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
                 guard let self, isVisible, frame.origin == centeredOrigin || delay == 0.05 else { return }
                 centerOnScreen()
+                alphaValue = 1
             }
         }
     }
