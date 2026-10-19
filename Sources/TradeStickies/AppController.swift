@@ -35,6 +35,7 @@ final class DialogWindow: NSWindow {
         isMovableByWindowBackground = true
         isReleasedWhenClosed = false
         appearance = NSAppearance(named: .darkAqua)
+        collectionBehavior = [.moveToActiveSpace] // opens on the desktop you are on
     }
 }
 
@@ -310,12 +311,13 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     /// Brings this app forward for a dialog without raising the stickers (`NSApp.activate()` pulls every window of the app
     /// onto the current Space and in front of other apps).
+    /// Dialogs are ordered front first (they open on this desktop), then the app activates: it finds a window here and does not switch desktops.
     private func activateQuietly() { NSRunningApplication.current.activate(options: []) }
 
     @objc private func showNewTrade() {
         if let existing = newTradeWindow {
-            activateQuietly()
             existing.makeKeyAndOrderFront(nil)
+            activateQuietly()
             return
         }
         let model = NewTradeModel(adapters: adapters)
@@ -329,8 +331,8 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         window.onEscape = { [weak self] in self?.closeNewTrade() }
         window.centerOnScreen()
         newTradeWindow = window
-        activateQuietly()
         window.makeKeyAndOrderFront(nil)
+        activateQuietly()
     }
 
     /// Starts a fresh copy of the app a moment after this one has quit (handy after `brew upgrade`).
@@ -355,8 +357,8 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
             aboutWindow = window
         }
         (aboutWindow as? DialogWindow)?.centerOnScreen()
-        activateQuietly()
         aboutWindow?.makeKeyAndOrderFront(nil)
+        activateQuietly()
     }
 
     @objc private func openAPIKeysWindow() { showAPIKeys() }
@@ -364,8 +366,8 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func showAPIKeys(exchange: String? = nil) {
         if let existing = apiKeysWindow {
             if exchange == nil {
-                activateQuietly()
                 existing.makeKeyAndOrderFront(nil)
+                activateQuietly()
                 return
             }
             existing.close() // reopen on the requested exchange
@@ -380,8 +382,8 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         window.onEscape = close
         window.centerOnScreen()
         apiKeysWindow = window
-        activateQuietly()
         window.makeKeyAndOrderFront(nil)
+        activateQuietly()
     }
 
     private var importWindows: [UUID: NSWindow] = [:]
@@ -416,8 +418,8 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         window.title = "Import from \(trade.exchange.capitalized)"
         window.centerOnScreen()
         importWindows[trade.id] = window
-        activateQuietly()
         window.makeKeyAndOrderFront(nil)
+        activateQuietly()
     }
 
     private func closeNewTrade() {
