@@ -49,13 +49,30 @@ brew tap caskbrew/tap
 brew install --cask tradestick
 ```
 
-Update and remove:
+If Homebrew refuses with a "trust" message (recent versions only load casks from trusted non-official taps):
+
+```sh
+brew trust --tap caskbrew/tap              # the whole tap
+brew trust --cask caskbrew/tap/tradestick  # or just this cask
+```
+
+Update:
 
 ```sh
 brew update && brew upgrade --cask tradestick
-brew uninstall --cask tradestick          # keeps your data
-brew uninstall --zap --cask tradestick    # also deletes ~/Library/Application Support/TradeStick
+brew outdated --cask                       # what has a newer version
+brew info --cask caskbrew/tap/tradestick   # installed vs latest version
 ```
+
+Reinstall and remove:
+
+```sh
+brew reinstall --cask tradestick          # app only, your data stays
+brew uninstall --cask tradestick          # app only, your data stays
+brew uninstall --zap --cask tradestick    # app AND its data and settings; cannot be undone
+```
+
+Coming from TradeStickies (the old name)? Remove the old cask first (`brew uninstall --cask tradestickies`, no `--zap`), then install `tradestick`. The new app moves your data and API keys over on first start.
 
 Requires macOS 15 (Sequoia) or newer. The app is not notarized; the cask removes the quarantine flag so it starts normally.
 
