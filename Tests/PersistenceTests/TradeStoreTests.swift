@@ -169,7 +169,7 @@ func at(_ minute: Int) -> Date { Date(timeIntervalSince1970: 1_700_000_000 + Dou
         try FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
 
         let url = try TradeStore.databaseURL(inApplicationSupport: base)
-        #expect(url.path == base.appendingPathComponent("TradeStickies/tradestickies.sqlite").path)
+        #expect(url.path == base.appendingPathComponent("TradeStick/tradestick.sqlite").path)
         let store = try TradeStore(path: url.path) // the folder exists, so SQLite can create the file
         _ = try store.createTrade(exchange: "binance", base: "GRAM", quote: "USDT", direction: .buyFirst)
         #expect(FileManager.default.fileExists(atPath: url.path))
@@ -178,7 +178,7 @@ func at(_ minute: Int) -> Date { Date(timeIntervalSince1970: 1_700_000_000 + Dou
 
 @Suite struct KeychainCredentialStoreTests {
     @Test func roundTripsThroughTheRealKeychain() throws {
-        let store = KeychainCredentialStore(service: "com.caskbrew.tradestickies.tests.\(UUID().uuidString)")
+        let store = KeychainCredentialStore(service: "com.caskbrew.tradestick.tests.\(UUID().uuidString)")
         defer { try? store.remove(exchange: "binance") }
         #expect(try store.load(exchange: "binance") == nil)
         try store.save(APICredentials(key: "K1", secret: "S1"), exchange: "binance")
@@ -310,5 +310,46 @@ func at(_ minute: Int) -> Date { Date(timeIntervalSince1970: 1_700_000_000 + Dou
         try Schema.migrator().migrate(queue)
         #expect(try queue.read { try Bool.fetchOne($0, sql: "SELECT edited FROM tradeTransaction WHERE id = 'X'") } == false)
         #expect(try queue.read { try Int.fetchOne($0, sql: "SELECT COUNT(*) FROM exchangeFill") } == 0)
+    }
+}
+
+@Suite struct LegacyMigrationTests {
+    private func tempBase() throws -> URL {
+        let base = FileManager.default.temporaryDirectory.appendingPathComponent("mig-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
+        return base
+    }
+
+    @Test func movesTheOldFolderAndRenamesTheDatabase() throws {
+        let base = try tempBase(); defer { try? FileManager.default.removeItem(at: base) }
+        let old = base.appendingPathComponent("TradeStickies", isDirectory: true)
+        try FileManager.default.createDirectory(at: old, withIntermediateDirectories: true)
+        try Data("db".utf8).write(to: old.appendingPathComponent("tradestickies.sqlite"))
+        try Data("wal".utf8).write(to: old.appendingPathComponent("tradestickies.sqlite-wal"))
+        #expect(try LegacyMigration.moveDataFolder(in: base, from: "TradeStickies", to: "TradeStick"))
+        let new = base.appendingPathComponent("TradeStick")
+        #expect(try Data(contentsOf: new.appendingPathComponent("tradestick.sqlite")) == Data("db".utf8))
+        #expect(FileManager.default.fileExists(atPath: new.appendingPathComponent("tradestick.sqlite-wal").path))
+        #expect(!FileManager.default.fileExists(atPath: old.path))
+        #expect(try LegacyMigration.moveDataFolder(in: base, from: "TradeStickies", to: "TradeStick") == false) // second run: nothing to do
+    }
+
+    @Test func neverTouchesAnExistingNewFolder() throws {
+        let base = try tempBase(); defer { try? FileManager.default.removeItem(at: base) }
+        for name in ["TradeStickies", "TradeStick"] { try FileManager.default.createDirectory(at: base.appendingPathComponent(name), withIntermediateDirectories: true) }
+        #expect(try LegacyMigration.moveDataFolder(in: base, from: "TradeStickies", to: "TradeStick") == false)
+        #expect(FileManager.default.fileExists(atPath: base.appendingPathComponent("TradeStickies").path))
+    }
+
+    @Test func copiesKeysOnlyWhereTheNewStoreHasNone() {
+        let old = InMemoryCredentialStore(), new = InMemoryCredentialStore()
+        try? old.save(APICredentials(key: "OLD1", secret: "S"), exchange: "binance")
+        try? old.save(APICredentials(key: "OLD2", secret: "S"), exchange: "bybit")
+        try? new.save(APICredentials(key: "NEW2", secret: "S"), exchange: "bybit")
+        LegacyMigration.copyKeys(from: old, to: new, exchanges: ["binance", "bybit", "poloniex"])
+        #expect(try! new.load(exchange: "binance")?.key == "OLD1")
+        #expect(try! new.load(exchange: "bybit")?.key == "NEW2")
+        #expect(try! new.load(exchange: "poloniex") == nil)
+        #expect(try! old.load(exchange: "binance")?.key == "OLD1") // the old item stays
     }
 }

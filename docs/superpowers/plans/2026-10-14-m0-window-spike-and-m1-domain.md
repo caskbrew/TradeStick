@@ -1,4 +1,4 @@
-# TradeStickies M0 (Window Spike) + M1 (Domain) Implementation Plan
+# TradeStick M0 (Window Spike) + M1 (Domain) Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -84,7 +84,7 @@ git add .gitignore docs
 git status --short
 ```
 
-Expected: `.gitignore`, `docs/specs/...`, `docs/superpowers/plans/...`, `docs/tradestickies-ui-spec.md` are staged; no `.png` files are listed.
+Expected: `.gitignore`, `docs/specs/...`, `docs/superpowers/plans/...`, `docs/tradestick-ui-spec.md` are staged; no `.png` files are listed.
 
 - [ ] **Step 3: Commit**
 
@@ -125,7 +125,7 @@ Expected: one commit created on `main`.
 import PackageDescription
 
 let package = Package(
-    name: "TradeStickies",
+    name: "TradeStick",
     platforms: [.macOS(.v15)],
     products: [
         .library(name: "Domain", targets: ["Domain"]),
@@ -565,7 +565,7 @@ Replace `Package.swift` with:
 import PackageDescription
 
 let package = Package(
-    name: "TradeStickies",
+    name: "TradeStick",
     platforms: [.macOS(.v15)],
     products: [
         .library(name: "Domain", targets: ["Domain"]),

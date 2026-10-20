@@ -54,15 +54,15 @@ Update and remove:
 ```sh
 brew update && brew upgrade --cask tradestick
 brew uninstall --cask tradestick          # keeps your data
-brew uninstall --zap --cask tradestick    # also deletes ~/Library/Application Support/TradeStickies
+brew uninstall --zap --cask tradestick    # also deletes ~/Library/Application Support/TradeStick
 ```
 
 Requires macOS 15 (Sequoia) or newer. The app is not notarized; the cask removes the quarantine flag so it starts normally.
 
 ## Data
 
-Your trades live in `~/Library/Application Support/TradeStickies/tradestickies.sqlite`.
-Builds that are not the installed app (`swift run`, `.build/…`) use `TradeStickies-Dev/` instead and never touch it.
+Your trades live in `~/Library/Application Support/TradeStick/tradestick.sqlite`.
+Builds that are not the installed app (`swift run`, `.build/…`) use `TradeStick-Dev/` instead and never touch it.
 
 ## Build from source
 
@@ -76,7 +76,7 @@ scripts/package.sh 0.1.0   # dist/TradeStick-0.1.0.zip + sha256 for the cask
 
 The installed app (`/Applications/TradeStick.app`, bundle id `com.caskbrew.tradestick`) and a dev build never share anything:
 
-- data: `~/Library/Application Support/TradeStickies/` vs `TradeStickies-Dev/`; a dev build refuses to open the installed folder even via `TRADESTICKIES_DB`;
+- data: `~/Library/Application Support/TradeStick/` vs `TradeStick-Dev/`; a dev build refuses to open the installed folder even via `TRADESTICK_DB`;
 - settings: separate `UserDefaults` domains; the dev instance shows "DEV" in the menu bar;
 - processes: run and restart dev only with `scripts/dev.sh`, which stops just the process started from `.build/`. Never `pkill TradeStick`;
 - `.claude/settings.json` denies Claude Code `pkill`/`killall`/`kill` and any access to the installed app's data folder.

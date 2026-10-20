@@ -51,15 +51,15 @@ import Testing
     }
 
     static func devDatabaseCopy() throws -> String? {
-        let source = try TradeStore.defaultDatabaseURL(folder: "TradeStickies-Dev")
+        let source = try TradeStore.defaultDatabaseURL(folder: "TradeStick-Dev")
         guard FileManager.default.fileExists(atPath: source.path) else { return nil }
         let dir = FileManager.default.temporaryDirectory.appending(path: "tradestick-live-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         for suffix in ["", "-wal", "-shm"] {
             let file = URL(fileURLWithPath: source.path + suffix)
-            if FileManager.default.fileExists(atPath: file.path) { try FileManager.default.copyItem(at: file, to: dir.appending(path: "tradestickies.sqlite" + suffix)) }
+            if FileManager.default.fileExists(atPath: file.path) { try FileManager.default.copyItem(at: file, to: dir.appending(path: "tradestick.sqlite" + suffix)) }
         }
-        return dir.appending(path: "tradestickies.sqlite").path
+        return dir.appending(path: "tradestick.sqlite").path
     }
 
     /// The dev database (a copy) opens with the current migrations, keeps its data and stays valid when opened again.
@@ -79,7 +79,7 @@ import Testing
     /// Binance with the key saved in the dev app: the key works and the history of every Binance trade loads, groups
     /// and is recognised as already imported where it was imported.
     @Test func binanceKeyWorksAndHistoryLoadsForTheDevTrades() async throws {
-        let store = KeychainCredentialStore(service: "com.caskbrew.tradestickies.dev")
+        let store = KeychainCredentialStore(service: "com.caskbrew.tradestick.dev")
         guard let keys = (try? store.load(exchange: "binance")) ?? nil else { print("LIVE: no Binance key in the dev Keychain, skipped"); return }
         let api = BinanceAccountAPI()
         let check = try await api.check(keys)

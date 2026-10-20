@@ -8,7 +8,7 @@ import SwiftUI
 import Widgets
 
 struct DevGuardError: Error, CustomStringConvertible {
-    var description: String { "A dev build refuses to open the installed app's data (Application Support/TradeStickies)." }
+    var description: String { "A dev build refuses to open the installed app's data (Application Support/TradeStick)." }
 }
 
 /// Frameless dialog like the stickers (the card draws its own glass); a borderless window must opt in to taking keys.
@@ -78,8 +78,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// Only the installed app (bundle id set by scripts/package.sh) touches the real data. Anything else
     /// (`swift run`, a dev build) uses its own folder, so development never damages the user's trades.
     static let isInstalled = Bundle.main.bundleIdentifier == "com.caskbrew.tradestick"
-    /// Storage names (data folder, sqlite file, keychain service) keep the pre-rename "TradeStickies" so existing data and keys survive.
-    static let dataFolder = isInstalled ? "TradeStickies" : "TradeStickies-Dev"
+    static let dataFolder = isInstalled ? "TradeStick" : "TradeStick-Dev"
     private let icons = CoinIcons(directory: FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?.appending(path: "\(AppController.dataFolder)/icons"))
     private let adapters: [any ExchangeAdapter] = [BinanceAdapter(), PoloniexAdapter(), BybitAdapter()]
     private let accounts: [any ExchangeAccount] = [BinanceAccountAPI(), PoloniexAccountAPI(), BybitAccountAPI()]
@@ -88,16 +87,22 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var newTradeWindow: NSWindow?
     private var apiKeysWindow: NSWindow?
     /// The installed app and dev builds keep their keys apart, like their data.
-    private let credentials: any CredentialStore = KeychainCredentialStore(service: AppController.isInstalled ? "com.caskbrew.tradestickies" : "com.caskbrew.tradestickies.dev")
+    private let credentials: any CredentialStore = KeychainCredentialStore(service: AppController.isInstalled ? "com.caskbrew.tradestick" : "com.caskbrew.tradestick.dev")
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory) // menu bar agent, no Dock icon
         do {
+            // Before the rename the folder and keychain service were called "TradeStickies": carry them over once.
+            if let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first {
+                try LegacyMigration.moveDataFolder(in: base, from: Self.isInstalled ? "TradeStickies" : "TradeStickies-Dev", to: Self.dataFolder)
+            }
+            let legacy = "com.caskbrew.tradestickies" + (Self.isInstalled ? "" : ".dev")
+            LegacyMigration.copyKeys(from: KeychainCredentialStore(service: legacy), to: credentials, exchanges: adapters.map(\.id))
             // Developer overrides: a separate database file and demo data (spec example A).
             let path: String
-            if let override = ProcessInfo.processInfo.environment["TRADESTICKIES_DB"] { path = override } else { path = try TradeStore.defaultDatabaseURL(folder: Self.dataFolder).path }
+            if let override = ProcessInfo.processInfo.environment["TRADESTICK_DB"] { path = override } else { path = try TradeStore.defaultDatabaseURL(folder: Self.dataFolder).path }
             // A dev build must never open the installed app's database, whatever the override says.
-            if !Self.isInstalled, path.contains("/Application Support/TradeStickies/") { throw DevGuardError() }
+            if !Self.isInstalled, path.contains("/Application Support/TradeStick/") { throw DevGuardError() }
             store = try TradeStore(path: path)
             if CommandLine.arguments.contains("--seed-demo"), try store.trades().isEmpty { try seedDemo() }
         } catch {
@@ -211,7 +216,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
             print("selftest \(label): card \(cardPath.map { Int($0) })")
             print("selftest \(label): top moved \(tops.max()! - tops.min()!) pt, heights \(path.map { Int($0) }), steps \(steps)")
         }
-        if let dir = ProcessInfo.processInfo.environment["TRADESTICKIES_FRAMES"] {
+        if let dir = ProcessInfo.processInfo.environment["TRADESTICK_FRAMES"] {
             try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
             try? await Task.sleep(for: .milliseconds(800))
             window.capture(to: URL(fileURLWithPath: dir).appendingPathComponent("expand-0.png"))
