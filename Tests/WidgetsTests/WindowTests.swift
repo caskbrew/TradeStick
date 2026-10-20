@@ -340,7 +340,7 @@ extension UITests {
         let window = TestWindow(AboutView(version: "0.2.4", icon: icon, onClose: {}))
         window.snapshot("window-about")
         #expect(window.size.width == 480 && window.size.height < 700, "\(window.size)")
-        #expect(AboutView.issues.absoluteString == "https://github.com/caskbrew/TradeStickies/issues/new")
+        #expect(AboutView.issues.absoluteString == "https://github.com/caskbrew/TradeStick/issues/new")
         #expect(AboutView.issues.absoluteString.hasPrefix(AboutView.repository.absoluteString))
         #expect(AboutView.steps.count == 4)
     }

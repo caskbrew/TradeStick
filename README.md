@@ -83,6 +83,6 @@ The installed app (`/Applications/TradeStick.app`, bundle id `com.caskbrew.trade
 
 ## Feedback
 
-Found a bug or want something added? [Open an issue](https://github.com/caskbrew/TradeStickies/issues).
+Found a bug or want something added? [Open an issue](https://github.com/caskbrew/TradeStick/issues).
 
 ![About](docs/readme/about.png)

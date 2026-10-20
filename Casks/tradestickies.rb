@@ -2,10 +2,10 @@ cask "tradestickies" do
   version "0.3.2"
   sha256 "160e6fcbe4ac248637fe437d16d29bcf875902056ad6a962e48c4f05efac97af"
 
-  url "https://github.com/caskbrew/TradeStickies/releases/download/v#{version}/TradeStickies-#{version}.zip"
+  url "https://github.com/caskbrew/TradeStick/releases/download/v#{version}/TradeStickies-#{version}.zip"
   name "TradeStickies"
   desc "Floating sticker windows with live PnL for your crypto trades"
-  homepage "https://github.com/caskbrew/TradeStickies"
+  homepage "https://github.com/caskbrew/TradeStick"
 
   depends_on macos: :sequoia
 

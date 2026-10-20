@@ -3,8 +3,8 @@ import SwiftUI
 
 /// "About" card: what the app is, how a trade goes through it, and where to report a bug or ask for something.
 public struct AboutView: View {
-    public static let repository = URL(string: "https://github.com/caskbrew/TradeStickies")!
-    public static let issues = URL(string: "https://github.com/caskbrew/TradeStickies/issues/new")!
+    public static let repository = URL(string: "https://github.com/caskbrew/TradeStick")!
+    public static let issues = URL(string: "https://github.com/caskbrew/TradeStick/issues/new")!
 
     let version: String
     let icon: NSImage?
