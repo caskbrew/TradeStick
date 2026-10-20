@@ -16,11 +16,13 @@ public enum LegacyMigration {
         return true
     }
 
-    /// Copies the keys stored under the old Keychain service to the new one (the old items stay, so a rollback still works).
-    public static func copyKeys(from old: CredentialStore, to new: CredentialStore, exchanges: [String]) {
+    /// Moves the keys stored under the old Keychain service to the new one. An old item is removed only after the
+    /// new one reads back identical, so a failed or refused copy never loses a key.
+    public static func moveKeys(from old: CredentialStore, to new: CredentialStore, exchanges: [String]) {
         for exchange in exchanges {
-            guard (try? new.load(exchange: exchange)) ?? nil == nil, let keys = (try? old.load(exchange: exchange)) ?? nil else { continue }
-            try? new.save(keys, exchange: exchange)
+            guard let keys = (try? old.load(exchange: exchange)) ?? nil else { continue }
+            if ((try? new.load(exchange: exchange)) ?? nil) == nil { try? new.save(keys, exchange: exchange) }
+            if let stored = (try? new.load(exchange: exchange)) ?? nil, stored == keys { try? old.remove(exchange: exchange) }
         }
     }
 }

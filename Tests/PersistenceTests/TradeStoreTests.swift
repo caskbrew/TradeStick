@@ -341,15 +341,39 @@ func at(_ minute: Int) -> Date { Date(timeIntervalSince1970: 1_700_000_000 + Dou
         #expect(FileManager.default.fileExists(atPath: base.appendingPathComponent("TradeStickies").path))
     }
 
-    @Test func copiesKeysOnlyWhereTheNewStoreHasNone() {
+    @Test func movesKeysAndRemovesTheOldOnesOnlyAfterTheNewReadBack() {
         let old = InMemoryCredentialStore(), new = InMemoryCredentialStore()
         try? old.save(APICredentials(key: "OLD1", secret: "S"), exchange: "binance")
         try? old.save(APICredentials(key: "OLD2", secret: "S"), exchange: "bybit")
-        try? new.save(APICredentials(key: "NEW2", secret: "S"), exchange: "bybit")
-        LegacyMigration.copyKeys(from: old, to: new, exchanges: ["binance", "bybit", "poloniex"])
+        try? new.save(APICredentials(key: "NEW2", secret: "S"), exchange: "bybit") // a newer key wins and stays
+        LegacyMigration.moveKeys(from: old, to: new, exchanges: ["binance", "bybit", "poloniex"])
         #expect(try! new.load(exchange: "binance")?.key == "OLD1")
         #expect(try! new.load(exchange: "bybit")?.key == "NEW2")
         #expect(try! new.load(exchange: "poloniex") == nil)
-        #expect(try! old.load(exchange: "binance")?.key == "OLD1") // the old item stays
+        #expect(try! old.load(exchange: "binance") == nil) // copied and verified, so removed
+        #expect(try! old.load(exchange: "bybit")?.key == "OLD2") // not the same as the new one: kept
+    }
+
+    @Test func keepsTheOldKeyWhenTheNewStoreRefusesIt() {
+        struct Refusing: CredentialStore {
+            func load(exchange: String) throws -> APICredentials? { nil }
+            func save(_ credentials: APICredentials, exchange: String) throws { throw KeychainError(status: -25293) }
+            func remove(exchange: String) throws {}
+        }
+        let old = InMemoryCredentialStore()
+        try? old.save(APICredentials(key: "OLD", secret: "S"), exchange: "binance")
+        LegacyMigration.moveKeys(from: old, to: Refusing(), exchanges: ["binance"])
+        #expect(try! old.load(exchange: "binance")?.key == "OLD")
+    }
+
+    @Test func movesKeysBetweenTwoRealKeychainServices() throws {
+        let id = UUID().uuidString
+        let old = KeychainCredentialStore(service: "com.caskbrew.tradestickies.tests.\(id)"), new = KeychainCredentialStore(service: "com.caskbrew.tradestick.tests.\(id)")
+        defer { try? old.remove(exchange: "binance"); try? new.remove(exchange: "binance") }
+        try old.save(APICredentials(key: "K", secret: "S"), exchange: "binance")
+        LegacyMigration.moveKeys(from: old, to: new, exchanges: ["binance", "bybit"])
+        #expect(try new.load(exchange: "binance") == APICredentials(key: "K", secret: "S"))
+        #expect(try old.load(exchange: "binance") == nil)
+        #expect(try new.load(exchange: "bybit") == nil)
     }
 }

@@ -97,7 +97,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 try LegacyMigration.moveDataFolder(in: base, from: Self.isInstalled ? "TradeStickies" : "TradeStickies-Dev", to: Self.dataFolder)
             }
             let legacy = "com.caskbrew.tradestickies" + (Self.isInstalled ? "" : ".dev")
-            LegacyMigration.copyKeys(from: KeychainCredentialStore(service: legacy), to: credentials, exchanges: adapters.map(\.id))
+            LegacyMigration.moveKeys(from: KeychainCredentialStore(service: legacy), to: credentials, exchanges: adapters.map(\.id))
             // Developer overrides: a separate database file and demo data (spec example A).
             let path: String
             if let override = ProcessInfo.processInfo.environment["TRADESTICK_DB"] { path = override } else { path = try TradeStore.defaultDatabaseURL(folder: Self.dataFolder).path }
