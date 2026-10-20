@@ -4,15 +4,15 @@
       "Bash(pkill:*)",
       "Bash(killall:*)",
       "Bash(kill:*)",
-      "Bash(*Application Support/TradeStickies/*)",
-      "Bash(*Application\\ Support/TradeStickies/*)",
-      "Bash(*Application Support/TradeStickies\")*",
-      "Bash(brew uninstall*tradestickies*)",
-      "Bash(brew reinstall*tradestickies*)",
-      "Bash(rm */Applications/TradeStickies.app*)",
-      "Read(~/Library/Application Support/TradeStickies/**)",
-      "Edit(~/Library/Application Support/TradeStickies/**)",
-      "Write(~/Library/Application Support/TradeStickies/**)"
+      "Bash(*Application Support/TradeStick/*)",
+      "Bash(*Application\\ Support/TradeStick/*)",
+      "Bash(*Application Support/TradeStick\")*",
+      "Bash(brew uninstall*TradeStick*)",
+      "Bash(brew reinstall*TradeStick*)",
+      "Bash(rm */Applications/TradeStick.app*)",
+      "Read(~/Library/Application Support/TradeStick/**)",
+      "Edit(~/Library/Application Support/TradeStick/**)",
+      "Write(~/Library/Application Support/TradeStick/**)"
     ]
   }
 }

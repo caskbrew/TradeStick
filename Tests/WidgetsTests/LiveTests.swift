@@ -53,7 +53,7 @@ import Testing
     static func devDatabaseCopy() throws -> String? {
         let source = try TradeStore.defaultDatabaseURL(folder: "TradeStickies-Dev")
         guard FileManager.default.fileExists(atPath: source.path) else { return nil }
-        let dir = FileManager.default.temporaryDirectory.appending(path: "tradestickies-live-\(UUID().uuidString)")
+        let dir = FileManager.default.temporaryDirectory.appending(path: "tradestick-live-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         for suffix in ["", "-wal", "-shm"] {
             let file = URL(fileURLWithPath: source.path + suffix)

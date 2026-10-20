@@ -71,7 +71,7 @@ public struct BinanceAccountAPI: Sendable {
         if json["enableWithdrawals"] as? Bool == true { warnings.append("Withdrawals are enabled for this key") }
         if json["enableSpotAndMarginTrading"] as? Bool == true { warnings.append("Trading is enabled for this key") }
         let readOnly = warnings.isEmpty
-        if !readOnly { warnings.append("TradeStickies only reads trade history: create a read-only key") }
+        if !readOnly { warnings.append("TradeStick only reads trade history: create a read-only key") }
         return APIKeyCheck(warnings: warnings, readOnly: readOnly)
     }
 

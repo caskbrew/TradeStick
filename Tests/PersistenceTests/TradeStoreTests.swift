@@ -163,7 +163,7 @@ func at(_ minute: Int) -> Date { Date(timeIntervalSince1970: 1_700_000_000 + Dou
         #expect(orphans == 0)
     }
 
-    @Test func databaseLivesInTradeStickiesFolderAndIsCreatedOnDemand() throws {
+    @Test func databaseLivesInTradeStickFolderAndIsCreatedOnDemand() throws {
         let base = FileManager.default.temporaryDirectory.appendingPathComponent("as-\(UUID().uuidString)")
         defer { try? FileManager.default.removeItem(at: base) }
         try FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)

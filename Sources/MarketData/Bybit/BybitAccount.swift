@@ -71,7 +71,7 @@ public struct BybitAccountAPI: ExchangeAccount {
         if (permissions["Wallet"] as? [String])?.contains("Withdraw") == true { warnings.append("Withdrawals are enabled for this key") }
         if (permissions["Spot"] as? [String])?.contains("SpotTrade") == true || (info["readOnly"] as? NSNumber)?.intValue == 0 { warnings.append("Trading is enabled for this key") }
         let readOnly = warnings.isEmpty
-        if !readOnly { warnings.append("TradeStickies only reads trade history: create a read-only key") }
+        if !readOnly { warnings.append("TradeStick only reads trade history: create a read-only key") }
         return APIKeyCheck(warnings: warnings, readOnly: readOnly)
     }
 

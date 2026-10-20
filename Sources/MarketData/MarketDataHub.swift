@@ -135,7 +135,7 @@ public actor MarketDataHub {
         broadcast(feed)
     }
 
-    private static let log = Logger(subsystem: "TradeStickies", category: "marketdata")
+    private static let log = Logger(subsystem: "TradeStick", category: "marketdata")
 
     private func run(_ key: Key, _ feed: Feed) async {
         guard let adapter = adapters[key.exchange] else { return }

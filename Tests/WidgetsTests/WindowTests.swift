@@ -214,7 +214,7 @@ extension UITests {
     @Test func apiKeysKeepsItsSizeWhileCheckingAndShowsEachExchange() async throws {
         let slow = keysModel("binance") { _ in try await Task.sleep(for: .milliseconds(500)); return APIKeyCheck(readOnly: true) }
         let polo = keysModel("poloniex") { _ in APIKeyCheck() }
-        let bybit = keysModel("bybit") { _ in APIKeyCheck(warnings: ["Trading is enabled for this key", "TradeStickies only reads trade history: create a read-only key"], readOnly: false) }
+        let bybit = keysModel("bybit") { _ in APIKeyCheck(warnings: ["Trading is enabled for this key", "TradeStick only reads trade history: create a read-only key"], readOnly: false) }
         let window = TestWindow(APIKeysView(models: [slow, polo, bybit], onClose: {}))
         let idle = window.size
         window.snapshot("window-api-keys-empty")
@@ -336,7 +336,7 @@ extension UITests {
     }
 
     @Test func aboutShowsTheStepsAndLinksToGitHub() async throws {
-        let icon = NSImage(contentsOfFile: "Sources/TradeStickies/Resources/AppIcon.png")
+        let icon = NSImage(contentsOfFile: "Sources/TradeStick/Resources/AppIcon.png")
         let window = TestWindow(AboutView(version: "0.2.4", icon: icon, onClose: {}))
         window.snapshot("window-about")
         #expect(window.size.width == 480 && window.size.height < 700, "\(window.size)")

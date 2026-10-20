@@ -77,7 +77,8 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var pathMonitor: NWPathMonitor?
     /// Only the installed app (bundle id set by scripts/package.sh) touches the real data. Anything else
     /// (`swift run`, a dev build) uses its own folder, so development never damages the user's trades.
-    static let isInstalled = Bundle.main.bundleIdentifier == "com.caskbrew.tradestickies"
+    static let isInstalled = Bundle.main.bundleIdentifier == "com.caskbrew.tradestick"
+    /// Storage names (data folder, sqlite file, keychain service) keep the pre-rename "TradeStickies" so existing data and keys survive.
     static let dataFolder = isInstalled ? "TradeStickies" : "TradeStickies-Dev"
     private let icons = CoinIcons(directory: FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?.appending(path: "\(AppController.dataFolder)/icons"))
     private let adapters: [any ExchangeAdapter] = [BinanceAdapter(), PoloniexAdapter(), BybitAdapter()]
@@ -101,7 +102,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
             if CommandLine.arguments.contains("--seed-demo"), try store.trades().isEmpty { try seedDemo() }
         } catch {
             let alert = NSAlert()
-            alert.messageText = "TradeStickies could not open its database"
+            alert.messageText = "TradeStick could not open its database"
             alert.informativeText = "\(error)"
             alert.runModal()
             NSApp.terminate(nil)
@@ -117,7 +118,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
             icon.isTemplate = true // black + alpha: macOS tints it for light and dark menu bars
             statusItem.button?.image = icon
         } else {
-            statusItem.button?.image = NSImage(systemSymbolName: "note.text", accessibilityDescription: "TradeStickies")
+            statusItem.button?.image = NSImage(systemSymbolName: "note.text", accessibilityDescription: "TradeStick")
         }
         if let url = Bundle.module.url(forResource: "AppIcon", withExtension: "png") { NSApp.applicationIconImage = NSImage(contentsOf: url) } // shown in alerts
         if !Self.isInstalled { statusItem.button?.title = " DEV" } // a dev instance is never mistaken for the real one
@@ -174,7 +175,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
             }
             if recovered { Task { await hub.reconnectAll() } }
         }
-        monitor.start(queue: DispatchQueue(label: "tradestickies.network"))
+        monitor.start(queue: DispatchQueue(label: "tradestick.network"))
         pathMonitor = monitor
     }
 
@@ -380,7 +381,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
             let icon = Bundle.module.url(forResource: "AppIcon", withExtension: "png").flatMap { NSImage(contentsOf: $0) }
             let close = { [weak self] in self?.aboutWindow?.close(); self?.aboutWindow = nil }
             let window = DialogWindow(content: NSHostingController(rootView: AboutView(version: version, icon: icon, onClose: close)))
-            window.title = "About TradeStickies"
+            window.title = "About TradeStick"
             window.onEscape = close
             aboutWindow = window
         }

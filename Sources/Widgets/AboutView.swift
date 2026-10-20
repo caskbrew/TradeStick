@@ -29,7 +29,7 @@ public struct AboutView: View {
                 }
                 .frame(width: 64, height: 64)
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("TradeStickies").font(.system(size: 22, weight: .semibold))
+                    Text("TradeStick").font(.system(size: 22, weight: .semibold))
                     Text("Version \(version)").font(.system(size: 12)).foregroundStyle(Theme.secondaryText)
                 }
                 Spacer()

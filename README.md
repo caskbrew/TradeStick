@@ -1,10 +1,10 @@
-# TradeStickies
+# TradeStick
 
 **A floating sticker on your desktop for every crypto trade you hold — live price, and profit or loss at your average cost, always in sight.**
 
 ![A sticker with its Add Transaction form and the list of transactions](docs/readme/hero.png)
 
-TradeStickies lives in the macOS menu bar. Open a sticker per trade (say, GRAM / USDT on Binance), record what you bought and sold, and the sticker shows the live price, your average entry rate, what you hold, and your PnL in USDT and in percent. Stickers are small borderless windows you can drag anywhere, zoom, and pin on top of other windows.
+TradeStick lives in the macOS menu bar. Open a sticker per trade (say, GRAM / USDT on Binance), record what you bought and sold, and the sticker shows the live price, your average entry rate, what you hold, and your PnL in USDT and in percent. Stickers are small borderless windows you can drag anywhere, zoom, and pin on top of other windows.
 
 Works with **Binance**, **Bybit** and **Poloniex** (spot). It only ever *reads*: your orders are never sent anywhere, and API keys, if you add any, are read-only and kept in the macOS Keychain.
 
@@ -39,22 +39,22 @@ Handy: **⇧⌘N** New Stick · **⇧⌘K** API Keys · **⇧⌘R** Restart (aft
 ## Install
 
 ```sh
-brew install --cask caskbrew/tap/tradestickies
+brew install --cask caskbrew/tap/tradestick
 ```
 
 That taps `caskbrew/homebrew-tap` automatically. To tap explicitly first:
 
 ```sh
 brew tap caskbrew/tap
-brew install --cask tradestickies
+brew install --cask tradestick
 ```
 
 Update and remove:
 
 ```sh
-brew update && brew upgrade --cask tradestickies
-brew uninstall --cask tradestickies          # keeps your data
-brew uninstall --zap --cask tradestickies    # also deletes ~/Library/Application Support/TradeStickies
+brew update && brew upgrade --cask tradestick
+brew uninstall --cask tradestick          # keeps your data
+brew uninstall --zap --cask tradestick    # also deletes ~/Library/Application Support/TradeStickies
 ```
 
 Requires macOS 15 (Sequoia) or newer. The app is not notarized; the cask removes the quarantine flag so it starts normally.
@@ -69,16 +69,16 @@ Builds that are not the installed app (`swift run`, `.build/…`) use `TradeStic
 ```sh
 swift build -c release
 swift test
-scripts/package.sh 0.1.0   # dist/TradeStickies-0.1.0.zip + sha256 for the cask
+scripts/package.sh 0.1.0   # dist/TradeStick-0.1.0.zip + sha256 for the cask
 ```
 
 ## Dev vs installed
 
-The installed app (`/Applications/TradeStickies.app`, bundle id `com.caskbrew.tradestickies`) and a dev build never share anything:
+The installed app (`/Applications/TradeStick.app`, bundle id `com.caskbrew.tradestick`) and a dev build never share anything:
 
 - data: `~/Library/Application Support/TradeStickies/` vs `TradeStickies-Dev/`; a dev build refuses to open the installed folder even via `TRADESTICKIES_DB`;
 - settings: separate `UserDefaults` domains; the dev instance shows "DEV" in the menu bar;
-- processes: run and restart dev only with `scripts/dev.sh`, which stops just the process started from `.build/`. Never `pkill TradeStickies`;
+- processes: run and restart dev only with `scripts/dev.sh`, which stops just the process started from `.build/`. Never `pkill TradeStick`;
 - `.claude/settings.json` denies Claude Code `pkill`/`killall`/`kill` and any access to the installed app's data folder.
 
 ## Feedback
