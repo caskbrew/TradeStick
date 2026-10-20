@@ -67,6 +67,7 @@ final class DialogWindow: NSWindow {
         isReleasedWhenClosed = false
         appearance = NSAppearance(named: .darkAqua)
         collectionBehavior = [.moveToActiveSpace] // opens on the desktop you are on
+        level = .floating // always above other apps' windows, even if macOS refuses to bring the app forward
     }
 }
 
