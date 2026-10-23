@@ -41,7 +41,7 @@ final class StickerPanel: ZoomPanel {
         isMovableByWindowBackground = true
         isOpaque = false
         backgroundColor = .clear
-        hasShadow = true
+        hasShadow = !systemGlass
         isReleasedWhenClosed = false
     }
 }
@@ -58,7 +58,7 @@ final class FormPanel: ZoomPanel {
         isMovableByWindowBackground = false
         isOpaque = false
         backgroundColor = .clear
-        hasShadow = true
+        hasShadow = !systemGlass
         isReleasedWhenClosed = false
     }
 }
@@ -107,6 +107,7 @@ final class StickerWindow: NSObject, NSWindowDelegate {
         model.confirm = { plan in Self.confirm(plan, base: model.trade.base, quote: model.trade.quote) }
         model.onFormClosed = { [weak self] in self?.dismissForm() }
         model.onFormHeight = { [weak self] height in self?.formHeightChanged(height) }
+        model.onCompactChange = { [weak self] in self?.compactChanged() }
         model.onListWillOpen = { [weak self] in self?.prepareList() }
         model.onListClosed = { [weak self] in self?.dismissList() }
         model.onListHeight = { [weak self] height in self?.listHeightChanged(height) }
@@ -284,6 +285,13 @@ final class StickerWindow: NSObject, NSWindowDelegate {
         formPanel.invalidateShadow()
     }
 
+    /// Going to the full view: make room first, the card then animates open inside the window. Going compact needs
+    /// nothing: the window is trimmed once the card has settled.
+    private func compactChanged() {
+        if !model.isCompact, model.fullHeight > 0 { setWindowHeight(model.fullHeight * model.scale) }
+        contentLaidOut()
+    }
+
     /// The content reported a new size: grow the window if it outgrew it, and schedule trimming once things stop moving.
     private func contentLaidOut() {
         guard content.height > 0 else { return }
@@ -338,3 +346,6 @@ final class StickerWindow: NSObject, NSWindowDelegate {
         }
     }
 }
+
+/// Liquid Glass (macOS 26) carries its own depth; a window shadow on top of it draws a hairline in the corners.
+let systemGlass: Bool = { if #available(macOS 26, *) { true } else { false } }()

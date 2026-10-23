@@ -12,7 +12,7 @@ ok() { echo "ok:   $1" }
 [[ -d $APP ]] || fail "no TradeStick.app in the zip"
 plist() { /usr/libexec/PlistBuddy -c "Print :$1" "$C/Info.plist" }
 [[ $(plist CFBundleShortVersionString) == $V ]] && ok "version $V" || fail "version is $(plist CFBundleShortVersionString), expected $V"
-[[ $(plist CFBundleIdentifier) == com.caskbrew.tradestick ]] && ok "bundle id" || fail "bundle id"
+[[ $(plist CFBundleIdentifier) == com.caskbrew.TradeStick ]] && ok "bundle id" || fail "bundle id"
 [[ $(plist LSUIElement) == true ]] && ok "menu-bar app (no Dock icon)" || fail "LSUIElement"
 [[ -x $C/MacOS/TradeStick ]] && ok "executable" || fail "executable missing"
 ARCHS=$(lipo -archs "$C/MacOS/TradeStick"); [[ $ARCHS == *arm64* && $ARCHS == *x86_64* ]] && ok "universal binary ($ARCHS)" || fail "architectures: $ARCHS"

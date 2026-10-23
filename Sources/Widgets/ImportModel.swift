@@ -165,7 +165,6 @@ public final class ImportModel {
     }
 
     public func selectAll() { selection.formUnion(visibleRows.filter(\.selectable).map(\.id)) }
-    public func selectNone() { selection = [] }
 
     /// Adds the selected fills. Returns true when done (the window can close).
     public func add() -> Bool {

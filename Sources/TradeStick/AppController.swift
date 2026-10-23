@@ -1,4 +1,5 @@
 import AppKit
+import ServiceManagement
 import Network
 import os
 import Domain
@@ -62,7 +63,7 @@ final class DialogWindow: NSWindow {
         styleMask = [.borderless]
         isOpaque = false
         backgroundColor = .clear
-        hasShadow = true
+        hasShadow = !systemGlass
         isMovableByWindowBackground = true
         isReleasedWhenClosed = false
         appearance = NSAppearance(named: .darkAqua)
@@ -78,7 +79,8 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var pathMonitor: NWPathMonitor?
     /// Only the installed app (bundle id set by scripts/package.sh) touches the real data. Anything else
     /// (`swift run`, a dev build) uses its own folder, so development never damages the user's trades.
-    static let isInstalled = Bundle.main.bundleIdentifier == "com.caskbrew.tradestick"
+    static let bundleID = "com.caskbrew.TradeStick"
+    static let isInstalled = Bundle.main.bundleIdentifier == AppController.bundleID
     static let dataFolder = isInstalled ? "TradeStick" : "TradeStick-Dev"
     private let icons = CoinIcons(directory: FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?.appending(path: "\(AppController.dataFolder)/icons"))
     private let adapters: [any ExchangeAdapter] = [BinanceAdapter(), PoloniexAdapter(), BybitAdapter()]
@@ -88,7 +90,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var newTradeWindow: NSWindow?
     private var apiKeysWindow: NSWindow?
     /// The installed app and dev builds keep their keys apart, like their data.
-    private let credentials: any CredentialStore = KeychainCredentialStore(service: AppController.isInstalled ? "com.caskbrew.tradestick" : "com.caskbrew.tradestick.dev")
+    private let credentials: any CredentialStore = KeychainCredentialStore(service: AppController.isInstalled ? AppController.bundleID : "com.caskbrew.tradestick.dev")
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory) // menu bar agent, no Dock icon
@@ -97,8 +99,12 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
             if let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first {
                 try LegacyMigration.moveDataFolder(in: base, from: Self.isInstalled ? "TradeStickies" : "TradeStickies-Dev", to: Self.dataFolder)
             }
-            let legacy = "com.caskbrew.tradestickies" + (Self.isInstalled ? "" : ".dev")
-            LegacyMigration.moveKeys(from: KeychainCredentialStore(service: legacy), to: credentials, exchanges: adapters.map(\.id))
+            // Older names of the keychain service (the bundle id, before it was renamed twice).
+            let legacy = Self.isInstalled ? ["com.caskbrew.tradestick", "com.caskbrew.tradestickies"] : ["com.caskbrew.tradestickies.dev"]
+            for service in legacy {
+                LegacyMigration.moveKeys(from: KeychainCredentialStore(service: service), to: credentials, exchanges: adapters.map(\.id))
+            }
+            if Self.isInstalled { LegacyMigration.copyDefaults(fromDomain: "com.caskbrew.tradestick") } // pins, sticker size
             // Developer overrides: a separate database file and demo data (spec example A).
             let path: String
             if let override = ProcessInfo.processInfo.environment["TRADESTICK_DB"] { path = override } else { path = try TradeStore.defaultDatabaseURL(folder: Self.dataFolder).path }
@@ -130,6 +136,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if !Self.isInstalled { statusItem.button?.title = " DEV" } // a dev instance is never mistaken for the real one
         let menu = NSMenu()
         menu.delegate = self
+        menu.minimumWidth = 0 // as wide as the longest item
         statusItem.menu = menu
 
         for trade in (try? store.trades()) ?? [] where trade.isVisible { open(trade, activate: false) }
@@ -328,6 +335,11 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
             menu.addItem(item)
         }
         if !trades.isEmpty { menu.addItem(.separator()) }
+        let login = NSMenuItem(title: "Open at Login", action: #selector(toggleLaunchAtLogin), keyEquivalent: "")
+        login.target = self
+        login.state = SMAppService.mainApp.status == .enabled ? .on : .off
+        login.isEnabled = Self.isInstalled // a dev build is not the app that should start at login
+        menu.addItem(login)
         let about = NSMenuItem(title: "About", action: #selector(showAbout), keyEquivalent: "")
         about.target = self
         menu.addItem(about)
@@ -339,6 +351,19 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         restart.isEnabled = Bundle.main.bundlePath.hasSuffix(".app") // a bare `swift run` binary cannot be reopened
         menu.addItem(restart)
         menu.addItem(NSMenuItem(title: "Quit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
+    }
+
+    @objc private func toggleLaunchAtLogin() {
+        let service = SMAppService.mainApp
+        do {
+            if service.status == .enabled { try service.unregister() } else { try service.register() }
+            if service.status == .requiresApproval { SMAppService.openSystemSettingsLoginItems() }
+        } catch {
+            let alert = NSAlert()
+            alert.messageText = "Could not change Open at Login"
+            alert.informativeText = "\(error.localizedDescription)"
+            alert.runModal()
+        }
     }
 
     /// Shows a hidden sticker, or pulls a visible one to the desktop you are on. Hiding is in the sticker's `⋯` menu.

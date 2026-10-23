@@ -30,11 +30,11 @@ let now = Date(timeIntervalSince1970: 1_700_000_000)
         #expect(NumberFormat.price(dec("0.055")) == "0.055000")
         #expect(NumberFormat.price(dec("0.0533333333")) == "0.053333")
         #expect(NumberFormat.price(dec("67432.1")) == "67432.10")
-        #expect(NumberFormat.shownPrice(dec("67432.1")) == "67,432.10") // screen: thousands separated
-        #expect(NumberFormat.shownPrice(dec("999.5")) == "999.5000" && NumberFormat.shownPrice(dec("1234567.891")) == "1,234,567.89")
-        #expect(NumberFormat.quote(dec("123456789.12"), fixed: true) == "123,456,789.12")
+        #expect(NumberFormat.shownPrice(dec("67432.1")) == "67432.10") // the screen shows no separators either
+        #expect(NumberFormat.shownPrice(dec("999.5")) == "999.5000" && NumberFormat.shownPrice(dec("1234567.891")) == "1234567.89")
+        #expect(NumberFormat.quote(dec("123456789.12"), fixed: true) == "123456789.12")
         #expect(NumberFormat.quote(dec("999.99"), fixed: true) == "999.99")
-        #expect(NumberFormat.signedQuote(dec("-9999989.99"), fixed: true) == "\u{2212}9,999,989.99")
+        #expect(NumberFormat.signedQuote(dec("-9999989.99"), fixed: true) == "\u{2212}9999989.99")
         #expect(NumberFormat.price(dec("1.123456789")) == "1.1235")
         #expect(NumberFormat.price(dec("1")) == "1.0000")
         #expect(NumberFormat.price(dec("0.5")) == "0.500000")
@@ -45,7 +45,7 @@ let now = Date(timeIntervalSince1970: 1_700_000_000)
     @Test func transactionAmountsShowUpToSixDecimals() {
         #expect(NumberFormat.amount(dec("40")) == "40.00")
         #expect(NumberFormat.amount(dec("40.123456789")) == "40.123457")
-        #expect(NumberFormat.amount(dec("1234.5")) == "1,234.50")
+        #expect(NumberFormat.amount(dec("1234.5")) == "1234.50")
         #expect(NumberFormat.amount(dec("0.1")) == "0.10")
     }
 
@@ -54,7 +54,7 @@ let now = Date(timeIntervalSince1970: 1_700_000_000)
         #expect(NumberFormat.quote(dec("9.5")) == "9.50")
         #expect(NumberFormat.quote(dec("0.5")) == "0.50")
         #expect(NumberFormat.quote(dec("0.12345")) == "0.1235")
-        #expect(NumberFormat.quote(dec("1234.567")) == "1,234.57")
+        #expect(NumberFormat.quote(dec("1234.567")) == "1234.57")
     }
 
     @Test func stableQuotesAlwaysShowTwoDecimals() {
@@ -78,16 +78,23 @@ let now = Date(timeIntervalSince1970: 1_700_000_000)
         #expect(NumberFormat.signedQuote(dec("-0.00004")) == "0.00")
         #expect(NumberFormat.displayedQuote(dec("0.00004")) == 0)
         #expect(NumberFormat.signedQuote(dec("0.0004")) == "+0.0004")
-        #expect(NumberFormat.signedQuote(dec("1234.004")) == "+1,234.00")
+        #expect(NumberFormat.signedQuote(dec("1234.004")) == "+1234.00")
         #expect(NumberFormat.displayedPercent(dec("0.00004")) == 0)
         #expect(NumberFormat.signedPercent(dec("-0.00004")) == "0.00%")
     }
 
     @Test func quantitiesAreGroupedAndTrimmed() {
-        #expect(NumberFormat.quantity(1500) == "1,500.00")
+        #expect(NumberFormat.quantity(1500) == "1500.00") // no thousands separators
         #expect(NumberFormat.quantity(dec("0.5")) == "0.50")
-        #expect(NumberFormat.quantity(dec("1234567.12345678")) == "1,234,567.12345678")
+        #expect(NumberFormat.quantity(dec("1234567.12345678")) == "1234567.12345678")
         #expect(NumberFormat.quantity(dec("0.123456789")) == "0.12345679")
+    }
+
+    @Test func coinProfitIsSignedAndShort() {
+        #expect(NumberFormat.signedQuantity(dec("45.454545")) == "+45.45")
+        #expect(NumberFormat.signedQuantity(dec("0.022245")) == "+0.0222")
+        #expect(NumberFormat.signedQuantity(dec("-1234.5678")) == "\u{2212}1234.57")
+        #expect(NumberFormat.signedQuantity(0) == "0.00")
     }
 
     @Test func percentsHaveTwoDecimalsAndASign() {

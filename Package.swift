@@ -11,7 +11,6 @@ let package = Package(
         .library(name: "Presentation", targets: ["Presentation"]),
         .library(name: "Widgets", targets: ["Widgets"]),
         .executable(name: "TradeStick", targets: ["TradeStick"]),
-        .executable(name: "WindowSpike", targets: ["WindowSpike"]),
     ],
     dependencies: [
         .package(url: "https://github.com/groue/GRDB.swift.git", from: "7.5.0"),
@@ -30,7 +29,5 @@ let package = Package(
         .target(name: "Widgets", dependencies: ["Domain", "Persistence", "MarketData", "Presentation"]),
         .testTarget(name: "WidgetsTests", dependencies: ["Widgets", "Domain", "Persistence", "MarketData", "Presentation"]),
         .executableTarget(name: "TradeStick", dependencies: ["Domain", "Persistence", "MarketData", "Widgets"], resources: [.process("Resources")]),
-        // Throwaway spike for risk R1 (window behaviour). Not used by any other target.
-        .executableTarget(name: "WindowSpike"),
     ]
 )

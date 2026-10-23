@@ -169,20 +169,43 @@ extension UITests {
     }
 
     @Test func everyDigitCountKeepsTheStickerTheSameSize() async throws {
-        var sizes: [String: CGSize] = [:]
+        var sizes: [String: CGSize] = [:], compact: [String: CGFloat] = [:]
         for c in Self.cases {
-            let (window, _) = try await sticker(c)
+            let (window, model) = try await sticker(c)
             sizes[c.name] = window.size
             window.snapshot("layout-\(c.name)")
+            // The same number, in the compact view.
+            defer { UserDefaults.standard.removeObject(forKey: "compact.\(model.trade.id.uuidString)") }
+            model.toggleCompact()
+            window.settle(0.5)
+            compact[c.name] = model.cardHeight
+            window.snapshot("layout-\(c.name)-compact")
         }
         let reference = try #require(sizes["normal"])
         for (name, size) in sizes { #expect(size == reference, "\(name): \(size) vs \(reference)") }
+        let short = try #require(compact["normal"])
+        for (name, height) in compact { #expect(abs(height - short) < 0.5, "compact \(name): \(height) vs \(short)") }
+    }
+
+    /// A closed trade takes no price (nothing is open), so it cannot go through `sticker(_:)`, which waits for one.
+    @Test func aClosedStickerHasTheSizeOfAnyOther() async throws {
+        let (normal, _) = try await sticker(Self.cases[0])
+        let store = try TradeStore.inMemory()
+        let trade = try store.createTrade(exchange: "binance", base: "GRAM", quote: "USDT", direction: .buyFirst)
+        try store.addTransaction(tradeID: trade.id, side: .buy, quantity: 1000, amount: 50, occurredAt: Date().addingTimeInterval(-7200))
+        try store.addTransaction(tradeID: trade.id, side: .sell, quantity: 1000, amount: 60, occurredAt: Date().addingTimeInterval(-3600))
+        let model = StickerModel(trade: trade, store: store, hub: MarketDataHub(adapters: [FakeExchange(id: "binance")]), throttle: .milliseconds(1))
+        model.reload()
+        let closed = TestWindow(StickerView(model: model, actions: StickerActions(hide: {}, delete: {})))
+        closed.settle(0.3)
+        closed.snapshot("window-sticker-closed")
+        #expect(model.status == .closed)
+        #expect(closed.size == normal.size)
     }
 
     @Test func reconnectingDoesNotResizeTheSticker() async throws {
         let (window, _) = try await sticker(Self.cases[0])
         let connected = window.size
-        window.snapshot("window-sticker-connected")
         let store = try TradeStore.inMemory()
         let fake = FakeExchange(id: "binance")
         let trade = try store.createTrade(exchange: "binance", base: "GRAM", quote: "USDT", direction: .buyFirst)
@@ -201,6 +224,10 @@ extension UITests {
         live.snapshot("window-sticker-reconnecting")
         #expect(live.size == before)
         #expect(before == connected)
+        model.toggleCompact()
+        live.settle(0.5)
+        live.snapshot("window-sticker-reconnecting-compact")
+        UserDefaults.standard.removeObject(forKey: "compact.\(trade.id.uuidString)")
     }
 }
 }
@@ -371,7 +398,11 @@ extension UITests {
         let layout = UITests.StickerLayoutTests()
         let (window, model) = try await layout.sticker(UITests.StickerLayoutTests.cases[0], exchange: "poloniex")
         let width = window.size.width
-        window.snapshot("window-sticker-live")
+        model.togglePin() // a pinned sticker: the pin is lit
+        window.settle(0.3)
+        window.snapshot("window-sticker-pinned")
+        model.togglePin()
+        UserDefaults.standard.removeObject(forKey: "pinned.\(model.trade.id.uuidString)")
         model.openForm(side: .buy)
         model.edit(.quantity, "300"); model.edit(.rate, "0.06")
         window.settle()
@@ -466,8 +497,19 @@ extension UITests {
         let (other, _) = try await layout.sticker(UITests.StickerLayoutTests.cases[0], exchange: "poloniex")
         let size = other.size
         let (bybit, _) = try await layout.sticker(UITests.StickerLayoutTests.cases[0], exchange: "bybit")
-        bybit.snapshot("window-sticker-bybit")
         #expect(bybit.size == size)
+    }
+
+    @Test func theCompactViewIsLowerAndComesBack() async throws {
+        let (window, model) = try await UITests.StickerLayoutTests().sticker(UITests.StickerLayoutTests.cases[0])
+        defer { UserDefaults.standard.removeObject(forKey: "compact.\(model.trade.id.uuidString)") }
+        let full = model.cardHeight // the card's own height; the test window may not shrink with it
+        model.toggleCompact()
+        window.settle(0.6)
+        #expect(model.cardHeight < full - 30, "compact \(model.cardHeight) vs full \(full)")
+        model.toggleCompact()
+        window.settle(0.6)
+        #expect(model.cardHeight == full)
     }
 
     @Test func anEmptyStickerShowsZerosNotAnAddButton() async throws {

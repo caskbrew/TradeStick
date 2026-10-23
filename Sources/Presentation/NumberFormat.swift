@@ -8,7 +8,7 @@ public enum NumberFormat {
     private static func plain(_ value: Decimal, min: Int, max: Int, grouping: Bool = false) -> String {
         let style = Decimal.FormatStyle(locale: locale)
             .precision(.fractionLength(min...max))
-            .grouping(grouping ? .automatic : .never)
+            .grouping(.never) // no thousands separators anywhere
             .rounded(rule: .toNearestOrAwayFromZero)
         return value.formatted(style)
     }
@@ -17,7 +17,7 @@ public enum NumberFormat {
     /// (`1.3400`, `0.055000`, `67432.10`), so a rate never looks longer than the price next to it.
     public static func price(_ value: Decimal) -> String { price(value, grouping: false) }
 
-    /// `price(_:)` for the screen: thousands separated (`67,432.10`). Not for text the user edits.
+    /// `price(_:)` for the screen (no thousands separators, like `price(_:)`).
     public static func shownPrice(_ value: Decimal) -> String { price(value, grouping: true) }
 
     private static func price(_ value: Decimal, grouping: Bool) -> String {
@@ -69,6 +69,12 @@ public enum NumberFormat {
     /// Coin quantity: at least 2 and up to 8 decimals, thousands separators (FR-FMT-4).
     public static func quantity(_ value: Decimal) -> String {
         plain(value, min: 2, max: 8, grouping: true)
+    }
+
+    /// Signed coin quantity for a profit or loss in coins: 2 decimals from 1 up, 4 below, zero without a sign.
+    public static func signedQuantity(_ value: Decimal) -> String {
+        let shown = value.rounded(scale: value.magnitude >= 1 ? 2 : 4)
+        return sign(shown) + quantity(shown.magnitude)
     }
 
     /// `fraction` 0.1188 becomes `+11.88%` (FR-FMT-5).

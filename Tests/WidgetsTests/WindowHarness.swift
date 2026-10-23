@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import Widgets
 
 /// A real NSWindow, placed off screen, hosting a SwiftUI view: lets tests type, press keys, click and take true screenshots
 /// (native controls included, which `ImageRenderer` cannot draw).
@@ -9,6 +10,7 @@ import SwiftUI
     private static var open: [TestWindow] = []
 
     convenience init<V: View>(_ view: V) {
+        GlassStyle.system = false // a snapshot cannot capture the system's Liquid Glass
         Self.open.forEach { $0.close() } // one test window at a time: the earlier ones must not keep the focus
         Self.open.removeAll()
         _ = NSApplication.shared

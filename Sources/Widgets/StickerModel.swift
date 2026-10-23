@@ -22,7 +22,7 @@ public final class StickerModel {
     public private(set) var formID = UUID()
 
     /// Height of one transaction row; shared with the view so the window can reserve room before a list opens.
-    public static let listRowHeight: CGFloat = 22
+    public static let listRowHeight: CGFloat = 20
     /// The card reports its laid-out height here; the window follows it.
     @ObservationIgnored public var onContentSize: ((CGSize) -> Void)?
     /// The transaction list slides out below the card, or above it when the screen has no room below.
@@ -68,6 +68,7 @@ public final class StickerModel {
         self.clock = clock
         self.summary = .empty(trade.direction)
         self.isPinned = UserDefaults.standard.bool(forKey: "pinned.\(trade.id.uuidString)")
+        self.isCompact = UserDefaults.standard.bool(forKey: "compact.\(trade.id.uuidString)")
         reload()
     }
 
@@ -83,6 +84,47 @@ public final class StickerModel {
         isPinned.toggle()
         UserDefaults.standard.set(isPinned, forKey: pinKey)
         onPinChange?(isPinned)
+    }
+
+    // MARK: Compact view
+
+    /// The short view (double-click on the card): the same window, only lower. Remembered per trade.
+    public private(set) var isCompact = false
+    /// Height of the full card, reported by the view; the window grows to it before the card animates open.
+    @ObservationIgnored public var fullHeight: CGFloat = 0
+    @ObservationIgnored public var onCompactChange: (() -> Void)?
+    private var listWasOpen = false
+    private var compactKey: String { "compact.\(trade.id.uuidString)" }
+
+    private var closingForCompact = false
+
+    /// Compact view hides the list and the form (the list comes back with the full view if it was open). Open
+    /// windows close first, and the card folds once they are gone.
+    public func toggleCompact() {
+        guard !closingForCompact else { return }
+        guard !isCompact else { return setCompact(false, restoreList: true) }
+        listWasOpen = trade.isExpanded
+        guard listWasOpen || form != nil else { return setCompact(true, restoreList: true) }
+        closingForCompact = true
+        if form != nil { cancelForm() }
+        setExpanded(false)
+        Task {
+            try? await Task.sleep(for: .milliseconds(220))
+            closingForCompact = false
+            setCompact(true, restoreList: true)
+        }
+    }
+
+    private func setCompact(_ compact: Bool, restoreList: Bool) {
+        guard compact != isCompact else { return }
+        if compact {
+            if form != nil { cancelForm() }
+            setExpanded(false)
+        }
+        isCompact = compact
+        UserDefaults.standard.set(compact, forKey: compactKey)
+        onCompactChange?()
+        if !compact, restoreList, listWasOpen, status != .empty { setExpanded(true) }
     }
 
     // MARK: Zoom
@@ -123,6 +165,11 @@ public final class StickerModel {
     // MARK: Derived values
 
     public var currentPrice: Decimal? { price.tick?.price }
+    /// Sum of the fees of all transactions; nil when none has one.
+    public var totalFee: Decimal? {
+        let fees = transactions.compactMap(\.fee)
+        return fees.isEmpty ? nil : fees.reduce(0, +)
+    }
     public var pnl: PnL { summary.pnl(at: currentPrice) }
     public var status: TradeStatus { summary.status }
 
@@ -209,12 +256,14 @@ public final class StickerModel {
 
     /// Add transaction (menu / ⌘N): an empty form for the opening side. Ignored while a form is already open.
     public func addTransaction() {
-        guard form == nil else { return }
+        guard form == nil, !closingForCompact else { return }
+        setCompact(false, restoreList: false)
         openForm(side: trade.direction.openingSide)
     }
 
     public func toggleList() {
-        guard status != .empty else { return }
+        guard status != .empty, !closingForCompact else { return }
+        setCompact(false, restoreList: false)
         setExpanded(!trade.isExpanded)
     }
 
@@ -243,6 +292,16 @@ public final class StickerModel {
         var exact = outOfPocket / price, rounded = Decimal()
         NSDecimalRound(&rounded, &exact, 8, .up) // never recover a hair less than the investment
         return rounded < summary.openQuantity ? rounded : nil
+    }
+
+    /// Profit in coins: what is left of the open quantity after selling enough at the current price to get back the
+    /// quote still out of pocket (fees are part of the amounts). Negative when the held coins cannot get it back.
+    /// nil for a sell-first or a not open trade, or while the price is unknown.
+    public var gramPnL: Decimal? {
+        guard trade.direction == .buyFirst, status == .open, let price = currentPrice, price > 0 else { return nil }
+        var exact = max(summary.boughtAmount - summary.soldAmount, 0) / price, needed = Decimal()
+        NSDecimalRound(&needed, &exact, 8, .up)
+        return summary.openQuantity - needed
     }
 
     /// The whole open quantity (or, with `recoverInvestment`, just enough to get the investment back) at the

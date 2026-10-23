@@ -27,7 +27,7 @@ Works with **Binance**, **Bybit** and **Poloniex** (spot). It only ever *reads*:
    ![API Keys](docs/readme/api-keys.png)
    ![Import transactions from the exchange](docs/readme/import.png)
 
-Handy: **⇧⌘N** New Stick · **⇧⌘K** API Keys · **⇧⌘R** Restart (after an update) · **⌘Q** Quit. Zoom a sticker from its right-click menu; Esc closes any dialog.
+Handy: **⇧⌘N** New Stick · **⇧⌘K** API Keys · **⇧⌘R** Restart (after an update) · **⌘Q** Quit. Zoom a sticker from its right-click menu; double-click a sticker or press **⌘S** to switch between the full and the compact view; Esc closes any dialog.
 
 ## Good to know
 
@@ -91,7 +91,7 @@ scripts/package.sh 0.1.0   # dist/TradeStick-0.1.0.zip + sha256 for the cask
 
 ## Dev vs installed
 
-The installed app (`/Applications/TradeStick.app`, bundle id `com.caskbrew.tradestick`) and a dev build never share anything:
+The installed app (`/Applications/TradeStick.app`, bundle id `com.caskbrew.TradeStick`) and a dev build never share anything:
 
 - data: `~/Library/Application Support/TradeStick/` vs `TradeStick-Dev/`; a dev build refuses to open the installed folder even via `TRADESTICK_DB`;
 - settings: separate `UserDefaults` domains; the dev instance shows "DEV" in the menu bar;

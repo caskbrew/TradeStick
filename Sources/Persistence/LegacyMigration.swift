@@ -25,4 +25,10 @@ public enum LegacyMigration {
             if let stored = (try? new.load(exchange: exchange)) ?? nil, stored == keys { try? old.remove(exchange: exchange) }
         }
     }
+
+    /// UserDefaults are stored per bundle id: after the id changed, bring the old values over (never overwriting a value already set).
+    public static func copyDefaults(fromDomain old: String, to defaults: UserDefaults = .standard) {
+        guard let values = defaults.persistentDomain(forName: old) else { return }
+        for (key, value) in values where defaults.object(forKey: key) == nil { defaults.set(value, forKey: key) }
+    }
 }

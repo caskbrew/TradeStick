@@ -18,7 +18,7 @@ struct TransactionForm: View {
         let form = model.form
         VStack(alignment: .leading, spacing: 6) {
             HStack {
-                Text(model.editingID == nil ? "Add Tx" : "Edit Tx").font(.system(size: 12, weight: .semibold))
+                Text(model.editingID == nil ? "Add Tx" : "Edit Tx").font(.system(size: 12))
                 Spacer(minLength: 8)
                 sideSwitch(form?.side ?? .buy).frame(width: 64)
             }
@@ -60,7 +60,7 @@ struct TransactionForm: View {
         HStack(spacing: 0) {
             ForEach([Side.buy, Side.sell], id: \.self) { option in
                 Button { model.form?.side = option } label: {
-                    Text(option == .buy ? "B" : "S").font(.system(size: 12, weight: .bold))
+                    Text(option == .buy ? "B" : "S").font(.system(size: 12))
                         .frame(maxWidth: .infinity, minHeight: 20)
                         .background(RoundedRectangle(cornerRadius: 8, style: .continuous)
                             .fill(side == option ? (option == .buy ? Theme.positive : Theme.negative).opacity(0.85) : .clear))
@@ -149,47 +149,62 @@ struct TransactionList: View {
 
     var body: some View {
         let rows = model.transactions.sorted { ($0.occurredAt, $0.sequence) > ($1.occurredAt, $1.sequence) }
-        VStack(alignment: .leading, spacing: 6) {
+        let columns = model.columns
+        VStack(alignment: .leading, spacing: 0) {
+            header(columns)
             if let error = model.listError {
-                Text(error).font(.system(size: 12)).foregroundStyle(Theme.negative)
+                Text(error).font(.system(size: 12)).foregroundStyle(Theme.negative).padding(.horizontal, ListColumns.inset).padding(.top, 4)
             }
-            header
-            if rows.count > Self.maxRows {
-                ScrollView { rowsStack(rows) }.frame(height: CGFloat(Self.maxRows) * Self.rowHeight)
-            } else {
-                rowsStack(rows)
+            Group {
+                if rows.count > Self.maxRows {
+                    ScrollView { rowsStack(rows, columns) }.frame(height: CGFloat(Self.maxRows) * Self.rowHeight)
+                } else {
+                    rowsStack(rows, columns)
+                }
             }
+            .padding(.horizontal, ListColumns.inset)
+            .padding(.bottom, 6.5)
         }
     }
 
-    private func rowsStack(_ rows: [Domain.Transaction]) -> some View {
-        VStack(spacing: 0) { ForEach(rows) { tx in row(tx) } }
+    /// Titles of the columns, on a slightly lighter band that runs edge to edge.
+    private func header(_ c: ListColumns) -> some View {
+        HStack(spacing: ListColumns.spacing) {
+            Text("Rate").frame(width: c.rate, alignment: .center)
+            Text(model.trade.quote).frame(width: c.amount, alignment: .center)
+            Text(model.trade.base).frame(width: c.qty, alignment: .center)
+            Text("Fee").frame(width: c.fee, alignment: .center)
+            Color.clear.frame(width: ListColumns.side, height: 1) // the B/S chip needs no title
+            Text("PnL").frame(width: c.pnl, alignment: .center)
+        }
+        .font(.system(size: 11)).foregroundStyle(Theme.secondaryText).lineLimit(1)
+        .padding(.horizontal, ListColumns.inset)
+        .frame(maxWidth: .infinity).frame(height: 18.5)
+        .background(Color.white.opacity(0.035))
+        .overlay(alignment: .bottom) { Rectangle().fill(Theme.rowLine).frame(height: 1) }
     }
 
-    private static let sideWidth: CGFloat = 18, amountWidth: CGFloat = 56, rateWidth: CGFloat = 50, agoWidth: CGFloat = 30, pnlWidth: CGFloat = 44, feeWidth: CGFloat = 34, iconWidth: CGFloat = 14
-
-    private var header: some View {
-        HStack(spacing: 4) {
-            Text("Ago").frame(width: Self.agoWidth, alignment: .center)
-            Color.clear.frame(width: Self.sideWidth, height: 1) // the B/S chip needs no title
-            Text("PnL").frame(width: Self.pnlWidth, alignment: .center)
-            Text("Qty").frame(maxWidth: .infinity, alignment: .center)
-            Text("\(model.trade.quote)").frame(width: Self.amountWidth, alignment: .center)
-            Text("Fee").frame(width: Self.feeWidth, alignment: .center)
-            Text("Rate").frame(width: Self.rateWidth, alignment: .center)
+    private func rowsStack(_ rows: [Domain.Transaction], _ columns: ListColumns) -> some View {
+        VStack(spacing: 0) {
+            ForEach(rows) { tx in
+                row(tx, columns)
+                if tx.id != rows.last?.id { Rectangle().fill(Theme.rowLine).frame(height: 1) }
+            }
         }
-        .font(.system(size: 10)).foregroundStyle(Theme.secondaryText.opacity(0.7)).lineLimit(1)
     }
 
     /// Profit or loss of one transaction against the current price; "—" while the price is unknown.
-    private func pnl(_ value: Decimal?) -> some View {
+    private func pnl(_ value: Decimal?, _ columns: ListColumns) -> some View {
         Text(value.map { NumberFormat.signedQuote($0, fixed: model.quoteFixed) } ?? "—")
             .foregroundStyle(Theme.pnl(value.map { NumberFormat.displayedQuote($0, fixed: model.quoteFixed) }))
-            .minimumScaleFactor(0.6).frame(width: Self.pnlWidth, alignment: .trailing)
+            .minimumScaleFactor(0.3).frame(width: columns.pnl, alignment: .leading)
     }
 
-    private func row(_ tx: Domain.Transaction) -> some View {
-        HStack(spacing: 4) {
+    private func row(_ tx: Domain.Transaction, _ columns: ListColumns) -> some View {
+        // The grey of the numbers leans a little green on a profitable row and red on a losing one.
+        let value = model.pnl(of: tx).map { NumberFormat.displayedQuote($0, fixed: model.quoteFixed) }
+        let grey = value.map { $0 == 0 ? Theme.secondaryText : Theme.secondaryText.mix(with: Theme.pnl($0), by: 0.16) } ?? Theme.secondaryText
+        return HStack(spacing: ListColumns.spacing) {
             if confirming == tx.id {
                 Text("Delete this transaction?").font(.system(size: 12))
                 Spacer()
@@ -200,32 +215,28 @@ struct TransactionList: View {
                 }
                 .buttonStyle(.plain).foregroundStyle(Theme.negative)
             } else {
-                TimelineView(.periodic(from: .now, by: 30)) { ctx in
-                    Text(Elapsed.age(ctx.date.timeIntervalSince(tx.occurredAt)))
-                        .help(tx.occurredAt.formatted(date: .complete, time: .standard) + "\nDouble-click the row to edit")
-                }
-                .foregroundStyle(Theme.secondaryText).frame(width: Self.agoWidth, alignment: .leading).minimumScaleFactor(0.7)
+                Text(tx.rate.map(NumberFormat.shownPrice) ?? "—").foregroundStyle(grey).minimumScaleFactor(0.3).frame(width: columns.rate, alignment: .leading)
+                Text(NumberFormat.quote(tx.amount, fixed: model.quoteFixed)).foregroundStyle(grey).minimumScaleFactor(0.3).frame(width: columns.amount, alignment: .leading)
+                Text(NumberFormat.quantity(tx.quantity)).foregroundStyle(grey).frame(width: columns.qty, alignment: .leading)
+                    .minimumScaleFactor(0.3)
+                Text(tx.fee.map { NumberFormat.quote($0, fixed: model.quoteFixed) } ?? "—").foregroundStyle(grey).minimumScaleFactor(0.3)
+                    .frame(width: columns.fee, alignment: .leading).help("Fee, included in the amount")
                 Text(tx.side == .buy ? "B" : "S") // buy green, sell red; the letter keeps colour from being the only cue
-                    .font(.system(size: 10, weight: .bold)).fixedSize()
-                    .padding(.horizontal, 5).padding(.vertical, 1)
-                    .background(Capsule().fill((tx.side == .buy ? Theme.positive : Theme.negative).opacity(0.18)))
-                    .foregroundStyle(tx.side == .buy ? Theme.positive : Theme.negative)
-                    .frame(width: Self.sideWidth, alignment: .leading)
-                pnl(model.pnl(of: tx))
-                Text(NumberFormat.quantity(tx.quantity)).frame(maxWidth: .infinity, alignment: .trailing)
-                    .minimumScaleFactor(0.6)
-                Text(NumberFormat.quote(tx.amount, fixed: model.quoteFixed)).minimumScaleFactor(0.5).frame(width: Self.amountWidth, alignment: .trailing)
-                Text(tx.fee.map { NumberFormat.quote($0, fixed: model.quoteFixed) } ?? "—").foregroundStyle(Theme.secondaryText).minimumScaleFactor(0.5)
-                    .frame(width: Self.feeWidth, alignment: .trailing).help("Fee, included in the amount")
-                Text(tx.rate.map(NumberFormat.shownPrice) ?? "—").foregroundStyle(Theme.secondaryText).minimumScaleFactor(0.6).frame(width: Self.rateWidth, alignment: .trailing)
+                    .font(.system(size: 10)).fixedSize()
+                    .frame(width: 14, height: 14)
+                    .background(Circle().fill(tx.side == .buy ? Color(red: 0.063, green: 0.286, blue: 0.212) : Color(red: 0.30, green: 0.10, blue: 0.13)))
+                    .foregroundStyle(tx.side == .buy ? Color(red: 0.41, green: 0.98, blue: 0.84) : Color(red: 1.0, green: 0.48, blue: 0.52))
+                    .frame(width: ListColumns.side, alignment: .leading)
+                pnl(model.pnl(of: tx), columns)
             }
         }
         .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(.white.opacity(hovering == tx.id && confirming == nil ? 0.06 : 0)))
-        .overlay(alignment: .trailing) { // over the rate while hovering, so the row keeps equal margins
+        .overlay(alignment: .trailing) { // over the end of the PnL while hovering, so the row keeps equal margins
             if hovering == tx.id && confirming == nil {
                 Button { confirming = tx.id } label: { Image(systemName: "trash") }
                     .buttonStyle(.plain).foregroundStyle(Theme.negative)
                     .padding(.horizontal, 6).frame(maxHeight: .infinity).background(Color.black.opacity(0.75), in: RoundedRectangle(cornerRadius: 6))
+                    .offset(x: ListColumns.inset - 1) // out into the margin, against the window edge
             }
         }
         .contentShape(Rectangle())
@@ -235,7 +246,8 @@ struct TransactionList: View {
             Button("Edit…") { model.openEditForm(id: tx.id) }
             Button("Delete…", role: .destructive) { confirming = tx.id }
         }
-        .font(.system(size: 10.5)).monospacedDigit().lineLimit(1)
-        .frame(height: Self.rowHeight)
+        .font(.system(size: 12.5)).monospacedDigit().lineLimit(1)
+        .help(tx.occurredAt.formatted(date: .complete, time: .standard) + "\nDouble-click the row to edit") // the Ago column is gone: the time is in the tooltip
+        .frame(height: Self.rowHeight - 1)
     }
 }

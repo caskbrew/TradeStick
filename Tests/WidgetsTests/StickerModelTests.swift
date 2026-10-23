@@ -235,6 +235,14 @@ struct Fixture {
         #expect(plan?.quantity == 800 && plan?.side == .sell && plan?.amount == 80 && plan?.remaining == 700)
     }
 
+    @Test func coinProfitIsWhatStaysAfterGettingTheInvestmentBack() async throws {
+        #expect(try await priced("0.1").model.gramPnL == 700) // 1500 held - 800 sold back
+        #expect(try await priced("0.05").model.gramPnL == -100) // 1500 held, 1600 needed
+        let none = try Fixture()
+        try none.add(.buy, "100", "10", minute: 1)
+        #expect(none.model.gramPnL == nil) // no price
+    }
+
     @Test func unavailableWhenPriceIsTooLowOrUnknown() async throws {
         let low = try await priced("0.05") // 80 / 0.05 = 1600 > 1500 held
         #expect(low.model.recoverQuantity == nil)
@@ -247,6 +255,34 @@ struct Fixture {
         let f = try await priced("0.3")
         try f.add(.sell, "100", "40", minute: 3) // 40 USDT already back: 40 left out of pocket
         #expect(f.model.recoverQuantity == dec("133.33333334")) // 40 / 0.3 rounded up at 8 decimals
+    }
+}
+
+@MainActor @Suite(.timeLimit(.minutes(1))) struct CompactTests {
+    @Test func theCompactViewHidesTheListAndBringsItBack() async throws {
+        let f = try Fixture()
+        try f.add(.buy, "100", "10", minute: 1)
+        defer { UserDefaults.standard.removeObject(forKey: "compact.\(f.model.trade.id.uuidString)") }
+        f.model.setExpanded(true)
+        f.model.toggleCompact()
+        #expect(!f.model.trade.isExpanded && !f.model.isCompact) // the list closes first
+        try await Task.sleep(for: .milliseconds(400))
+        #expect(f.model.isCompact && !f.model.trade.isExpanded)
+        f.model.toggleCompact()
+        #expect(!f.model.isCompact && f.model.trade.isExpanded)
+        f.model.toggleCompact()
+        f.model.toggleList() // while the list is closing for the compact view, asking for it is ignored
+        try await Task.sleep(for: .milliseconds(400))
+        #expect(f.model.isCompact)
+        f.model.toggleList() // afterwards it leaves the compact view
+        #expect(!f.model.isCompact && f.model.trade.isExpanded)
+    }
+
+    @Test func theChoiceIsRemembered() throws {
+        let f = try Fixture()
+        defer { UserDefaults.standard.removeObject(forKey: "compact.\(f.model.trade.id.uuidString)") }
+        f.model.toggleCompact()
+        #expect(UserDefaults.standard.bool(forKey: "compact.\(f.model.trade.id.uuidString)"))
     }
 }
 

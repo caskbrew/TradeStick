@@ -24,7 +24,7 @@ cat > $APP/Contents/Info.plist <<PLIST
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
   <key>CFBundleName</key><string>TradeStick</string>
-  <key>CFBundleIdentifier</key><string>com.caskbrew.tradestick</string>
+  <key>CFBundleIdentifier</key><string>com.caskbrew.TradeStick</string>
   <key>CFBundleExecutable</key><string>TradeStick</string>
   <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>CFBundlePackageType</key><string>APPL</string>
@@ -38,6 +38,6 @@ PLIST
 
 # A designated requirement that does not change from build to build (the ad-hoc default is the code hash, which
 # does): the Keychain items of the app stay readable after an update.
-codesign --force --deep --sign - -r='designated => identifier "com.caskbrew.tradestick"' $APP
+codesign --force --deep --sign - -r='designated => identifier "com.caskbrew.TradeStick"' $APP
 ditto -c -k --keepParent $APP dist/TradeStick-$V.zip
 echo "dist/TradeStick-$V.zip"; shasum -a 256 dist/TradeStick-$V.zip

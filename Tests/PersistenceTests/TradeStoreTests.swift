@@ -376,4 +376,27 @@ func at(_ minute: Int) -> Date { Date(timeIntervalSince1970: 1_700_000_000 + Dou
         #expect(try old.load(exchange: "binance") == nil)
         #expect(try new.load(exchange: "bybit") == nil)
     }
+
+    /// The keychain tells services that differ only in letter case apart: moving lowercase -> TradeStick must not delete the new item.
+    @Test func keychainServicesDifferingInCaseAreSeparate() throws {
+        let id = UUID().uuidString
+        let old = KeychainCredentialStore(service: "com.caskbrew.tradestick.tests.\(id)"), new = KeychainCredentialStore(service: "com.caskbrew.TradeStick.tests.\(id)")
+        defer { try? old.remove(exchange: "binance"); try? new.remove(exchange: "binance") }
+        try old.save(APICredentials(key: "K", secret: "S"), exchange: "binance")
+        #expect(try new.load(exchange: "binance") == nil)
+        LegacyMigration.moveKeys(from: old, to: new, exchanges: ["binance"])
+        #expect(try new.load(exchange: "binance") == APICredentials(key: "K", secret: "S"))
+        #expect(try old.load(exchange: "binance") == nil)
+    }
+
+    @Test func copiesDefaultsWithoutOverwriting() {
+        let suite = "tests.\(UUID().uuidString)", oldDomain = "tests.old.\(UUID().uuidString)"
+        let target = UserDefaults(suiteName: suite)!, old = UserDefaults(suiteName: oldDomain)!
+        defer { target.removePersistentDomain(forName: suite); old.removePersistentDomain(forName: oldDomain) }
+        old.set(1.5, forKey: "stickerScale"); old.set(true, forKey: "pinned.x")
+        target.set(2.0, forKey: "stickerScale")
+        LegacyMigration.copyDefaults(fromDomain: oldDomain, to: target)
+        #expect(target.double(forKey: "stickerScale") == 2.0)
+        #expect(target.bool(forKey: "pinned.x"))
+    }
 }
