@@ -35,7 +35,31 @@ struct DownExchange: ExchangeAdapter {
     }
 }
 
+/// The socket never connects, but the REST price works and moves.
+final class RestOnlyExchange: ExchangeAdapter, @unchecked Sendable {
+    let id = "down"
+    private let lock = NSLock()
+    private var price = 1
+    func supports(_ instrument: Instrument) async throws -> Bool { false }
+    func instruments() async throws -> [Instrument] { [] }
+    func snapshot(for instrument: Instrument) async throws -> PriceTick {
+        let p = lock.withLock { price += 1; return price }
+        return PriceTick(price: Decimal(p), eventTime: Date())
+    }
+    func connect(to instrument: Instrument) -> AsyncThrowingStream<FeedEvent, any Error> {
+        AsyncThrowingStream { $0.finish(throwing: URLError(.timedOut)) }
+    }
+}
+
 @Suite(.timeLimit(.minutes(1))) struct HubTests {
+    @Test func theRestPriceKeepsMovingWhileTheSocketIsDown() async throws {
+        let hub = MarketDataHub(adapters: [RestOnlyExchange()], pollEvery: .milliseconds(5), sleep: { _ in try await Task.sleep(for: .milliseconds(20)) })
+        let sub = try await hub.subscribe(MarketDataHub.Key(exchange: "down", instrument: gram))
+        let state = await next(sub) { ($0.tick?.price ?? 0) >= 5 }
+        #expect(state?.connection != .connected)
+        await hub.unsubscribe(sub)
+    }
+
     let key = MarketDataHub.Key(exchange: "fake", instrument: gram)
 
     func makeHub(_ adapters: [any ExchangeAdapter], recorder: SleepRecorder = SleepRecorder()) -> MarketDataHub {

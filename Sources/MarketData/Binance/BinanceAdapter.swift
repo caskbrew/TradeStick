@@ -8,21 +8,26 @@ public final class BinanceAdapter: ExchangeAdapter, Sendable {
 
     public let id = "binance"
     private let restBase: URL
+    /// Where the price is asked when `restBase` does not answer (some networks let only one of them through).
+    private let fallbackBase: URL
+    private let preferFallback = OSAllocatedUnfairLock(initialState: false)
     private let streamBase: String
     private let session: URLSession
     private let fetch: Fetch
 
     public init(
         restBase: URL = URL(string: "https://data-api.binance.vision")!,
+        fallbackBase: URL = URL(string: "https://api.binance.com")!,
         streamBase: String = "wss://data-stream.binance.vision",
         session: URLSession = .shared,
         fetch: Fetch? = nil
     ) {
         self.restBase = restBase
+        self.fallbackBase = fallbackBase
         self.streamBase = streamBase
         self.session = session
         self.fetch = fetch ?? { url in
-            let (data, response) = try await session.data(from: url)
+            let (data, response) = try await session.data(for: URLRequest(url: url, timeoutInterval: 10))
             return (data, (response as? HTTPURLResponse)?.statusCode ?? 0)
         }
     }
@@ -43,10 +48,19 @@ public final class BinanceAdapter: ExchangeAdapter, Sendable {
     }
 
     public func snapshot(for instrument: Instrument) async throws -> PriceTick {
-        let url = restBase.appending(path: "api/v3/ticker/24hr").appending(queryItems: [.init(name: "symbol", value: BinanceParsing.symbol(instrument))])
-        let (data, status) = try await fetch(url)
-        guard status == 200 else { throw URLError(.badServerResponse) }
-        return try BinanceParsing.ticker24h(data, now: Date())
+        let bases = preferFallback.withLock { $0 } ? [fallbackBase, restBase] : [restBase, fallbackBase]
+        var failure: any Error = URLError(.badServerResponse)
+        for base in bases {
+            do {
+                let url = base.appending(path: "api/v3/ticker/24hr").appending(queryItems: [.init(name: "symbol", value: BinanceParsing.symbol(instrument))])
+                let (data, status) = try await fetch(url)
+                guard status == 200 else { throw URLError(.badServerResponse) }
+                let tick = try BinanceParsing.ticker24h(data, now: Date())
+                preferFallback.withLock { $0 = base == fallbackBase }
+                return tick
+            } catch { failure = error }
+        }
+        throw failure
     }
 
     public func connect(to instrument: Instrument) -> AsyncThrowingStream<FeedEvent, any Error> {

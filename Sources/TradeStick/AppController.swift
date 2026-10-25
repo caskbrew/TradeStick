@@ -120,7 +120,11 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
             NSApp.terminate(nil)
             return
         }
-        hub = MarketDataHub(adapters: adapters)
+        if let logs = FileManager.default.urls(for: .libraryDirectory, in: .userDomainMask).first?.appending(path: "Logs/\(Self.dataFolder)") {
+            AppLog.start(directory: logs)
+            AppLog.write("started \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev"), macOS \(ProcessInfo.processInfo.operatingSystemVersionString)")
+        }
+        hub = MarketDataHub(adapters: adapters, pollEvery: .seconds(3))
         installEditMenu()
         watchConnectivity()
 
@@ -173,6 +177,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func watchConnectivity() {
         let hub = hub!
         NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { _ in
+            AppLog.write("wake")
             Task {
                 try? await Task.sleep(for: .seconds(2)) // let Wi-Fi come up
                 await hub.reconnectAll()
@@ -182,6 +187,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let wasOffline = OSAllocatedUnfairLock(initialState: false)
         monitor.pathUpdateHandler = { path in
             let online = path.status == .satisfied
+            AppLog.write("network \(path.status), interfaces: \(path.availableInterfaces.map(\.name).joined(separator: ","))")
             let recovered = wasOffline.withLock { offline -> Bool in
                 defer { offline = !online }
                 return offline && online

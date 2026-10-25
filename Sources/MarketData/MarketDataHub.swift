@@ -57,16 +57,20 @@ public actor MarketDataHub {
     private let backoff: Backoff
     /// After this many failed attempts in a row the state shows `disconnected`; retries continue.
     private let disconnectedAfter = 3
+    /// While a feed is not connected, ask for its price over REST this often (nil: never).
+    private let pollEvery: Duration?
     private var feeds: [Key: Feed] = [:]
 
     public init(
         adapters: [any ExchangeAdapter],
         backoff: Backoff = Backoff(),
+        pollEvery: Duration? = nil,
         clock: @escaping @Sendable () -> Date = { Date() },
         sleep: @escaping @Sendable (Duration) async throws -> Void = { try await Task.sleep(for: $0) }
     ) {
         self.adapters = Dictionary(uniqueKeysWithValues: adapters.map { ($0.id, $0) })
         self.backoff = backoff
+        self.pollEvery = pollEvery
         self.clock = clock
         self.sleep = sleep
     }
@@ -101,6 +105,7 @@ public actor MarketDataHub {
         let run = Task { await self.run(key, feed) }
         feed.runTask = run
         feed.tasks = [Task { await self.fetchSnapshot(key, feed) }, run]
+        if let pollEvery { feed.tasks.append(Task { await self.poll(key, feed, every: pollEvery) }) }
         return feed
     }
 
@@ -108,6 +113,7 @@ public actor MarketDataHub {
     /// Called after the Mac wakes up or the network comes back: a socket that was open before the sleep is
     /// dead but does not know it yet.
     public func reconnectAll() {
+        AppLog.write("reconnect all (\(feeds.count) feeds)")
         for (key, feed) in feeds {
             feed.runTask?.cancel()
             let run = Task { await self.run(key, feed) }
@@ -126,13 +132,39 @@ public actor MarketDataHub {
     }
 
     private func fetchSnapshot(_ key: Key, _ feed: Feed) async {
-        guard let adapter = adapters[key.exchange],
-              let tick = try? await adapter.snapshot(for: key.instrument),
-              !Task.isCancelled, feed.state.tick == nil else { return }
+        guard let adapter = adapters[key.exchange] else { return }
+        let tick: PriceTick
+        do { tick = try await adapter.snapshot(for: key.instrument) } catch {
+            AppLog.write("\(key.instrument.base)/\(key.instrument.quote) \(key.exchange) snapshot failed: \(AppLog.describe(error))")
+            return
+        }
+        guard !Task.isCancelled, feed.state.tick == nil else { return }
         // A snapshot only fills the gap before the first streamed price; it never overrides one.
         feed.state.tick = tick
         feed.state.receivedAt = clock()
         broadcast(feed)
+    }
+
+    /// A socket that cannot connect (blocked host, flaky network) must not leave the price frozen: while the feed is
+    /// down, take the price from the REST ticker instead.
+    private func poll(_ key: Key, _ feed: Feed, every interval: Duration) async {
+        guard let adapter = adapters[key.exchange] else { return }
+        let name = "\(key.instrument.base)/\(key.instrument.quote)"
+        var polling = false
+        while !Task.isCancelled {
+            try? await Task.sleep(for: interval)
+            guard !Task.isCancelled, feed.state.connection != .connected else { polling = false; continue }
+            do {
+                var tick = try await adapter.snapshot(for: key.instrument)
+                tick.eventTime = max(tick.eventTime, feed.lastEventTime ?? .distantPast) // the REST price is newer than anything the dead socket gave
+                if feed.state.connection != .connected { apply(tick, feed) }
+                if !polling { AppLog.write("\(name) \(key.exchange) price over REST while the socket is down") }
+                polling = true
+            } catch {
+                if polling || !Task.isCancelled { AppLog.write("\(name) \(key.exchange) REST price failed: \(AppLog.describe(error))") }
+                polling = false
+            }
+        }
     }
 
     private static let log = Logger(subsystem: "TradeStick", category: "marketdata")
@@ -140,12 +172,14 @@ public actor MarketDataHub {
     private func run(_ key: Key, _ feed: Feed) async {
         guard let adapter = adapters[key.exchange] else { return }
         var failures = 0
+        let name = "\(key.instrument.base)/\(key.instrument.quote)"
         while !Task.isCancelled {
             setConnection(feed, failures == 0 && feed.state.receivedAt == nil ? .connecting : .reconnecting)
             do {
                 for try await event in adapter.connect(to: key.instrument) {
                     switch event {
                     case .connected:
+                        AppLog.write("\(name) \(key.exchange) connected")
                         failures = 0
                         setConnection(feed, .connected)
                     case .tick(let tick):
@@ -154,11 +188,13 @@ public actor MarketDataHub {
                 }
             } catch {
                 Self.log.error("\(key.instrument.base, privacy: .public)/\(key.instrument.quote, privacy: .public) feed failed (attempt \(failures + 1)): \(String(describing: error), privacy: .public)")
+                AppLog.write("\(name) \(key.exchange) failed (attempt \(failures + 1)): \(AppLog.describe(error))")
             }
             if Task.isCancelled { return }
             setConnection(feed, failures + 1 >= disconnectedAfter ? .disconnected : .reconnecting)
             let delay = backoff.delay(attempt: failures)
             Self.log.notice("\(key.instrument.base, privacy: .public) feed ended, reconnecting in \(String(describing: delay), privacy: .public)")
+            AppLog.write("\(name) \(key.exchange) \(failures + 1 >= disconnectedAfter ? "disconnected" : "reconnecting") in \(delay)")
             try? await sleep(delay)
             failures += 1
         }

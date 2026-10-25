@@ -60,6 +60,18 @@ import Testing
         #expect(seen.value?.absoluteString == "https://data-api.binance.vision/api/v3/ticker/24hr?symbol=GRAMUSDT")
     }
 
+    @Test func snapshotUsesTheOtherHostWhenOneDoesNotAnswerAndRemembersIt() async throws {
+        let hosts = LockedBox<[String]>([])
+        let adapter = BinanceAdapter(fetch: { url in
+            hosts.value.append(url.host()!)
+            if url.host() == "data-api.binance.vision" { throw URLError(.timedOut) }
+            return (Data(#"{"lastPrice":"0.055","openPrice":"0.05"}"#.utf8), 200)
+        })
+        _ = try await adapter.snapshot(for: gram)
+        _ = try await adapter.snapshot(for: gram)
+        #expect(hosts.value == ["data-api.binance.vision", "api.binance.com", "api.binance.com"])
+    }
+
     /// AC-3: needs the network. Run with LIVE_TESTS=1.
     @Test(.enabled(if: ProcessInfo.processInfo.environment["LIVE_TESTS"] != nil), .timeLimit(.minutes(1)))
     func liveBinanceListsAndStreamsGramUsdt() async throws {
