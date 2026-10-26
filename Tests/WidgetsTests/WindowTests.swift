@@ -521,6 +521,25 @@ extension UITests {
         let (normal, _) = try await UITests.StickerLayoutTests().sticker(UITests.StickerLayoutTests.cases[0])
         #expect(window.size == normal.size, "empty \(window.size) vs normal \(normal.size)")
     }
-}
-}
 
+    /// The what-if price (scrolling over the card) does not change the size of the sticker.
+    @Test func aWhatIfPriceDoesNotResizeTheSticker() async throws {
+        let store = try TradeStore.inMemory()
+        let fake = FakeExchange(id: "binance")
+        let trade = try store.createTrade(exchange: "binance", base: "GRAM", quote: "USDT", direction: .buyFirst)
+        try store.addTransaction(tradeID: trade.id, side: .buy, quantity: 100, amount: 5, occurredAt: Date().addingTimeInterval(-60))
+        let model = StickerModel(trade: trade, store: store, hub: MarketDataHub(adapters: [fake]), throttle: .milliseconds(1))
+        model.reload(); await model.refreshSubscription()
+        await waitUntil { fake.connectCount == 1 }
+        fake.emit(PriceTick(price: dec("0.055"), open24h: dec("0.05"), eventTime: Date()))
+        await waitUntil { model.currentPrice != nil }
+        let live = TestWindow(StickerView(model: model, actions: StickerActions(hide: {}, delete: {})))
+        let before = live.size
+        model.nudgePreview(by: 0.5, ended: false)
+        live.settle()
+        live.snapshot("window-sticker-whatif")
+        #expect(live.size == before)
+        UserDefaults.standard.removeObject(forKey: "compact.\(trade.id.uuidString)")
+    }
+}
+}

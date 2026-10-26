@@ -353,7 +353,8 @@ struct PriceText: View {
         Text(model.currentPrice.map(NumberFormat.shownPrice) ?? "—")
             .font(.system(size: size, weight: .bold)).monospacedDigit()
             .lineLimit(1).minimumScaleFactor(0.4)
-            .opacity(usable || model.currentPrice == nil ? 1 : 0.5)
+            .foregroundStyle(model.isPreviewing ? Theme.warning : Color.white) // a what-if price, not the live one
+            .opacity(usable || model.isPreviewing || model.currentPrice == nil ? 1 : 0.5)
             .frame(height: height, alignment: .leading)
     }
 }
@@ -408,6 +409,7 @@ struct Notch: Shape {
 struct ChangeText: View {
     let change: Decimal
     var size: CGFloat = 13
+    var label = "24h"
 
     var body: some View {
         let shown = NumberFormat.displayedPercent(change)
@@ -416,7 +418,7 @@ struct ChangeText: View {
             Text(shown > 0 ? "▲" : shown < 0 ? "▼" : "")
             HStack(spacing: 7) {
                 Text(text.hasPrefix("+") || text.hasPrefix("\u{2212}") ? String(text.dropFirst()) : text).monospacedDigit().fontWeight(.semibold).minimumScaleFactor(0.5)
-                Text("24h").foregroundStyle(Theme.secondaryText).fontWeight(.regular).minimumScaleFactor(0.5)
+                Text(label).foregroundStyle(Theme.secondaryText).fontWeight(.regular).minimumScaleFactor(0.5)
             }
         }
         .font(.system(size: size, weight: .medium)).foregroundStyle(Theme.pnl(shown)).lineLimit(1)
@@ -443,7 +445,10 @@ struct PriceRow: View {
             VStack(alignment: .leading, spacing: 0) {
                 PriceText(model: model, usable: usable).flies("price", .leading, short: false)
                 // Hidden while the price is stale (the header says why); the room stays, so the card keeps its height.
-                Group { if usable, let change = model.price.change24h { ChangeText(change: change) } else { Color.clear } }
+                Group {
+                    if let change = model.previewChange { ChangeText(change: change, label: "vs live") }
+                    else if usable, let change = model.price.change24h { ChangeText(change: change) } else { Color.clear }
+                }
                     .frame(height: 16, alignment: .leading)
             }
             .frame(width: max(priceWidth, 86), alignment: .leading)

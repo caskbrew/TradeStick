@@ -146,6 +146,7 @@ struct TransactionList: View {
 
     private static let rowHeight = StickerModel.listRowHeight
     private static let maxRows = 24 // more than that scrolls
+    private var scrolls: Bool { model.transactions.count > Self.maxRows }
 
     var body: some View {
         let rows = model.transactions.sorted { ($0.occurredAt, $0.sequence) > ($1.occurredAt, $1.sequence) }
@@ -156,13 +157,13 @@ struct TransactionList: View {
                 Text(error).font(.system(size: 12)).foregroundStyle(Theme.negative).padding(.horizontal, ListColumns.inset).padding(.top, 4)
             }
             Group {
-                if rows.count > Self.maxRows {
-                    ScrollView { rowsStack(rows, columns) }.frame(height: CGFloat(Self.maxRows) * Self.rowHeight)
+                if scrolls {
+                    // The scroller sits in the margin at the window's edge, not over the rows (and their trash button).
+                    ScrollView { rowsStack(rows, columns).padding(.horizontal, ListColumns.inset) }.frame(height: CGFloat(Self.maxRows) * Self.rowHeight)
                 } else {
-                    rowsStack(rows, columns)
+                    rowsStack(rows, columns).padding(.horizontal, ListColumns.inset)
                 }
             }
-            .padding(.horizontal, ListColumns.inset)
             .padding(.bottom, 6.5)
         }
     }
@@ -236,7 +237,7 @@ struct TransactionList: View {
                 Button { confirming = tx.id } label: { Image(systemName: "trash") }
                     .buttonStyle(.plain).foregroundStyle(Theme.negative)
                     .padding(.horizontal, 6).frame(maxHeight: .infinity).background(Color.black.opacity(0.75), in: RoundedRectangle(cornerRadius: 6))
-                    .offset(x: ListColumns.inset - 1) // out into the margin, against the window edge
+                    .offset(x: scrolls ? 0 : ListColumns.inset - 1) // out into the margin, against the window edge; the scroller takes the margin
             }
         }
         .contentShape(Rectangle())

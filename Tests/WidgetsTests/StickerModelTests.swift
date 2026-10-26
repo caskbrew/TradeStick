@@ -89,6 +89,44 @@ struct Fixture {
         #expect(f.model.pnl.ratio == dec("0.11875"))
     }
 
+    @Test func aWhatIfPriceChangesTheCardButNotTheLivePriceOrTheClosingPrice() async throws {
+        let f = try Fixture()
+        try f.add(.buy, "900", "48", minute: 1)
+        await f.model.refreshSubscription()
+        await waitUntil { f.fake.connectCount == 1 }
+        f.model.nudgePreview(by: 0.1, ended: true) // no price yet: nothing to move
+        #expect(!f.model.isPreviewing)
+        f.fake.emit(PriceTick(price: dec("0.1"), eventTime: at(1)))
+        await waitUntil { f.model.livePrice != nil }
+
+        f.model.nudgePreview(by: 0.1, ended: false)
+        f.model.nudgePreview(by: 0.1, ended: false) // moves from the what-if price, 0.1 * 1.1 * 1.1
+        #expect(f.model.currentPrice == dec("0.121") && f.model.livePrice == dec("0.1"))
+        #expect(f.model.previewChange == dec("0.21"))
+        #expect(f.model.pnl.total != nil && f.model.pnl.total == f.model.summary.pnl(at: dec("0.121")).total)
+
+        var shown: StickerModel.ClosePlan?
+        f.model.confirm = { shown = $0; return false }
+        await f.model.requestClose(recoverInvestment: false)
+        #expect(shown?.rate == dec("0.1")) // closing uses the real price
+
+        f.model.endPreview()
+        #expect(f.model.currentPrice == dec("0.1") && f.model.previewChange == nil)
+    }
+
+    @Test func theWhatIfPriceGoesAwayByItselfAfterTheGestureEnds() async throws {
+        let f = try Fixture()
+        try f.add(.buy, "900", "48", minute: 1)
+        await f.model.refreshSubscription()
+        await waitUntil { f.fake.connectCount == 1 }
+        f.fake.emit(PriceTick(price: dec("0.1"), eventTime: at(1)))
+        await waitUntil { f.model.livePrice != nil }
+        f.model.nudgePreview(by: -0.5, ended: true)
+        #expect(f.model.currentPrice == dec("0.05"))
+        await waitUntil { !f.model.isPreviewing }
+        #expect(f.model.currentPrice == dec("0.1"))
+    }
+
     @Test func closedTradeAndHiddenWindowDoNotSubscribe() async throws {
         let f = try Fixture()
         try f.add(.buy, "100", "10", minute: 1)

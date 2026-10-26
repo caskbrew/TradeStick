@@ -27,7 +27,7 @@ Works with **Binance**, **Bybit** and **Poloniex** (spot). It only ever *reads*:
    ![API Keys](docs/readme/api-keys.png)
    ![Import transactions from the exchange](docs/readme/import.png)
 
-Handy: **⇧⌘N** New Stick · **⇧⌘K** API Keys · **⇧⌘R** Restart (after an update) · **⌘Q** Quit. Zoom a sticker from its right-click menu; double-click a sticker or press **⌘S** to switch between the full and the compact view; Esc closes any dialog.
+Handy: **⇧⌘N** New Stick · **⇧⌘K** API Keys · **⇧⌘R** Restart (after an update) · **⌘Q** Quit. Zoom a sticker from its right-click menu; double-click a sticker or press **⌘S** to switch between the full and the compact view; **Scroll over a sticker** to try another price (up raises it, down lowers it): the sticker shows the result at that price, and the live one comes back a moment after you stop or on a click; Esc closes any dialog.
 
 ## Good to know
 

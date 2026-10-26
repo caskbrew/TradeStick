@@ -28,6 +28,19 @@ class ZoomPanel: NSPanel {
 
 /// Borderless note-like panel (M0 report): normal level, one Space, activating, no title bar.
 final class StickerPanel: ZoomPanel {
+    /// Scrolling anywhere on the card, and any press on it (taken here, before the views see the event).
+    var onScroll: ((NSEvent) -> Void)?
+    var onPress: (() -> Void)?
+
+    override func sendEvent(_ event: NSEvent) {
+        switch event.type {
+        case .scrollWheel where onScroll != nil: onScroll?(event); return
+        case .leftMouseDown, .rightMouseDown: onPress?()
+        default: break
+        }
+        super.sendEvent(event)
+    }
+
     init() {
         super.init(
             contentRect: NSRect(x: 0, y: 0, width: StickerView.width, height: 200),
@@ -115,6 +128,15 @@ final class StickerWindow: NSObject, NSWindowDelegate {
         listHost.sizingOptions = []
         listPanel.contentView = listHost
         panel.isMovableByWindowBackground = !model.isPinned
+        // Scrolling over the card tries another price: up raises it, down lowers it, whatever the scroll direction
+        // setting; the live price comes back shortly after the gesture ends, or on a click.
+        panel.onScroll = { [weak model] event in
+            let direction: CGFloat = event.isDirectionInvertedFromDevice ? -1 : 1
+            let step = event.hasPreciseScrollingDeltas ? 0.0005 : 0.005 // per point of a trackpad, per notch of a wheel
+            let active = !event.phase.isDisjoint(with: [.began, .changed, .stationary, .mayBegin]) || !event.momentumPhase.isDisjoint(with: [.began, .changed, .stationary])
+            model?.nudgePreview(by: Double(event.scrollingDeltaY * direction) * step, ended: !active)
+        }
+        panel.onPress = { [weak model] in model?.endPreview() }
         model.onPinChange = { [weak panel] pinned in panel?.isMovableByWindowBackground = !pinned }
         for p in [panel, formPanel, listPanel] as [ZoomPanel] { p.onZoom = { [weak model] delta in model?.zoom(by: delta) } }
         listPanel.setContentSize(NSSize(width: StickerView.listWidth * model.scale, height: 300))

@@ -164,7 +164,31 @@ public final class StickerModel {
 
     // MARK: Derived values
 
-    public var currentPrice: Decimal? { price.tick?.price }
+    /// The price from the exchange; actions (closing a trade) always use this one.
+    public var livePrice: Decimal? { price.tick?.price }
+    /// The price everything on the card is computed from: the live one, or the one being tried out by scrolling.
+    public var currentPrice: Decimal? { previewPrice ?? livePrice }
+    /// A what-if price set by scrolling over the card; it goes away by itself shortly after the gesture ends.
+    public private(set) var previewPrice: Decimal?
+    public var isPreviewing: Bool { previewPrice != nil }
+    /// How far the what-if price is from the live one, as a fraction; nil when not previewing.
+    public var previewChange: Decimal? {
+        guard let preview = previewPrice, let live = livePrice, live > 0 else { return nil }
+        return (preview - live) / live
+    }
+    @ObservationIgnored private var previewTask: Task<Void, Never>?
+
+    /// Moves the what-if price by `fraction` (0.01 = 1 %). While the gesture goes on (`ended` false) the price stays;
+    /// when it has ended the live price comes back after a second, long enough to read the result.
+    public func nudgePreview(by fraction: Double, ended: Bool) {
+        guard let live = livePrice, live > 0 else { return }
+        previewTask?.cancel()
+        let factor = Decimal(max(1 + fraction, 0.01))
+        previewPrice = max((previewPrice ?? live) * factor, live / 1000)
+        if ended { previewTask = Task { [weak self] in try? await Task.sleep(for: .seconds(1)); if !Task.isCancelled { self?.endPreview() } } }
+    }
+
+    public func endPreview() { previewTask?.cancel(); previewPrice = nil }
     /// Sum of the fees of all transactions; nil when none has one.
     public var totalFee: Decimal? {
         let fees = transactions.compactMap(\.fee)
@@ -286,7 +310,7 @@ public final class StickerModel {
     /// comes back, leaving the rest as profit. nil when that is not possible: sell-first trade, no price,
     /// nothing left to recover, or the price is too low to recover it with what is held.
     public var recoverQuantity: Decimal? {
-        guard trade.direction == .buyFirst, let price = currentPrice, price > 0 else { return nil }
+        guard trade.direction == .buyFirst, let price = livePrice, price > 0 else { return nil }
         let outOfPocket = summary.boughtAmount - summary.soldAmount
         guard outOfPocket > 0 else { return nil }
         var exact = outOfPocket / price, rounded = Decimal()
@@ -307,7 +331,7 @@ public final class StickerModel {
     /// The whole open quantity (or, with `recoverInvestment`, just enough to get the investment back) at the
     /// current price. nil while the trade is not open or the price is unknown.
     public func closePlan(recoverInvestment: Bool) -> ClosePlan? {
-        guard status == .open, let price = currentPrice else { return nil }
+        guard status == .open, let price = livePrice else { return nil }
         guard let quantity = recoverInvestment ? recoverQuantity : summary.openQuantity else { return nil }
         return ClosePlan(
             side: trade.direction.closingSide, quantity: quantity, rate: price, amount: (quantity * price).rounded(scale: 8),
