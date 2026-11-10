@@ -17,11 +17,15 @@ public struct ImportedTrade: Identifiable, Equatable, Sendable {
     public var fees: [String: Decimal]
     /// The fees valued in the quote currency (see `ExchangeAccount.pricingFees`); they count as cost on import.
     public var feeQuote: Decimal = 0
+    /// A buy's fee paid in the base coin: it is taken out of what was bought, so it is not in `feeQuote`.
+    public var feeBase: Decimal = 0
     /// Fee assets that could not be valued: not included in the amount.
     public var feeUnpriced: [String] = []
 
     public var id: String { externalID }
-    public var rate: Decimal? { quantity > 0 ? amount / quantity : nil }
+    public var rate: Decimal? { netQuantity > 0 ? amount / netQuantity : nil }
+    /// What really arrives in the position: a buy paid its fee in the coin itself receives that much less.
+    public var netQuantity: Decimal { side == .buy ? quantity - feeBase : quantity }
     /// What the position really paid or received: a buy costs the fee on top, a sell brings in the fee less.
     public var netAmount: Decimal { side == .buy ? amount + feeQuote : amount - feeQuote }
 
@@ -63,6 +67,7 @@ public struct ImportedTrade: Identifiable, Equatable, Sendable {
                 occurredAt: parts.map(\.occurredAt).max()!, orderID: first.orderID, fillIDs: parts.flatMap(\.fillIDs), fees: fees
             )
             grouped.feeQuote = parts.reduce(0) { $0 + $1.feeQuote }
+            grouped.feeBase = parts.reduce(0) { $0 + $1.feeBase }
             grouped.feeUnpriced = Array(Set(parts.flatMap(\.feeUnpriced))).sorted()
             return grouped
         }

@@ -1,5 +1,8 @@
 # TradeStick MVP — Техническое задание (Trade Sticker)
 
+> **Historical document (October 2026).** Written before the Liquid Glass look, the compact view, the menu-bar panel, the what-if price and the Bybit/Poloniex adapters; the code and the README are the current truth.
+
+
 Статус: **DRAFT v0.4** (v0.3 + решения M0 по окнам) (на согласование; учитывает макеты `docs/ref002.png`, `docs/ref-dashboard-*.png`; Target и Progress исключены решением заказчика). Дата: 2026-10-13.
 Код не пишется до утверждения этого ТЗ.
 

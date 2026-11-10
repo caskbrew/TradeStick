@@ -115,7 +115,7 @@ public actor MarketDataHub {
     public func reconnectAll() {
         AppLog.write("reconnect all (\(feeds.count) feeds)")
         for (key, feed) in feeds {
-            feed.runTask?.cancel()
+            if let old = feed.runTask { old.cancel(); feed.tasks.removeAll { $0 == old } }
             let run = Task { await self.run(key, feed) }
             feed.runTask = run
             feed.tasks.append(run)
@@ -155,9 +155,12 @@ public actor MarketDataHub {
             try? await Task.sleep(for: interval)
             guard !Task.isCancelled, feed.state.connection != .connected else { polling = false; continue }
             do {
-                var tick = try await adapter.snapshot(for: key.instrument)
-                tick.eventTime = max(tick.eventTime, feed.lastEventTime ?? .distantPast) // the REST price is newer than anything the dead socket gave
-                if feed.state.connection != .connected { apply(tick, feed) }
+                let tick = try await adapter.snapshot(for: key.instrument)
+                if feed.state.connection != .connected { // it carries this Mac's clock, not the exchange's: it must not date the stream
+                    feed.state.tick = tick
+                    feed.state.receivedAt = clock()
+                    broadcast(feed)
+                }
                 if !polling { AppLog.write("\(name) \(key.exchange) price over REST while the socket is down") }
                 polling = true
             } catch {
@@ -181,6 +184,7 @@ public actor MarketDataHub {
                     case .connected:
                         AppLog.write("\(name) \(key.exchange) connected")
                         failures = 0
+                        feed.lastEventTime = nil // a new stream starts from its own first price
                         setConnection(feed, .connected)
                     case .tick(let tick):
                         apply(tick, feed)

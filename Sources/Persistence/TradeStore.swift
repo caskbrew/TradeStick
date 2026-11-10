@@ -126,11 +126,12 @@ public final class TradeStore: Sendable {
             guard let trade = try Self.fetchTrade(db, tradeID) else { throw StoreError.tradeNotFound(tradeID) }
             let existing = try Self.fetchTransactions(db, tradeID)
             let known = Set(try String.fetchAll(db, sql: "SELECT externalID FROM tradeTransaction WHERE tradeID = ? AND externalID IS NOT NULL", arguments: [tradeID.uuidString]))
-            let fresh = trades.filter { !known.contains($0.externalID) }.sorted { ($0.occurredAt, $0.externalID) < ($1.occurredAt, $1.externalID) }
+            var seen = known
+            let fresh = trades.filter { seen.insert($0.externalID).inserted }.sorted { ($0.occurredAt, $0.externalID) < ($1.occurredAt, $1.externalID) }
             var next = try Int.fetchOne(db, sql: "SELECT MAX(sequence) FROM tradeTransaction WHERE tradeID = ?", arguments: [tradeID.uuidString]) ?? 0
             let added = fresh.map { t -> (Transaction, String) in
                 next += 1
-                return (Transaction(side: t.side, quantity: t.quantity, amount: t.amount, occurredAt: t.occurredAt, sequence: next, fee: t.feeQuote > 0 ? t.feeQuote : nil), t.externalID)
+                return (Transaction(side: t.side, quantity: t.netQuantity, amount: t.amount, occurredAt: t.occurredAt, sequence: next, fee: t.feeQuote > 0 ? t.feeQuote : nil), t.externalID)
             }
             try Self.validate(trade.direction, existing + added.map(\.0))
             for (tx, externalID) in added {
@@ -154,8 +155,8 @@ public final class TradeStore: Sendable {
                 guard let id = UUID(uuidString: row["id"]), let index = all.firstIndex(where: { $0.id == id }), let t = wanted[row["externalID"] as String] else { continue }
                 let fee = t.feeQuote > 0 ? t.feeQuote : nil
                 let tx = all[index]
-                guard (tx.side, tx.quantity, tx.amount, tx.occurredAt.timeIntervalSince1970, tx.fee) != (t.side, t.quantity, t.amount, t.occurredAt.timeIntervalSince1970, fee) else { continue }
-                all[index].side = t.side; all[index].quantity = t.quantity; all[index].amount = t.amount
+                guard (tx.side, tx.quantity, tx.amount, tx.occurredAt.timeIntervalSince1970, tx.fee) != (t.side, t.netQuantity, t.amount, t.occurredAt.timeIntervalSince1970, fee) else { continue }
+                all[index].side = t.side; all[index].quantity = t.netQuantity; all[index].amount = t.amount
                 all[index].occurredAt = t.occurredAt; all[index].fee = fee
                 changed.append(index)
             }

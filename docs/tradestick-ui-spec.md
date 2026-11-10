@@ -1,5 +1,8 @@
 # TradeStick — UI/UX Specification
 
+> **Historical document (October 2026).** Written before the Liquid Glass look, the compact view, the menu-bar panel, the what-if price and the Bybit/Poloniex adapters; the code and the README are the current truth.
+
+
 **Status:** Draft for discovery and implementation planning  
 **Platform:** macOS  
 **Audience:** Claude Code / product designer / macOS engineer  

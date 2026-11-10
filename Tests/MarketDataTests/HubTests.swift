@@ -51,7 +51,41 @@ final class RestOnlyExchange: ExchangeAdapter, @unchecked Sendable {
     }
 }
 
+/// A socket that fails until it is opened, and whose REST price carries this Mac's clock far ahead of the exchange's.
+final class GatedExchange: ExchangeAdapter, @unchecked Sendable {
+    let id = "gated"
+    private let lock = NSLock()
+    private var open = false
+    private var continuation: AsyncThrowingStream<FeedEvent, any Error>.Continuation?
+    func openSocket() { lock.withLock { open = true } }
+    func emit(_ tick: PriceTick) { lock.withLock { continuation }?.yield(.tick(tick)) }
+    func supports(_ instrument: Instrument) async throws -> Bool { false }
+    func instruments() async throws -> [Instrument] { [] }
+    func snapshot(for instrument: Instrument) async throws -> PriceTick { PriceTick(price: 7, eventTime: Date().addingTimeInterval(3_600)) }
+    func connect(to instrument: Instrument) -> AsyncThrowingStream<FeedEvent, any Error> {
+        guard lock.withLock({ open }) else { return AsyncThrowingStream { $0.finish(throwing: URLError(.timedOut)) } }
+        let (stream, continuation) = AsyncThrowingStream.makeStream(of: FeedEvent.self, throwing: (any Error).self)
+        lock.withLock { self.continuation = continuation }
+        continuation.yield(.connected)
+        return stream
+    }
+}
+
 @Suite(.timeLimit(.minutes(1))) struct HubTests {
+    /// The REST price carries this Mac's clock: it must not make the exchange's own, older-stamped ticks look out of order.
+    @Test func aRestPriceDoesNotMakeTheSocketsLaterTicksDropped() async throws {
+        let gate = GatedExchange()
+        let hub = MarketDataHub(adapters: [gate], pollEvery: .milliseconds(5), sleep: { _ in try await Task.sleep(for: .milliseconds(10)) })
+        let sub = try await hub.subscribe(MarketDataHub.Key(exchange: "gated", instrument: gram))
+        _ = await next(sub) { $0.tick?.price == 7 } // over REST, socket still down
+        gate.openSocket()
+        _ = await next(sub) { $0.connection == .connected }
+        gate.emit(tick("1.5", t: 1)) // stamped long before the REST tick
+        let state = await next(sub) { $0.tick?.price == dec("1.5") }
+        #expect(state?.tick?.price == dec("1.5"))
+        await hub.unsubscribe(sub)
+    }
+
     @Test func theRestPriceKeepsMovingWhileTheSocketIsDown() async throws {
         let hub = MarketDataHub(adapters: [RestOnlyExchange()], pollEvery: .milliseconds(5), sleep: { _ in try await Task.sleep(for: .milliseconds(20)) })
         let sub = try await hub.subscribe(MarketDataHub.Key(exchange: "down", instrument: gram))

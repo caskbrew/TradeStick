@@ -55,6 +55,7 @@ struct APIKeysCard: View {
                         }
                     }
                     Text(subtitle).font(.system(size: 12)).foregroundStyle(model.readOnly == false ? Theme.warning : Theme.secondaryText)
+                        .help(subtitle) // the full text, when the line is cut
                 }
                 Spacer(minLength: 8)
                 if case .failed(let text) = model.status { // beside Test, a fixed box: an error never resizes the window
@@ -103,6 +104,7 @@ struct APIKeysCard: View {
         .padding(14)
         .frame(width: 600)
         .background(GlassBackground())
+        .windowDraggable()
         .environment(\.colorScheme, .dark)
         .onAppear { keyFocused = true }
     }

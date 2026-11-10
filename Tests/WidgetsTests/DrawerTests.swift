@@ -74,9 +74,10 @@ extension UITests {
         window.settle(0.4)
         #expect(model.editingID == first.id)
         model.edit(.quantity, "1200")
+        window.settle(0.2)
+        window.snapshot("window-form-edit") // the edit form with its own title and Save button
         await model.submit()
         #expect(model.transactions.contains { $0.id == first.id && $0.quantity == 1200 })
-        window.snapshot("window-form-edit")
     }
 
     @Test func theListShowsTheRowsAndDeletingOneUpdatesIt() async throws {

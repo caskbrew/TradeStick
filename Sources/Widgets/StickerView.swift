@@ -62,7 +62,7 @@ public struct StickerView: View {
             }
             .frame(width: Self.width, height: height > 0 ? height : nil, alignment: .top)
             .clipped()
-            .animation(.easeInOut(duration: 0.25), value: compact)
+            .animation(Motion.ease(0.25), value: compact)
             .background(StickerGlass(radius: 15))
             .background(WindowDragArea(onDoubleClick: { model.toggleCompact() }))
             .foregroundStyle(.white)
@@ -118,9 +118,9 @@ struct FormDrawer: View {
         .onChange(of: model.form != nil) { _, open in
             if open {
                 rendered = true
-                withAnimation(.easeInOut(duration: Self.duration)) { reveal = Self.panelWidth + Self.gap }
+                withAnimation(Motion.ease(Self.duration)) { reveal = Self.panelWidth + Self.gap }
             } else {
-                withAnimation(.easeInOut(duration: Self.duration)) { reveal = 0 }
+                withAnimation(Motion.ease(Self.duration)) { reveal = 0 }
                 Task {
                     try? await Task.sleep(for: .milliseconds(Int(Self.duration * 1000) + 20))
                     if model.form == nil { rendered = false }
@@ -133,7 +133,7 @@ struct FormDrawer: View {
     private var panel: some View {
         if rendered {
             TransactionForm(model: model).id(model.formID)
-                .frame(height: model.cardHeight - 16, alignment: .top) // as high as the card
+                .frame(minHeight: model.cardHeight - 16, alignment: .top) // at least as high as the card; an error line makes it taller, never cuts the buttons off
                 .padding(8)
                 .frame(width: Self.panelWidth)
                 .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { model.formHeightChanged($0) }
@@ -173,7 +173,7 @@ struct ListDrawer: View {
     }
 
     private func move(_ open: Bool) {
-        withAnimation(.easeInOut(duration: Self.duration)) { reveal = open ? measured + Self.gap : 0 }
+        withAnimation(Motion.ease(Self.duration)) { reveal = open ? measured + Self.gap : 0 }
     }
 }
 
@@ -228,23 +228,25 @@ struct StickerHeader: View {
             VStack(alignment: .leading, spacing: 0) {
                 HStack(spacing: 10) {
                     Text("\(model.trade.base) / \(model.trade.quote)").font(.system(size: 15, weight: .bold)).lineLimit(1).minimumScaleFactor(0.6)
+                        .layoutPriority(2) // the pair keeps its room: the time and the badge give way
                         .flies("title", .leading, short: false)
-                    DurationLabel(model: model).flies("time", short: false)
+                    DurationLabel(model: model).fixedSize().flies("time", short: false) // keeps its text: the pair shrinks instead
                 }
                 .frame(height: 18)
                 HStack(spacing: 5) {
                     Text("\(live || !model.wantsPrice ? (model.trade.direction == .buyFirst ? "BUY · " : "SELL · ") : "")\(model.trade.exchange.capitalized)").lineLimit(1).layoutPriority(1) // the side steps aside while the note needs the room
-                    Text("·")
+                    if live || model.wantsPrice { Text("·") }
                     if live { LiveDot() } else if model.wantsPrice {
                         ConnectionNote(state: model.price, freshness: freshness)
                     }
+                    // Under the pair, not beside it: the pair keeps the whole top line.
+                    if model.status != .open && model.status != .empty { StatusBadge(status: model.status) }
                 }
                 .font(.system(size: 11.5)).foregroundStyle(Theme.secondaryText)
                 .frame(height: 14)
             }
             .overlay(WindowDragArea(onDoubleClick: { model.toggleCompact() }))
             Spacer(minLength: 4)
-            if model.status != .open && model.status != .empty { StatusBadge(status: model.status) }
             // Each button is a 26pt circle centred on its glyph: the click area is the circle, not the glyph.
             HStack(spacing: 0) {
                 Button { model.togglePin() } label: {
@@ -253,6 +255,7 @@ struct StickerHeader: View {
                 }
                 .buttonStyle(.plain).foregroundStyle(model.isPinned ? Theme.pin : Theme.secondaryText)
                 .help(model.isPinned ? "Unpin: allow moving the window" : "Pin: lock the window position")
+                .accessibilityLabel(model.isPinned ? "Unpin window" : "Pin window")
                 .offset(x: 9) // closer to the menu dots
                 ZStack {
                     // The glyph is a plain view; the menu on top only catches the click.
@@ -264,6 +267,7 @@ struct StickerHeader: View {
                     }
                     .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
                     .clipShape(Circle())
+                    .accessibilityLabel("Sticker menu")
                 }
                 .frame(width: 26, height: 26)
             }
@@ -288,11 +292,11 @@ struct StickerMenuItems: View {
             .keyboardShortcut("l").disabled(model.status == .empty)
         Toggle("Compact", isOn: Binding(get: { model.isCompact }, set: { _ in model.toggleCompact() })).keyboardShortcut("s")
         Divider()
-        Button("Zoom \(model.zoomPercent(by: StickerModel.zoomStep))%") { model.zoom(by: StickerModel.zoomStep) }
+        Button("Zoom In") { model.zoom(by: StickerModel.zoomStep) }
             .keyboardShortcut("+").disabled(model.scale >= StickerModel.scaleRange.upperBound)
-        Button("Zoom \(model.zoomPercent(by: -StickerModel.zoomStep))%") { model.zoom(by: -StickerModel.zoomStep) }
+        Button("Zoom Out") { model.zoom(by: -StickerModel.zoomStep) }
             .keyboardShortcut("-").disabled(model.scale <= StickerModel.scaleRange.lowerBound)
-        Button("Zoom 100%") { model.zoom(by: 0) }.keyboardShortcut("0")
+        Button("Actual Size") { model.zoom(by: 0) }.keyboardShortcut("0")
         Divider()
         Button(model.isPinned ? "Unpin Window" : "Pin Window") { model.togglePin() }.keyboardShortcut("p")
         Button("Hide Window", action: actions.hide).keyboardShortcut("w")
@@ -325,8 +329,8 @@ struct StatusBadge: View {
 
     var body: some View {
         Text(status == .open ? "OPEN" : status == .closed ? "CLOSED" : "EMPTY")
-            .font(.system(size: 11, weight: .semibold))
-            .padding(.horizontal, 8).padding(.vertical, 3)
+            .font(.system(size: 9.5, weight: .semibold))
+            .padding(.horizontal, 6).padding(.vertical, 1.5)
             .background(Capsule().fill(Theme.accent.opacity(status == .open ? 0.30 : 0.14)))
             .foregroundStyle(status == .open ? Color.white : Theme.secondaryText)
     }
@@ -350,9 +354,11 @@ struct PriceText: View {
     var height: CGFloat = 35
 
     var body: some View {
-        Text(model.currentPrice.map(NumberFormat.shownPrice) ?? "—")
+        Text(model.currentPrice.map(NumberFormat.price) ?? "—")
             .font(.system(size: size, weight: .bold)).monospacedDigit()
             .lineLimit(1).minimumScaleFactor(0.4)
+            .help(model.isPreviewing ? "A what-if price. The live one comes back in a moment." : "Scroll over the sticker to see the result at another price")
+            .accessibilityLabel(model.isPreviewing ? "What-if price" : "Price")
             .foregroundStyle(model.isPreviewing ? Theme.warning : Color.white) // a what-if price, not the live one
             .opacity(usable || model.isPreviewing || model.currentPrice == nil ? 1 : 0.5)
             .frame(height: height, alignment: .leading)
@@ -389,6 +395,9 @@ struct ResultText: View {
         .foregroundStyle(Theme.pnl(total.map { NumberFormat.displayedQuote($0, fixed: model.quoteFixed) }))
         .opacity(model.status != .closed && !usable ? 0.45 : 1)
         .frame(height: height)
+        .accessibilityElement(children: .ignore) // the number and its tag are one fact, not two fragments
+        .accessibilityLabel(model.status == .closed ? "Result" : "Profit or loss")
+        .accessibilityValue("\(text) \(model.trade.quote)")
     }
 }
 
@@ -435,7 +444,7 @@ struct PriceRow: View {
         let ratio = model.headline.ratio, coins = model.gramPnL
         // The price column is as wide as the price (at most so wide that the result keeps its room); no flexible
         // views here, so nothing can push the row wider than the card.
-        let priceWidth = min(Ruler.width(model.currentPrice.map(NumberFormat.shownPrice) ?? "—", size: 29, weight: .bold) + 2, 138)
+        let priceWidth = min(Ruler.width(model.currentPrice.map(NumberFormat.price) ?? "—", size: 29, weight: .bold) + 2, 138)
         let room = StickerView.width - 2 * StickerView.cardInset - max(priceWidth, 86) - 17
         // The line under the result and the currency tag are the same size: both shrink by what the line needs.
         let percentText = ratio.map { NumberFormat.signedPercent($0) }, gramText = coins.map { "\(NumberFormat.signedQuantity($0)) \(model.trade.base)" }
@@ -481,7 +490,7 @@ struct CompactCard: View {
     var body: some View {
         let pair = "\(model.trade.base)/\(model.trade.quote)"
         let top = 21.5 + 10 + Ruler.width(pair, size: 12.3, weight: .bold) + 7 + 7 // icon, name, dot
-        let leftWidth = min(max(top, Ruler.width(model.currentPrice.map(NumberFormat.shownPrice) ?? "—", size: 27.5, weight: .bold) + 8), 122)
+        let leftWidth = min(max(top, Ruler.width(model.currentPrice.map(NumberFormat.price) ?? "—", size: 27.5, weight: .bold) + 8), 122)
         HStack(alignment: .top, spacing: 0) {
             VStack(alignment: .leading, spacing: 0) {
                 HStack(spacing: 0) {
@@ -518,6 +527,7 @@ struct CompactCard: View {
                     }
                     .buttonStyle(.plain).foregroundStyle(model.isPinned ? Theme.pin : Theme.secondaryText).padding(.leading, 8)
                     .help(model.isPinned ? "Unpin: allow moving the window" : "Pin: lock the window position")
+                .accessibilityLabel(model.isPinned ? "Unpin window" : "Pin window")
                     Button { model.toggleCompact() } label: {
                         Image(systemName: "chevron.down").font(.system(size: 10.5, weight: .semibold)).frame(width: 12, height: 17.2).contentShape(Rectangle())
                     }
@@ -578,7 +588,7 @@ struct TotalsRow: View {
     var body: some View {
         let summary = model.summary, closed = model.status == .closed
         let items: [(String, String)] = [
-            ("Avg", summary.entryPrice.map(NumberFormat.shownPrice) ?? "—"),
+            ("Avg", summary.entryPrice.map(NumberFormat.price) ?? "—"),
             (model.trade.base, closed ? "—" : NumberFormat.quantity(summary.openQuantity)),
             (model.trade.quote, closed ? "—" : NumberFormat.quote(summary.openCost, fixed: model.quoteFixed)),
             ("Fee", model.totalFee.map { NumberFormat.quote($0, fixed: model.quoteFixed) } ?? "—"),
@@ -654,6 +664,26 @@ struct WindowDragArea: NSViewRepresentable {
             guard let window, window.isMovableByWindowBackground else { return }
             window.performDrag(with: event)
         }
+    }
+}
+
+extension View {
+    /// Dragging anywhere on a dialog (over its text and gaps too, which SwiftUI keeps for itself) moves its window.
+    /// Controls that are NSViews (text fields) and buttons keep their own presses: a drag has to travel a few points first.
+    func windowDraggable() -> some View { modifier(WindowDrag()) }
+}
+
+private struct WindowDrag: ViewModifier {
+    @State private var start: (mouse: NSPoint, origin: NSPoint)?
+    func body(content: Content) -> some View {
+        content.simultaneousGesture(DragGesture(minimumDistance: 4, coordinateSpace: .global)
+            .onChanged { _ in
+                guard let window = NSApp.keyWindow else { return }
+                let mouse = NSEvent.mouseLocation
+                if start == nil { start = (mouse, window.frame.origin) }
+                if let start { window.setFrameOrigin(NSPoint(x: start.origin.x + mouse.x - start.mouse.x, y: start.origin.y + mouse.y - start.mouse.y)) }
+            }
+            .onEnded { _ in start = nil })
     }
 }
 

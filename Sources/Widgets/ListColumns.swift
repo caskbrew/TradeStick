@@ -50,11 +50,11 @@ extension StickerModel {
             return max(body, Ruler.width(title, size: 11, weight: .regular)) + 3 // breathing room: a title is never cut
         }
         return .fit(
-            rate: need(rows.map { $0.rate.map(NumberFormat.shownPrice) ?? "—" } + [s.entryPrice.map(NumberFormat.shownPrice) ?? "—"], "Rate"),
+            rate: need(rows.map { $0.rate.map(NumberFormat.price) ?? "—" } + [s.entryPrice.map(NumberFormat.price) ?? "—"], "Rate"),
             amount: need(rows.map { NumberFormat.quote($0.amount, fixed: fixed) } + [closed ? "—" : NumberFormat.quote(s.openCost, fixed: fixed)], trade.quote),
             qty: need(rows.map { NumberFormat.quantity($0.quantity) } + [closed ? "—" : NumberFormat.quantity(s.openQuantity)], trade.base),
             fee: need(rows.map { $0.fee.map { NumberFormat.quote($0, fixed: fixed) } ?? "—" } + [totalFee.map { NumberFormat.quote($0, fixed: fixed) } ?? "—"], "Fee"),
-            pnl: need(rows.map { pnl(of: $0).map { NumberFormat.signedQuote($0, fixed: fixed) } ?? "—" }, ""),
+            pnl: need(rows.map { pnl(of: $0).map { NumberFormat.signedQuote($0, fixed: fixed) } ?? "—" }, "PnL"), // the title is never cut either
             in: StickerView.width
         )
     }

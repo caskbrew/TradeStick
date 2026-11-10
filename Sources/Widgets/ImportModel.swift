@@ -85,10 +85,11 @@ public final class ImportModel {
     /// removed (which cancels its `.task`) must not turn the pending request into an error.
     public func startLoading() {
         guard loadTask == nil, !hasLoaded else { return }
-        loadTask = Task { await load(); loadTask = nil }
+        loadTask = Task { await load(); if !Task.isCancelled { loadTask = nil } } // a cancelled (replaced) load must not clear its successor
     }
 
     public func retry() {
+        loadTask?.cancel()
         loadTask = nil
         startLoading()
     }
@@ -104,15 +105,18 @@ public final class ImportModel {
             state = .loaded
             refreshing = true
         }
-        defer { refreshing = false }
+        defer { if !Task.isCancelled { refreshing = false } }
         do {
-            fills = try await fetch()
+            let fetched = try await fetch()
+            guard !Task.isCancelled else { return } // replaced by a retry meanwhile: this answer is stale
+            fills = fetched
             rebuild()
             state = .loaded
             hasLoaded = true
         } catch is CancellationError {
             return
         } catch {
+            guard !Task.isCancelled, (error as? URLError)?.code != .cancelled else { return } // a cancelled request is not a failure
             if state == .loaded { offline = "No connection to the exchange · showing saved trades"; offlineDetail = "\(error)" } else { state = .failed("\(error)") }
         }
     }

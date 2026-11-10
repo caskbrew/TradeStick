@@ -24,7 +24,7 @@ func at(_ minute: Int) -> Date { Date(timeIntervalSince1970: 1_700_000_000 + Dou
 
     @Test func decimalsRoundTripExactly() throws {
         let store = try TradeStore.inMemory()
-        let trade = try makeTrade(store)
+        let trade = try store.createTrade(exchange: "binance", base: "GRAM", quote: "USDT", direction: .buyFirst)
         try store.addTransaction(tradeID: trade.id, side: .buy, quantity: d("123456789.12345678"), amount: d("0.00000001"), occurredAt: at(1))
         let tx = try store.transactions(tradeID: trade.id)
         #expect(tx.count == 1)
@@ -35,7 +35,7 @@ func at(_ minute: Int) -> Date { Date(timeIntervalSince1970: 1_700_000_000 + Dou
 
     @Test func sequenceIncreasesAndOrderIsTimeThenSequence() throws {
         let store = try TradeStore.inMemory()
-        let trade = try makeTrade(store)
+        let trade = try store.createTrade(exchange: "binance", base: "GRAM", quote: "USDT", direction: .buyFirst)
         let a = try store.addTransaction(tradeID: trade.id, side: .buy, quantity: 10, amount: 1, occurredAt: at(5))
         let b = try store.addTransaction(tradeID: trade.id, side: .buy, quantity: 10, amount: 1, occurredAt: at(5))
         let c = try store.addTransaction(tradeID: trade.id, side: .buy, quantity: 10, amount: 1, occurredAt: at(1))
@@ -46,7 +46,7 @@ func at(_ minute: Int) -> Date { Date(timeIntervalSince1970: 1_700_000_000 + Dou
 
     @Test func oversellIsRejectedAndNothingIsWritten() throws {
         let store = try TradeStore.inMemory()
-        let trade = try makeTrade(store)
+        let trade = try store.createTrade(exchange: "binance", base: "GRAM", quote: "USDT", direction: .buyFirst)
         try store.addTransaction(tradeID: trade.id, side: .buy, quantity: 100, amount: 10, occurredAt: at(1))
         let error = #expect(throws: StoreError.self) {
             try store.addTransaction(tradeID: trade.id, side: .sell, quantity: 101, amount: 11, occurredAt: at(2))
@@ -60,7 +60,7 @@ func at(_ minute: Int) -> Date { Date(timeIntervalSince1970: 1_700_000_000 + Dou
 
     @Test func backdatedSellBeforeBuyIsRejected() throws {
         let store = try TradeStore.inMemory()
-        let trade = try makeTrade(store)
+        let trade = try store.createTrade(exchange: "binance", base: "GRAM", quote: "USDT", direction: .buyFirst)
         try store.addTransaction(tradeID: trade.id, side: .buy, quantity: 100, amount: 10, occurredAt: at(5))
         #expect(throws: StoreError.self) {
             try store.addTransaction(tradeID: trade.id, side: .sell, quantity: 50, amount: 6, occurredAt: at(1))
@@ -70,7 +70,7 @@ func at(_ minute: Int) -> Date { Date(timeIntervalSince1970: 1_700_000_000 + Dou
 
     @Test func deletingAnOpeningTransactionThatLaterSellsDependOnIsRejected() throws {
         let store = try TradeStore.inMemory()
-        let trade = try makeTrade(store)
+        let trade = try store.createTrade(exchange: "binance", base: "GRAM", quote: "USDT", direction: .buyFirst)
         let buy = try store.addTransaction(tradeID: trade.id, side: .buy, quantity: 100, amount: 10, occurredAt: at(1))
         try store.addTransaction(tradeID: trade.id, side: .sell, quantity: 50, amount: 6, occurredAt: at(2))
         #expect(throws: StoreError.self) { try store.deleteTransaction(tradeID: trade.id, id: buy.id) }
@@ -79,7 +79,7 @@ func at(_ minute: Int) -> Date { Date(timeIntervalSince1970: 1_700_000_000 + Dou
 
     @Test func deletingAClosingTransactionIsAllowed() throws {
         let store = try TradeStore.inMemory()
-        let trade = try makeTrade(store)
+        let trade = try store.createTrade(exchange: "binance", base: "GRAM", quote: "USDT", direction: .buyFirst)
         try store.addTransaction(tradeID: trade.id, side: .buy, quantity: 100, amount: 10, occurredAt: at(1))
         let sell = try store.addTransaction(tradeID: trade.id, side: .sell, quantity: 50, amount: 6, occurredAt: at(2))
         try store.deleteTransaction(tradeID: trade.id, id: sell.id)
@@ -89,7 +89,7 @@ func at(_ minute: Int) -> Date { Date(timeIntervalSince1970: 1_700_000_000 + Dou
 
     @Test func updateKeepsSequenceAndIsValidated() throws {
         let store = try TradeStore.inMemory()
-        let trade = try makeTrade(store)
+        let trade = try store.createTrade(exchange: "binance", base: "GRAM", quote: "USDT", direction: .buyFirst)
         try store.addTransaction(tradeID: trade.id, side: .buy, quantity: 100, amount: 10, occurredAt: at(1))
         let sell = try store.addTransaction(tradeID: trade.id, side: .sell, quantity: 50, amount: 6, occurredAt: at(2))
 
@@ -125,7 +125,7 @@ func at(_ minute: Int) -> Date { Date(timeIntervalSince1970: 1_700_000_000 + Dou
 
     @Test func windowStateAndExchangeArePersisted() throws {
         let store = try TradeStore.inMemory()
-        let trade = try makeTrade(store)
+        let trade = try store.createTrade(exchange: "binance", base: "GRAM", quote: "USDT", direction: .buyFirst)
         try store.setVisible(id: trade.id, false)
         try store.setExpanded(id: trade.id, true)
         try store.setCompact(id: trade.id, true)
@@ -146,7 +146,7 @@ func at(_ minute: Int) -> Date { Date(timeIntervalSince1970: 1_700_000_000 + Dou
         let keptID: UUID, goneID: UUID
         do {
             let store = try TradeStore(path: path)
-            let kept = try makeTrade(store), gone = try makeTrade(store)
+            let kept = try store.createTrade(exchange: "binance", base: "GRAM", quote: "USDT", direction: .buyFirst), gone = try makeTrade(store)
             keptID = kept.id; goneID = gone.id
             try store.addTransaction(tradeID: kept.id, side: .buy, quantity: 5, amount: 1, occurredAt: at(1))
             try store.addTransaction(tradeID: gone.id, side: .buy, quantity: 5, amount: 1, occurredAt: at(1))
@@ -398,5 +398,109 @@ func at(_ minute: Int) -> Date { Date(timeIntervalSince1970: 1_700_000_000 + Dou
         LegacyMigration.copyDefaults(fromDomain: oldDomain, to: target)
         #expect(target.double(forKey: "stickerScale") == 2.0)
         #expect(target.bool(forKey: "pinned.x"))
+    }
+
+    /// A buy whose fee was paid in the coin itself brings that much less: selling everything that arrived closes the trade.
+    @Test func aFeePaidInTheCoinLeavesNoDust() throws {
+        let store = try TradeStore.inMemory()
+        let trade = try store.createTrade(exchange: "binance", base: "GRAM", quote: "USDT", direction: .buyFirst)
+        let t0 = Date(timeIntervalSince1970: 1_700_000_000)
+        var buy = ImportedTrade(externalID: "b", side: .buy, quantity: 100, amount: 200, occurredAt: t0, fees: ["GRAM": 0.1])
+        buy.feeBase = 0.1
+        let sell = ImportedTrade(externalID: "s", side: .sell, quantity: 99.9, amount: 250, occurredAt: t0.addingTimeInterval(60))
+        #expect(try store.importTrades(tradeID: trade.id, [buy, sell]) == 2)
+        let summary = try TradeCalculator.summarize(direction: .buyFirst, transactions: store.transactions(tradeID: trade.id))
+        #expect(summary.status == .closed)
+    }
+
+    @Test func aRepeatedIdInOneImportIsAddedOnce() throws {
+        let store = try TradeStore.inMemory()
+        let trade = try store.createTrade(exchange: "binance", base: "GRAM", quote: "USDT", direction: .buyFirst)
+        let fill = ImportedTrade(externalID: "same", side: .buy, quantity: 1, amount: 2, occurredAt: Date())
+        #expect(try store.importTrades(tradeID: trade.id, [fill, fill]) == 1)
+    }
+
+    /// A row stored with the whole quantity (the old rule) is brought to what arrived when it is imported again, once.
+    @Test func reimportingAGrossRowAppliesTheCoinFeeOnceAndLeavesEditedRowsAlone() throws {
+        let store = try TradeStore.inMemory()
+        let trade = try store.createTrade(exchange: "binance", base: "GRAM", quote: "USDT", direction: .buyFirst)
+        let plain = ImportedTrade(externalID: "a", side: .buy, quantity: 10, amount: 100, occurredAt: at(1))
+        let other = ImportedTrade(externalID: "b", side: .buy, quantity: 5, amount: 50, occurredAt: at(2))
+        try store.importTrades(tradeID: trade.id, [plain, other])
+        let edited = try store.transactions(tradeID: trade.id)[1]
+        _ = try store.updateTransaction(tradeID: trade.id, id: edited.id, side: .buy, quantity: 5, amount: 51, occurredAt: at(2)) // by hand
+        var withFee = plain; withFee.feeBase = 0.1
+        var otherFee = other; otherFee.feeBase = 0.05
+        #expect(try store.reimportTrades(tradeID: trade.id, [withFee, otherFee]) == 1) // the edited one is left alone
+        #expect(try store.transactions(tradeID: trade.id).map(\.quantity) == [d("9.9"), 5])
+        #expect(try store.reimportTrades(tradeID: trade.id, [withFee, otherFee]) == 0) // and a second time nothing changes
+    }
+
+    @Test func aReimportThatWouldBreakTheLedgerChangesNothing() throws {
+        let store = try TradeStore.inMemory()
+        let trade = try store.createTrade(exchange: "binance", base: "GRAM", quote: "USDT", direction: .buyFirst)
+        let buy = ImportedTrade(externalID: "a", side: .buy, quantity: 10, amount: 100, occurredAt: at(1))
+        let sell = ImportedTrade(externalID: "s", side: .sell, quantity: 10, amount: 120, occurredAt: at(2))
+        try store.importTrades(tradeID: trade.id, [buy, sell])
+        var net = buy; net.feeBase = 0.1 // 9.9 arrives, but 10 is sold
+        #expect(throws: Error.self) { try store.reimportTrades(tradeID: trade.id, [net, sell]) }
+        #expect(try store.transactions(tradeID: trade.id).map(\.quantity) == [10, 10])
+    }
+
+    @Test func aTradeThatDoesNotExistIsReportedWhenDeleted() throws {
+        let store = try TradeStore.inMemory()
+        _ = try store.createTrade(exchange: "binance", base: "GRAM", quote: "USDT", direction: .buyFirst)
+        #expect(throws: StoreError.self) { try store.deleteTrade(id: UUID()) } // reported, not silently ignored
+        #expect(try store.trades().count == 1)
+    }
+}
+
+@Suite struct SiblingSafetyTests {
+    @Test func deletingATradeLeavesAnotherOneIntact() throws {
+        let store = try TradeStore.inMemory()
+        let a = try store.createTrade(exchange: "binance", base: "GRAM", quote: "USDT", direction: .buyFirst)
+        let b = try store.createTrade(exchange: "binance", base: "GRAM", quote: "USDT", direction: .buyFirst)
+        for t in [a, b] { try store.addTransaction(tradeID: t.id, side: .buy, quantity: 10, amount: 5, occurredAt: at(1)) }
+        try store.deleteTrade(id: a.id)
+        #expect(try store.trades().map(\.id) == [b.id])
+        #expect(try store.transactions(tradeID: b.id).count == 1)
+        #expect(try store.transactions(tradeID: a.id).isEmpty)
+    }
+}
+
+@Suite struct LegacyFolderMoveTests {
+    func folder() throws -> URL {
+        let base = FileManager.default.temporaryDirectory.appending(path: "tradestick-tests-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
+        return base
+    }
+
+    @Test func theFolderAndItsDatabaseFilesMoveTogether() throws {
+        let base = try folder(); defer { try? FileManager.default.removeItem(at: base) }
+        let old = base.appending(path: "TradeStickies")
+        try FileManager.default.createDirectory(at: old, withIntermediateDirectories: true)
+        for suffix in ["", "-wal", "-shm"] { try Data("x".utf8).write(to: old.appending(path: "tradestickies.sqlite" + suffix)) }
+        #expect(try LegacyMigration.moveDataFolder(in: base, from: "TradeStickies", to: "TradeStick"))
+        for suffix in ["", "-wal", "-shm"] { #expect(FileManager.default.fileExists(atPath: base.appending(path: "TradeStick/tradestick.sqlite" + suffix).path)) }
+        #expect(!FileManager.default.fileExists(atPath: old.path))
+    }
+
+    @Test func anExistingNewFolderOrNoOldOneChangesNothing() throws {
+        let base = try folder(); defer { try? FileManager.default.removeItem(at: base) }
+        #expect(try !LegacyMigration.moveDataFolder(in: base, from: "TradeStickies", to: "TradeStick")) // nothing to move
+        for name in ["TradeStickies", "TradeStick"] { try FileManager.default.createDirectory(at: base.appending(path: name), withIntermediateDirectories: true) }
+        #expect(try !LegacyMigration.moveDataFolder(in: base, from: "TradeStickies", to: "TradeStick")) // the new one wins
+        #expect(FileManager.default.fileExists(atPath: base.appending(path: "TradeStickies").path))
+    }
+
+    @Test func onlyTheAppsOwnSettingsAreCopiedAndNothingIsOverwritten() {
+        let suite = "tests.\(UUID().uuidString)", oldDomain = "tests.old.\(UUID().uuidString)"
+        let target = UserDefaults(suiteName: suite)!, old = UserDefaults(suiteName: oldDomain)!
+        defer { target.removePersistentDomain(forName: suite); old.removePersistentDomain(forName: oldDomain) }
+        old.set(1.5, forKey: "stickerScale"); old.set(true, forKey: "pinned.x"); old.set("fr", forKey: "AppleLanguages.copy"); old.set(9, forKey: "somethingElse")
+        target.set(2.0, forKey: "stickerScale")
+        LegacyMigration.copyDefaults(fromDomain: oldDomain, to: target)
+        #expect(target.double(forKey: "stickerScale") == 2.0 && target.bool(forKey: "pinned.x"))
+        #expect(target.object(forKey: "somethingElse") == nil && target.object(forKey: "AppleLanguages.copy") == nil)
     }
 }

@@ -14,4 +14,10 @@ import Testing
         #expect(try String(contentsOf: dir.appending(path: "app.log")).contains("line 199"))
         AppLog.stop()
     }
+
+    /// A failed signed request carries its URL (and so the signature) in the error: the log gets the code and the message only.
+    @Test func aDescribedErrorDoesNotCarryTheRequestUrl() {
+        let error = URLError(.badServerResponse, userInfo: [NSURLErrorFailingURLStringErrorKey: "https://api.binance.com/api/v3/myTrades?symbol=X&signature=TOPSECRET"])
+        #expect(!AppLog.describe(error).contains("TOPSECRET"))
+    }
 }

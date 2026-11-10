@@ -18,7 +18,7 @@ struct TransactionForm: View {
         let form = model.form
         VStack(alignment: .leading, spacing: 6) {
             HStack {
-                Text(model.editingID == nil ? "Add Tx" : "Edit Tx").font(.system(size: 12))
+                Text(model.editingID == nil ? "Add Transaction" : "Edit Transaction").font(.system(size: 12))
                 Spacer(minLength: 8)
                 sideSwitch(form?.side ?? .buy).frame(width: 64)
             }
@@ -39,7 +39,7 @@ struct TransactionForm: View {
             HStack(spacing: 6) {
                 Button("Cancel") { model.cancelForm() }
                     .buttonStyle(PillStyle(fill: Theme.field, minHeight: 26)).keyboardShortcut(.cancelAction)
-                Button(model.editingID == nil ? "Add Tx" : "Save") { Task { await model.submit() } }
+                Button(model.editingID == nil ? "Add" : "Save") { Task { await model.submit() } }
                     .buttonStyle(PillStyle(fill: (form?.side ?? .buy) == .buy ? Theme.positive : Theme.negative, minHeight: 26)).keyboardShortcut(.defaultAction).disabled(!model.canSave)
             }
         }
@@ -60,7 +60,7 @@ struct TransactionForm: View {
         HStack(spacing: 0) {
             ForEach([Side.buy, Side.sell], id: \.self) { option in
                 Button { model.form?.side = option } label: {
-                    Text(option == .buy ? "B" : "S").font(.system(size: 12))
+                    Text(option == .buy ? "B" : "S").font(.system(size: 12)).accessibilityLabel(option == .buy ? "Buy" : "Sell")
                         .frame(maxWidth: .infinity, minHeight: 20)
                         .background(RoundedRectangle(cornerRadius: 8, style: .continuous)
                             .fill(side == option ? (option == .buy ? Theme.positive : Theme.negative).opacity(0.85) : .clear))
@@ -84,7 +84,7 @@ struct TransactionForm: View {
             Button { showPicker = true } label: {
                 Image(systemName: "calendar").foregroundStyle(Theme.secondaryText).frame(width: 18, height: 22).contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.plain).accessibilityLabel("Choose date and time")
             .popover(isPresented: $showPicker, arrowEdge: .bottom) {
                 VStack(spacing: 8) {
                     DatePicker("", selection: Binding(
@@ -154,7 +154,8 @@ struct TransactionList: View {
         VStack(alignment: .leading, spacing: 0) {
             header(columns)
             if let error = model.listError {
-                Text(error).font(.system(size: 12)).foregroundStyle(Theme.negative).padding(.horizontal, ListColumns.inset).padding(.top, 4)
+                Text(error).font(.system(size: 12)).foregroundStyle(Theme.negative).fixedSize(horizontal: false, vertical: true) // wraps: the reason must stay readable
+                    .padding(.horizontal, ListColumns.inset).padding(.top, 4)
             }
             Group {
                 if scrolls {
@@ -216,7 +217,7 @@ struct TransactionList: View {
                 }
                 .buttonStyle(.plain).foregroundStyle(Theme.negative)
             } else {
-                Text(tx.rate.map(NumberFormat.shownPrice) ?? "—").foregroundStyle(grey).minimumScaleFactor(0.3).frame(width: columns.rate, alignment: .leading)
+                Text(tx.rate.map(NumberFormat.price) ?? "—").foregroundStyle(grey).minimumScaleFactor(0.3).frame(width: columns.rate, alignment: .leading)
                 Text(NumberFormat.quote(tx.amount, fixed: model.quoteFixed)).foregroundStyle(grey).minimumScaleFactor(0.3).frame(width: columns.amount, alignment: .leading)
                 Text(NumberFormat.quantity(tx.quantity)).foregroundStyle(grey).frame(width: columns.qty, alignment: .leading)
                     .minimumScaleFactor(0.3)
@@ -228,6 +229,7 @@ struct TransactionList: View {
                     .background(Circle().fill(tx.side == .buy ? Color(red: 0.063, green: 0.286, blue: 0.212) : Color(red: 0.30, green: 0.10, blue: 0.13)))
                     .foregroundStyle(tx.side == .buy ? Color(red: 0.41, green: 0.98, blue: 0.84) : Color(red: 1.0, green: 0.48, blue: 0.52))
                     .frame(width: ListColumns.side, alignment: .leading)
+                    .accessibilityLabel(tx.side == .buy ? "Buy" : "Sell")
                 pnl(model.pnl(of: tx), columns)
             }
         }
@@ -235,7 +237,7 @@ struct TransactionList: View {
         .overlay(alignment: .trailing) { // over the end of the PnL while hovering, so the row keeps equal margins
             if hovering == tx.id && confirming == nil {
                 Button { confirming = tx.id } label: { Image(systemName: "trash") }
-                    .buttonStyle(.plain).foregroundStyle(Theme.negative)
+                    .buttonStyle(.plain).foregroundStyle(Theme.negative).accessibilityLabel("Delete transaction")
                     .padding(.horizontal, 6).frame(maxHeight: .infinity).background(Color.black.opacity(0.75), in: RoundedRectangle(cornerRadius: 6))
                     .offset(x: scrolls ? 0 : ListColumns.inset - 1) // out into the margin, against the window edge; the scroller takes the margin
             }

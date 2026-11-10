@@ -8,11 +8,13 @@ public enum LegacyMigration {
         let fm = FileManager.default
         let src = base.appendingPathComponent(old, isDirectory: true), dst = base.appendingPathComponent(new, isDirectory: true)
         guard fm.fileExists(atPath: src.path), !fm.fileExists(atPath: dst.path) else { return false }
-        try fm.moveItem(at: src, to: dst)
+        // Rename the database files inside the old folder first (the WAL with them), then move the folder: a failure in between
+        // leaves the old folder whole, and the next launch simply tries again.
         for suffix in ["", "-wal", "-shm"] {
-            let from = dst.appendingPathComponent("tradestickies.sqlite" + suffix), to = dst.appendingPathComponent("tradestick.sqlite" + suffix)
-            if fm.fileExists(atPath: from.path) { try fm.moveItem(at: from, to: to) }
+            let from = src.appendingPathComponent("tradestickies.sqlite" + suffix), to = src.appendingPathComponent("tradestick.sqlite" + suffix)
+            if fm.fileExists(atPath: from.path), !fm.fileExists(atPath: to.path) { try fm.moveItem(at: from, to: to) }
         }
+        try fm.moveItem(at: src, to: dst)
         return true
     }
 
@@ -27,8 +29,9 @@ public enum LegacyMigration {
     }
 
     /// UserDefaults are stored per bundle id: after the id changed, bring the old values over (never overwriting a value already set).
-    public static func copyDefaults(fromDomain old: String, to defaults: UserDefaults = .standard) {
+    /// Only the app's own keys; `prefixes` match by start of the key.
+    public static func copyDefaults(fromDomain old: String, prefixes: [String] = ["pinned.", "compact.", "stickerScale", "instruments.", "apiKeyChecked.", "apiKeyReadOnly."], to defaults: UserDefaults = .standard) {
         guard let values = defaults.persistentDomain(forName: old) else { return }
-        for (key, value) in values where defaults.object(forKey: key) == nil { defaults.set(value, forKey: key) }
+        for (key, value) in values where prefixes.contains(where: key.hasPrefix) && defaults.object(forKey: key) == nil { defaults.set(value, forKey: key) }
     }
 }

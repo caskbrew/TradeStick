@@ -30,8 +30,8 @@ let now = Date(timeIntervalSince1970: 1_700_000_000)
         #expect(NumberFormat.price(dec("0.055")) == "0.055000")
         #expect(NumberFormat.price(dec("0.0533333333")) == "0.053333")
         #expect(NumberFormat.price(dec("67432.1")) == "67432.10")
-        #expect(NumberFormat.shownPrice(dec("67432.1")) == "67432.10") // the screen shows no separators either
-        #expect(NumberFormat.shownPrice(dec("999.5")) == "999.5000" && NumberFormat.shownPrice(dec("1234567.891")) == "1234567.89")
+        #expect(NumberFormat.price(dec("67432.1")) == "67432.10") // the screen shows no separators either
+        #expect(NumberFormat.price(dec("999.5")) == "999.5000" && NumberFormat.price(dec("1234567.891")) == "1234567.89")
         #expect(NumberFormat.quote(dec("123456789.12"), fixed: true) == "123456789.12")
         #expect(NumberFormat.quote(dec("999.99"), fixed: true) == "999.99")
         #expect(NumberFormat.signedQuote(dec("-9999989.99"), fixed: true) == "\u{2212}9999989.99")
@@ -305,5 +305,20 @@ let now = Date(timeIntervalSince1970: 1_700_000_000)
         d.timeInvalid = true
         #expect(d.problems(now: ref) == [.timeInvalid])
         #expect(d.savable(now: ref) == nil)
+    }
+}
+
+@Suite struct ExactnessTests {
+    /// Opening an existing transaction for editing must not round what was stored: saving would change money.
+    @Test func editingATransactionKeepsEveryDigit() {
+        let d = TransactionDraft(side: .buy, occurredAt: now, quantity: dec("123456.789012345678"), amount: dec("0.00000001"))
+        #expect(d.quantity == dec("123456.789012345678"))
+        #expect(DecimalInput.parse(d.amountText) == dec("0.00000001"))
+    }
+
+    @Test func extremeAndSignedZeroNumbersFormatWithoutNoise() {
+        #expect(!NumberFormat.signedQuote(-0).contains("−")) // no "−0.00"
+        #expect(NumberFormat.price(dec("1000000000000")).hasPrefix("1000000000000"))
+        #expect(NumberFormat.price(dec("0.0000123")) == "0.00001230")
     }
 }

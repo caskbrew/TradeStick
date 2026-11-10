@@ -48,7 +48,7 @@ public struct ImportView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             HStack(spacing: 8) {
-                if model.refreshing { ProgressView().controlSize(.small); Text("Updating from the exchange…").font(.system(size: 12)).foregroundStyle(Theme.secondaryText) }
+                if model.refreshing { ProgressView().controlSize(.small); Text("Updating from the exchange…").font(.system(size: 12)).foregroundStyle(Theme.secondaryText).help("Quantities lose fees that were paid in the coin itself; amounts and fees follow the exchange's record") }
                 else if model.state != .loading { Text(summary).font(.system(size: 13)).foregroundStyle(model.canAdd ? .white : Theme.secondaryText) }
                 Spacer()
                 if let n = model.recalculated { Text(n == 0 ? "Nothing to recalculate" : "Recalculated \(n)").font(.system(size: 12)).foregroundStyle(Theme.secondaryText) }
@@ -67,6 +67,7 @@ public struct ImportView: View {
         .padding(14)
         .frame(width: 720).frame(minHeight: 340, idealHeight: 440, maxHeight: .infinity) // the window is resizable in height
         .background(GlassBackground())
+        .windowDraggable()
         .environment(\.colorScheme, .dark)
         .onAppear { model.startLoading() }
     }
@@ -137,9 +138,9 @@ public struct ImportView: View {
             box(model.selection.contains(row.id), enabled: row.selectable).frame(width: w.check)
             Text(Self.time(t.occurredAt)).frame(width: w.time, alignment: .leading)
             Text(t.side == .buy ? "BUY" : "SELL").foregroundStyle(t.side == .buy ? Theme.positive : Theme.negative).frame(width: w.side, alignment: .leading)
-            Text(NumberFormat.quantity(t.quantity)).frame(width: w.qty, alignment: .trailing)
+            Text(NumberFormat.quantity(t.netQuantity)).frame(width: w.qty, alignment: .trailing)
             Text(NumberFormat.quote(t.amount, fixed: model.fixedQuote)).frame(width: w.amt, alignment: .trailing)
-            Text(t.rate.map(NumberFormat.shownPrice) ?? "").frame(width: w.rate, alignment: .trailing)
+            Text(t.rate.map(NumberFormat.price) ?? "").frame(width: w.rate, alignment: .trailing)
             Text((t.feeText ?? "—") + (t.feeUnpriced.isEmpty ? "" : " *")).help(t.feeUnpriced.isEmpty ? "" : "Fee in \(t.feeUnpriced.joined(separator: ", ")) could not be valued and is not included").lineLimit(1).minimumScaleFactor(0.7).foregroundStyle(Theme.secondaryText).frame(width: w.fee, alignment: .trailing)
             status(row).frame(maxWidth: .infinity, alignment: .trailing)
         }
@@ -153,7 +154,7 @@ public struct ImportView: View {
     @ViewBuilder private func status(_ row: ImportModel.Row) -> some View {
         if row.alreadyAdded { Text("added").foregroundStyle(Theme.secondaryText) }
         else if row.partlyAdded { Text("partly").foregroundStyle(Theme.warning).help("Some fills of this order were imported one by one: turn off Group by order") }
-        else { Text("new").foregroundStyle(Theme.positive) }
+        else { Text("new").foregroundStyle(Color.white) } // not green: green means profit
     }
 
     private func box(_ on: Bool, enabled: Bool) -> some View {

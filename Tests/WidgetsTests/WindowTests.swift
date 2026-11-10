@@ -364,7 +364,7 @@ extension UITests {
 
     @Test func aboutShowsTheStepsAndLinksToGitHub() async throws {
         let icon = NSImage(contentsOfFile: "Sources/TradeStick/Resources/AppIcon.png")
-        let window = TestWindow(AboutView(version: "0.2.4", icon: icon, onClose: {}))
+        let window = TestWindow(AboutView(version: "0.7.0", icon: icon, onClose: {}))
         window.snapshot("window-about")
         #expect(window.size.width == 480 && window.size.height < 700, "\(window.size)")
         #expect(AboutView.issues.absoluteString == "https://github.com/caskbrew/TradeStick/issues/new")
@@ -540,6 +540,58 @@ extension UITests {
         live.snapshot("window-sticker-whatif")
         #expect(live.size == before)
         UserDefaults.standard.removeObject(forKey: "compact.\(trade.id.uuidString)")
+    }
+    /// The menu-bar popover with three trades (screen gallery).
+    @Test func theMenuPopover() {
+        let rows = [
+            MenuRow(id: UUID(), base: "GRAM", quote: "USDT", exchange: "Binance", isBuy: true, quantity: "27593.73", icon: nil, duration: "2d 4h", invested: "66580.65"),
+            MenuRow(id: UUID(), base: "BTC", quote: "USDT", exchange: "Binance", isBuy: true, quantity: "0.3186", icon: nil, shown: true, duration: "3h 12m", invested: "7000.00"),
+            MenuRow(id: UUID(), base: "SOL", quote: "USDT", exchange: "Binance", isBuy: false, quantity: "142.30", icon: nil, duration: "35m", invested: "5120.00"),
+        ]
+        let actions = MenuActions(rows: { rows }, open: { _ in }, newStick: {}, apiKeys: {}, about: {}, restart: {}, quit: {},
+                                  launchAtLogin: { true }, setLaunchAtLogin: { _ in })
+        let live = TestWindow(MenuPopoverView(actions: actions, logo: Self.appLogo).background(Color(red: 0.12, green: 0.12, blue: 0.2)))
+        live.settle()
+        live.snapshot("window-menu-popover")
+    }
+
+    /// The real app icon, so the panel header looks as it does in the app.
+    static let appLogo = NSImage(contentsOfFile: URL(fileURLWithPath: #filePath).deletingLastPathComponent().appending(path: "../../Sources/TradeStick/Resources/AppIcon.png").standardized.path)
+
+    private func menuActions(_ rows: [MenuRow], restart: Bool = true, login: Bool = true) -> MenuActions {
+        MenuActions(rows: { rows }, open: { _ in }, newStick: {}, apiKeys: {}, about: {}, restart: restart ? {} : nil, quit: {},
+                    launchAtLogin: { login }, setLaunchAtLogin: login ? { _ in } : nil)
+    }
+
+    /// The menu-bar panel in its other states (screen gallery): no trades, many trades (the list scrolls), worst-case data, a dev build.
+    @Test func theMenuPopoverStates() {
+        let backdrop = Color(red: 0.12, green: 0.12, blue: 0.2)
+        func row(_ base: String, quote: String = "USDT", buy: Bool = true, qty: String, invested: String, duration: String?, shown: Bool = false) -> MenuRow {
+            MenuRow(id: UUID(), base: base, quote: quote, exchange: "Binance", isBuy: buy, quantity: qty, icon: nil, shown: shown, duration: duration, invested: invested)
+        }
+        let states: [(String, [MenuRow], Bool)] = [
+            ("empty", [], true),
+            ("many", (1...8).map { row(["BTC", "ETH", "SOL", "GRAM", "XRP", "DOGE", "LINK", "ADA"][$0 - 1], buy: $0 % 3 != 0, qty: "\($0 * 112).50", invested: "\($0 * 1_450).00", duration: "\($0)d", shown: $0 == 2) }, true),
+            ("extreme", [row("1000SATSFDUSD", quote: "FDUSD", qty: "123456789.12345678", invested: "98765432.10", duration: "412d 23h"),
+                         row("BTC", qty: "0.00000001", invested: "0.01", duration: "1m"),
+                         row("GRAM", buy: false, qty: "—", invested: "—", duration: nil)], true),
+            ("dev", [row("GRAM", qty: "27593.73", invested: "66580.65", duration: "2d 4h")], false),
+        ]
+        for (name, rows, login) in states {
+            let live = TestWindow(MenuPopoverView(actions: menuActions(rows, restart: login, login: login), logo: Self.appLogo).background(backdrop))
+            live.settle()
+            live.snapshot("window-menu-popover-\(name)")
+        }
+    }
+
+    /// With Reduce transparency or Increase contrast the glass becomes near-opaque (screen gallery).
+    @Test func theSolidGlassFallback() {
+        let rows = [MenuRow(id: UUID(), base: "GRAM", quote: "USDT", exchange: "Binance", isBuy: true, quantity: "27593.73", icon: nil, shown: true, duration: "2d 4h", invested: "66580.65"),
+                    MenuRow(id: UUID(), base: "BTC", quote: "USDT", exchange: "Binance", isBuy: false, quantity: "0.3186", icon: nil, duration: "3h 12m", invested: "7000.00")]
+        let live = TestWindow(MenuPopoverView(actions: menuActions(rows), logo: Self.appLogo)
+            .background(SolidGlass(radius: 20)))
+        live.settle()
+        live.snapshot("window-menu-popover-reduced-transparency")
     }
 }
 }

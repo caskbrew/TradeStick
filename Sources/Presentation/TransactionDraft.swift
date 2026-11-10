@@ -47,8 +47,8 @@ public struct TransactionDraft: Equatable, Sendable {
     public init(side: Side, occurredAt: Date, quantity: Decimal, amount: Decimal) {
         self.init(side: side, occurredAt: occurredAt)
         isNow = false
-        edit(.quantity, Self.text(quantity, scale: 8))
-        edit(.amount, Self.text(amount, scale: 8))
+        edit(.quantity, Self.text(quantity, scale: 18))
+        edit(.amount, Self.text(amount, scale: 18))
     }
 
     public mutating func edit(_ field: Field, _ text: String) {

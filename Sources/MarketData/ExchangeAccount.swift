@@ -25,7 +25,7 @@ public extension ExchangeAccount {
         return await priced(try await trades(credentials, instrument), instrument, rates: &rates)
     }
 
-    /// Values each fill's fees in the quote currency: a fee in the quote counts as it is, one in the base at the fill's own
+    /// Values each fill's fees in the quote currency: a fee in the quote counts as it is, one in the base on a buy comes off the quantity, on a sell it is valued at the fill's own
     /// rate, any other asset at its hourly price. `rates` (fill id → asset → price) are used first and filled with what is
     /// looked up; with `lookup` off nothing goes to the network and such fees stay unpriced.
     func priced(_ trades: [ImportedTrade], _ instrument: Instrument, rates: inout [String: [String: Decimal]], lookup: Bool = true) async -> [ImportedTrade] {
@@ -33,9 +33,11 @@ public extension ExchangeAccount {
         var out: [ImportedTrade] = []
         for var trade in trades {
             trade.feeQuote = 0
+            trade.feeBase = 0
             trade.feeUnpriced = []
             for (asset, value) in trade.fees {
                 if asset == instrument.quote { trade.feeQuote += value }
+                else if asset == instrument.base, trade.side == .buy { trade.feeBase += value } // taken out of the coins bought
                 else if asset == instrument.base, let rate = trade.rate { trade.feeQuote += value * rate }
                 else if let rate = rates[trade.externalID]?[asset] { trade.feeQuote += value * rate }
                 else {

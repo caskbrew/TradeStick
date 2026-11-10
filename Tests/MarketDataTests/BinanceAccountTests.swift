@@ -157,13 +157,20 @@ final class Recorder: @unchecked Sendable {
     @Test func feesAreValuedInQuoteAndCountAsCost() async throws {
         let out = try await Stub(history: [
             fill("1", .buy, 100, 200, ["USDT": 0.2]),          // quote: as is
-            fill("2", .buy, 100, 200, ["GRAM": 0.1]),          // base: 0.1 * rate 2
+            fill("2", .buy, 100, 200, ["GRAM": 0.1]),          // base on a buy: comes off the quantity, not a quote cost
             fill("3", .sell, 100, 300, ["BNB": 0.001]),        // BNB at 600
             fill("4", .buy, 100, 200, ["ETH": 1]),             // unknown asset: not included
         ], bnb: 600).pricedTrades(creds, pair)
-        #expect(out.map(\.feeQuote) == [0.2, 0.2, 0.6, 0])
-        #expect(out.map(\.netAmount) == [200.2, 200.2, 299.4, 200])
+        #expect(out.map(\.feeQuote) == [0.2, 0, 0.6, 0])
+        #expect(out.map(\.netAmount) == [200.2, 200, 299.4, 200])
+        #expect(out.map(\.netQuantity) == [100, 99.9, 100, 100])
         #expect(out[3].feeUnpriced == ["ETH"])
+    }
+
+    @Test func aSellFeeInTheBaseCoinIsValuedInQuote() async {
+        var rates: [String: [String: Decimal]] = [:]
+        let out = await Stub(history: [], bnb: nil).priced([fill("5", .sell, 100, 300, ["GRAM": 0.1])], pair, rates: &rates)
+        #expect(out[0].feeQuote == 0.3 && out[0].netQuantity == 100) // 0.1 coin at the fill's rate 3
     }
 
     @Test func savedRatesPriceAFeeWithoutTheNetwork() async {

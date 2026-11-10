@@ -47,6 +47,7 @@ public struct NewTradeView: View {
         .contentShape(Rectangle())
         .onTapGesture { listOpen = false } // a click on empty space closes the list
         .background(GlassBackground())
+        .windowDraggable()
         .environment(\.colorScheme, .dark)
         .onAppear { pairFocused = true }
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { _ in pairFocused = true } // the window is not key yet in onAppear

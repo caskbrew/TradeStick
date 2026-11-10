@@ -68,6 +68,7 @@ public struct AboutView: View {
         .padding(18)
         .frame(width: 480)
         .background(GlassBackground())
+        .windowDraggable()
         .environment(\.colorScheme, .dark)
     }
 }

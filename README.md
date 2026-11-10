@@ -27,6 +27,8 @@ Works with **Binance**, **Bybit** and **Poloniex** (spot). It only ever *reads*:
    ![API Keys](docs/readme/api-keys.png)
    ![Import transactions from the exchange](docs/readme/import.png)
 
+Click the TradeStick icon in the menu bar for the panel: every trade with its size and the money put in (an open sticker is outlined), **New Stick**, **API Keys**, **About**, **Restart**, **Quit** and **Launch at Login**. Click a trade to bring its sticker back.
+
 Handy: **⇧⌘N** New Stick · **⇧⌘K** API Keys · **⇧⌘R** Restart (after an update) · **⌘Q** Quit. Zoom a sticker from its right-click menu; double-click a sticker or press **⌘S** to switch between the full and the compact view; **Scroll over a sticker** to try another price (up raises it, down lowers it): the sticker shows the result at that price, and the live one comes back a moment after you stop or on a click; Esc closes any dialog.
 
 ## Good to know
@@ -34,6 +36,7 @@ Handy: **⇧⌘N** New Stick · **⇧⌘K** API Keys · **⇧⌘R** Restart (aft
 - Fees are part of the cost: a fee in BNB (or any other coin) is converted to the quote currency at the fill's rate, and counted.
 - A sell-first trade (short) works the same way, with the roles reversed.
 - Prices come from the exchanges' public feeds; if the connection drops, the sticker says so and reconnects by itself.
+- A connection log is kept in `~/Library/Logs/TradeStick/app.log` (rotated at 8 MB); if the live socket is blocked, the price is taken over REST.
 - No account, no cloud, no telemetry. Everything stays on your Mac.
 
 ## Install
@@ -91,7 +94,7 @@ scripts/package.sh 0.1.0   # dist/TradeStick-0.1.0.zip + sha256 for the cask
 
 ## Dev vs installed
 
-The installed app (`/Applications/TradeStick.app`, bundle id `com.caskbrew.TradeStick`) and a dev build never share anything:
+The installed app (`/Applications/TradeStick.app`, bundle id `io.github.caskbrew.TradeStick`) and a dev build never share anything:
 
 - data: `~/Library/Application Support/TradeStick/` vs `TradeStick-Dev/`; a dev build refuses to open the installed folder even via `TRADESTICK_DB`;
 - settings: separate `UserDefaults` domains; the dev instance shows "DEV" in the menu bar;

@@ -54,6 +54,7 @@ public final class StickerModel {
     @ObservationIgnored private let throttle: Duration
     @ObservationIgnored private var subscription: PriceSubscription?
     @ObservationIgnored private var priceTask: Task<Void, Never>?
+    @ObservationIgnored private var subscribing = false // a second call during the await must not subscribe again
 
     /// `throttle` limits how often the UI is updated, not how fast data is received (FR-PRICE-7).
     public init(
@@ -185,7 +186,9 @@ public final class StickerModel {
         previewTask?.cancel()
         let factor = Decimal(max(1 + fraction, 0.01))
         previewPrice = max((previewPrice ?? live) * factor, live / 1000)
-        if ended { previewTask = Task { [weak self] in try? await Task.sleep(for: .seconds(1)); if !Task.isCancelled { self?.endPreview() } } }
+        // Every nudge re-arms the reset, so a gesture whose end never arrives (focus lost mid-scroll) cannot leave the price stuck.
+        let wait: Duration = ended ? .seconds(1) : .seconds(3)
+        previewTask = Task { [weak self] in try? await Task.sleep(for: wait); if !Task.isCancelled { self?.endPreview() } }
     }
 
     public func endPreview() { previewTask?.cancel(); previewPrice = nil }
@@ -219,8 +222,9 @@ public final class StickerModel {
 
     public func reload() {
         do {
-            transactions = try store.transactions(tradeID: trade.id)
-            summary = try TradeCalculator.summarize(direction: trade.direction, transactions: transactions)
+            let loaded = try store.transactions(tradeID: trade.id)
+            summary = try TradeCalculator.summarize(direction: trade.direction, transactions: loaded)
+            transactions = loaded // both or neither, so the list never disagrees with the totals
             loadError = nil
         } catch {
             loadError = "Could not read this trade: \(error)"
@@ -232,7 +236,11 @@ public final class StickerModel {
     /// Call after anything that can change `wantsPrice`.
     public func refreshSubscription() async {
         if wantsPrice {
-            guard subscription == nil, let sub = try? await hub.subscribe(key) else { return }
+            guard subscription == nil, !subscribing else { return }
+            subscribing = true
+            defer { subscribing = false }
+            guard let sub = try? await hub.subscribe(key) else { return }
+            guard wantsPrice else { await hub.unsubscribe(sub); return } // hidden or closed while we were subscribing
             subscription = sub
             let throttle = self.throttle
             priceTask = Task { [weak self] in
@@ -322,7 +330,7 @@ public final class StickerModel {
     /// quote still out of pocket (fees are part of the amounts). Negative when the held coins cannot get it back.
     /// nil for a sell-first or a not open trade, or while the price is unknown.
     public var gramPnL: Decimal? {
-        guard trade.direction == .buyFirst, status == .open, let price = currentPrice, price > 0 else { return nil }
+        guard trade.direction == .buyFirst, status == .open, let price = livePrice, price > 0 else { return nil }
         var exact = max(summary.boughtAmount - summary.soldAmount, 0) / price, needed = Decimal()
         NSDecimalRound(&needed, &exact, 8, .up)
         return summary.openQuantity - needed
@@ -409,8 +417,10 @@ public final class StickerModel {
     }
 
     public func edit(_ field: TransactionDraft.Field, _ text: String) {
+        let before = [form?.quantityText, form?.amountText, form?.rateText]
         form?.edit(field, text)
-        formError = nil
+        // The same text set again (a field re-reporting what it shows) must not wipe the reason the save was refused.
+        if [form?.quantityText, form?.amountText, form?.rateText] != before { formError = nil }
     }
 
     public var formProblems: [TransactionDraft.Problem] { form?.problems(now: clock()) ?? [] }
@@ -460,7 +470,7 @@ public final class StickerModel {
     static func message(for error: LedgerError, transactions: [Transaction]) -> String {
         switch error {
         case .nonPositiveValue:
-            return "Quantity and amount must be greater than 0"
+            return "Quantity, amount and the amount after the fee must be greater than 0"
         case .closingExceedsOpen(let id, let available):
             let when = transactions.first { $0.id == id }.map { " at " + Self.time($0.occurredAt) } ?? ""
             return "Not enough open quantity\(when): only \(NumberFormat.quantity(available)) available"

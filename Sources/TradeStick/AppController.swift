@@ -5,11 +5,31 @@ import os
 import Domain
 import MarketData
 import Persistence
+import Presentation
 import SwiftUI
 import Widgets
 
 struct DevGuardError: Error, CustomStringConvertible {
     var description: String { "A dev build refuses to open the installed app's data (Application Support/TradeStick)." }
+}
+
+/// The menu-bar panel: borderless (the view draws its own glass), takes keys for the shortcuts, tells the owner when it loses focus.
+final class MenuPanel: NSPanel {
+    var onResignKey: (() -> Void)?
+    override var canBecomeKey: Bool { true }
+    override func resignKey() { super.resignKey(); onResignKey?() }
+    override func cancelOperation(_ sender: Any?) { onResignKey?() } // Esc
+
+    init() {
+        super.init(contentRect: NSRect(x: 0, y: 0, width: 332, height: 200), styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
+        level = .statusBar
+        isOpaque = false
+        backgroundColor = .clear
+        hasShadow = !systemGlass
+        isReleasedWhenClosed = false
+        collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary]
+        appearance = NSAppearance(named: .darkAqua)
+    }
 }
 
 /// Frameless dialog like the stickers (the card draws its own glass); a borderless window must opt in to taking keys.
@@ -73,13 +93,13 @@ final class DialogWindow: NSWindow {
 }
 
 @MainActor
-final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
+final class AppController: NSObject, NSApplicationDelegate {
     private var store: TradeStore!
     private var hub: MarketDataHub!
     private var pathMonitor: NWPathMonitor?
     /// Only the installed app (bundle id set by scripts/package.sh) touches the real data. Anything else
     /// (`swift run`, a dev build) uses its own folder, so development never damages the user's trades.
-    static let bundleID = "com.caskbrew.TradeStick"
+    static let bundleID = "io.github.caskbrew.TradeStick"
     static let isInstalled = Bundle.main.bundleIdentifier == AppController.bundleID
     static let dataFolder = isInstalled ? "TradeStick" : "TradeStick-Dev"
     private let icons = CoinIcons(directory: FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?.appending(path: "\(AppController.dataFolder)/icons"))
@@ -100,11 +120,15 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 try LegacyMigration.moveDataFolder(in: base, from: Self.isInstalled ? "TradeStickies" : "TradeStickies-Dev", to: Self.dataFolder)
             }
             // Older names of the keychain service (the bundle id, before it was renamed twice).
-            let legacy = Self.isInstalled ? ["com.caskbrew.tradestick", "com.caskbrew.tradestickies"] : ["com.caskbrew.tradestickies.dev"]
+            let legacy = Self.isInstalled ? ["com.caskbrew.TradeStick", "com.caskbrew.tradestick", "com.caskbrew.tradestickies"] : ["com.caskbrew.tradestickies.dev"]
             for service in legacy {
                 LegacyMigration.moveKeys(from: KeychainCredentialStore(service: service), to: credentials, exchanges: adapters.map(\.id))
             }
-            if Self.isInstalled { LegacyMigration.copyDefaults(fromDomain: "com.caskbrew.tradestick") } // pins, sticker size
+            // Pins, sticker size: once, so a setting the user later resets does not come back from the old domain.
+            if Self.isInstalled, !UserDefaults.standard.bool(forKey: "legacyDefaultsCopied") {
+                for domain in ["com.caskbrew.TradeStick", "com.caskbrew.tradestick"] { LegacyMigration.copyDefaults(fromDomain: domain) }
+                UserDefaults.standard.set(true, forKey: "legacyDefaultsCopied")
+            }
             // Developer overrides: a separate database file and demo data (spec example A).
             let path: String
             if let override = ProcessInfo.processInfo.environment["TRADESTICK_DB"] { path = override } else { path = try TradeStore.defaultDatabaseURL(folder: Self.dataFolder).path }
@@ -127,6 +151,9 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         hub = MarketDataHub(adapters: adapters, pollEvery: .seconds(3))
         installEditMenu()
         watchConnectivity()
+        NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.windows.sorted { $0.key.uuidString < $1.key.uuidString }.enumerated().forEach { $1.value.keepOnScreen(index: $0) } }
+        }
 
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         if let url = Bundle.module.url(forResource: "MenuBarIconTemplate", withExtension: "png"), let icon = NSImage(contentsOf: url) {
@@ -138,10 +165,8 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         if let url = Bundle.module.url(forResource: "AppIcon", withExtension: "png") { NSApp.applicationIconImage = NSImage(contentsOf: url) } // shown in alerts
         if !Self.isInstalled { statusItem.button?.title = " DEV" } // a dev instance is never mistaken for the real one
-        let menu = NSMenu()
-        menu.delegate = self
-        menu.minimumWidth = 0 // as wide as the longest item
-        statusItem.menu = menu
+        statusItem.button?.target = self
+        statusItem.button?.action = #selector(togglePopover)
 
         for trade in (try? store.trades()) ?? [] where trade.isVisible { open(trade, activate: false) }
         if CommandLine.arguments.contains("--selftest-window") { Task { await selfTestWindow() } }
@@ -302,61 +327,108 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         alert.messageText = "Delete \(window.model.trade.base)/\(window.model.trade.quote) trade?"
         alert.informativeText = "This permanently deletes the trade and its \(count) transaction\(count == 1 ? "" : "s")."
         alert.alertStyle = .warning
-        alert.addButton(withTitle: "Delete")
-        alert.addButton(withTitle: "Cancel")
-        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        alert.addButton(withTitle: "Cancel") // the default button (Return): a stray key press must not delete
+        alert.addButton(withTitle: "Delete").hasDestructiveAction = true
+        guard alert.runModal() == .alertSecondButtonReturn else { return }
+        do { try store.deleteTrade(id: id) } catch { // the trade stays on screen if it could not be deleted
+            let failed = NSAlert()
+            failed.messageText = "Could not delete the trade"
+            failed.informativeText = "\(error)"
+            failed.runModal()
+            return
+        }
         window.close()
         windows[id] = nil
-        Task {
-            await window.model.setVisible(false) // drops the price subscription
-            try? store.deleteTrade(id: id)
-        }
+        Task { await window.model.setVisible(false) } // drops the price subscription
     }
 
     // MARK: Menu
 
-    func menuNeedsUpdate(_ menu: NSMenu) {
-        menu.removeAllItems()
-        let new = NSMenuItem(title: "New Stick", action: #selector(showNewTrade), keyEquivalent: "n")
-        new.keyEquivalentModifierMask = [.command, .shift]
-        new.target = self
-        menu.addItem(new)
-        let keys = NSMenuItem(title: "API Keys", action: #selector(openAPIKeysWindow), keyEquivalent: "k")
-        keys.keyEquivalentModifierMask = [.command, .shift]
-        keys.target = self
-        menu.addItem(keys)
+    private let menuPanel = MenuPanel()
+    private let menuState = MenuState()
+    private var menuClickMonitor: Any? // a click in another app: a non-activating panel does not always resign key for it
+    private var menuHiddenAt = Date.distantPast
+    private var menuTop: CGFloat = 0
+    private var menuIcons: [String: Data] = [:]
+    private var menuIconsLoading: Set<String> = []
+    private var menuIconFailed: [String: Date] = [:] // a logo that could not be found is looked for again after a minute, not every second
+    /// Totals of trades that have no sticker model (hidden since start): read from the database at most every 5 s.
+    private var menuCache: [UUID: (at: Date, summary: TradeSummary, times: [Date])] = [:]
 
-        menu.addItem(.separator())
-        let trades = (try? store.trades()) ?? []
-        for trade in trades {
-            let visible = windows[trade.id]?.isVisible ?? false
-            let item = NSMenuItem(
-                title: "\(trade.base)/\(trade.quote) \(trade.direction == .buyFirst ? "BUY" : "SELL") \(trade.exchange.capitalized)",
-                action: #selector(toggle(_:)), keyEquivalent: ""
+    @objc private func togglePopover() {
+        if menuPanel.isVisible { closeMenu(); return }
+        if Date().timeIntervalSince(menuHiddenAt) < 0.25 { return } // the click that closed it (the panel lost focus first) is not a request to open it again
+        if menuPanel.contentViewController == nil {
+            let close = { [weak self] (action: @escaping () -> Void) in { self?.closeMenu(); action() } }
+            let actions = MenuActions(
+                rows: { [weak self] in self?.menuRows() ?? [] },
+                open: { [weak self] id in
+                    self?.closeMenu()
+                    if let trade = try? self?.store.trade(id: id) { self?.open(trade, activate: true) }
+                },
+                newStick: close { [weak self] in self?.showNewTrade() },
+                apiKeys: close { [weak self] in self?.openAPIKeysWindow() },
+                about: close { [weak self] in self?.showAbout() },
+                restart: { [weak self] in self?.restart() },
+                quit: { NSApp.terminate(nil) },
+                launchAtLogin: { SMAppService.mainApp.status == .enabled },
+                setLaunchAtLogin: Self.isInstalled ? { [weak self] _ in self?.toggleLaunchAtLogin() } : nil // a dev build is not the app that should start at login
             )
-            item.target = self
-            item.representedObject = trade.id
-            item.state = visible ? .on : .off
-            item.toolTip = visible ? "Bring this sticker to the current desktop" : "Show this sticker"
-            menu.addItem(item)
+            let logo = Bundle.module.url(forResource: "AppIcon", withExtension: "png").flatMap { NSImage(contentsOf: $0) }
+            menuPanel.contentViewController = NSHostingController(rootView: MenuPopoverView(actions: actions, logo: logo, state: menuState))
+            menuPanel.onResignKey = { [weak self] in self?.closeMenu() } // a click anywhere else closes it
+            menuState.onEscape = { [weak self] in self?.closeMenu() }
+            // It grows and shrinks with the trade list: keep the top edge under the menu-bar icon.
+            NotificationCenter.default.addObserver(forName: NSWindow.didResizeNotification, object: menuPanel, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { if let self, self.menuPanel.isVisible { self.menuPanel.setFrameTopLeftPoint(NSPoint(x: self.menuPanel.frame.minX, y: self.menuTop)) } }
+            }
         }
-        if !trades.isEmpty { menu.addItem(.separator()) }
-        let login = NSMenuItem(title: "Open at Login", action: #selector(toggleLaunchAtLogin), keyEquivalent: "")
-        login.target = self
-        login.state = SMAppService.mainApp.status == .enabled ? .on : .off
-        login.isEnabled = Self.isInstalled // a dev build is not the app that should start at login
-        menu.addItem(login)
-        let about = NSMenuItem(title: "About", action: #selector(showAbout), keyEquivalent: "")
-        about.target = self
-        menu.addItem(about)
-        menu.addItem(.separator())
-        let restart = NSMenuItem(title: "Restart", action: #selector(restart), keyEquivalent: "r")
-        restart.keyEquivalentModifierMask = [.command, .shift]
-        restart.image = NSImage(systemSymbolName: "arrow.clockwise", accessibilityDescription: "Restart") // like the one macOS gives Quit
-        restart.target = self
-        restart.isEnabled = Bundle.main.bundlePath.hasSuffix(".app") // a bare `swift run` binary cannot be reopened
-        menu.addItem(restart)
-        menu.addItem(NSMenuItem(title: "Quit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
+        guard let button = statusItem.button, let buttonFrame = button.window?.frame else { return }
+        menuState.open = true // content first, then measure: it must not be measured as the empty list
+        menuPanel.contentView?.layoutSubtreeIfNeeded()
+        let size = menuPanel.frame.size
+        let screen = NSScreen.screens.first { $0.frame.contains(NSPoint(x: buttonFrame.midX, y: buttonFrame.midY)) } ?? NSScreen.main
+        var x = buttonFrame.midX - size.width / 2
+        if let area = screen?.visibleFrame { x = min(max(x, area.minX + 8), area.maxX - size.width - 8) }
+        menuTop = buttonFrame.minY - 6
+        menuPanel.setFrameTopLeftPoint(NSPoint(x: x, y: menuTop))
+        menuPanel.makeKeyAndOrderFront(nil)
+        menuClickMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
+            MainActor.assumeIsolated { self?.closeMenu() }
+        }
+    }
+
+    private func closeMenu() {
+        guard menuPanel.isVisible else { return }
+        menuState.open = false
+        if let monitor = menuClickMonitor { NSEvent.removeMonitor(monitor); menuClickMonitor = nil }
+        menuPanel.orderOut(nil)
+        menuHiddenAt = Date()
+    }
+
+    private func menuRows() -> [MenuRow] {
+        let trades = (try? store.trades()) ?? []
+        menuCache = menuCache.filter { id, _ in trades.contains { $0.id == id } } // deleted trades leave the cache
+        return trades.map { trade in
+            let model = windows[trade.id]?.model
+            let summary: TradeSummary, times: [Date]
+            if let model { summary = model.summary; times = model.transactions.map(\.occurredAt) }
+            else if let hit = menuCache[trade.id], Date().timeIntervalSince(hit.at) < 5 { summary = hit.summary; times = hit.times }
+            else {
+                let all = (try? store.transactions(tradeID: trade.id)) ?? []
+                summary = (try? TradeCalculator.summarize(direction: trade.direction, transactions: all)) ?? .empty(trade.direction)
+                times = all.map(\.occurredAt)
+                menuCache[trade.id] = (Date(), summary, times)
+            }
+            let icon = model?.iconData ?? menuIcons[trade.base]
+            if icon == nil, Date().timeIntervalSince(menuIconFailed[trade.base] ?? .distantPast) > 60, menuIconsLoading.insert(trade.base).inserted {
+                Task { [icons] in
+                    if let data = await icons.data(for: trade.base) { menuIcons[trade.base] = data } else { menuIconFailed[trade.base] = Date() }
+                    menuIconsLoading.remove(trade.base)
+                }
+            }
+            return MenuRow.make(trade: trade, summary: summary, times: times, now: Date(), icon: icon, shown: windows[trade.id]?.isVisible ?? false)
+        }
     }
 
     @objc private func toggleLaunchAtLogin() {
@@ -366,16 +438,10 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
             if service.status == .requiresApproval { SMAppService.openSystemSettingsLoginItems() }
         } catch {
             let alert = NSAlert()
-            alert.messageText = "Could not change Open at Login"
+            alert.messageText = "Could not change Launch at Login"
             alert.informativeText = "\(error.localizedDescription)"
             alert.runModal()
         }
-    }
-
-    /// Shows a hidden sticker, or pulls a visible one to the desktop you are on. Hiding is in the sticker's `⋯` menu.
-    @objc private func toggle(_ item: NSMenuItem) {
-        guard let id = item.representedObject as? UUID, let trade = try? store.trade(id: id) else { return }
-        open(trade, activate: true)
     }
 
     /// Dialogs are ordered front first (they open on this desktop), then the app activates: it finds a window here and does not switch desktops.
@@ -405,7 +471,8 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func restart() {
         let relaunch = Process()
         relaunch.executableURL = URL(fileURLWithPath: "/bin/sh")
-        relaunch.arguments = ["-c", "sleep 0.7; /usr/bin/open -n \"$0\"", Bundle.main.bundlePath]
+        let isApp = Bundle.main.bundlePath.hasSuffix(".app") // a bare binary (dev build) is started as it is
+        relaunch.arguments = ["-c", isApp ? "sleep 0.7; /usr/bin/open -n \"$0\"" : "sleep 0.7; nohup \"$0\" >/dev/null 2>&1 &", isApp ? Bundle.main.bundlePath : CommandLine.arguments[0]]
         try? relaunch.run()
         NSApp.terminate(nil)
     }

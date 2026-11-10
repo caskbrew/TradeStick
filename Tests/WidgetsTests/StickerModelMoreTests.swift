@@ -1,6 +1,7 @@
 import Domain
 import Foundation
 import MarketData
+import Persistence
 import Testing
 @testable import Widgets
 
@@ -59,5 +60,87 @@ import Testing
         try f.add(.buy, "10", "10", minute: 1)
         let id = try #require(f.model.transactions.first).id
         #expect(StickerModel.message(for: .closingExceedsOpen(transactionID: id, available: 3), transactions: f.model.transactions).contains("only 3"))
+    }
+
+    /// Two overlapping refreshes make one subscription, and hiding while one is in flight leaves none.
+    @Test func overlappingRefreshesSubscribeOnce() async throws {
+        let f = try Fixture()
+        try f.add(.buy, "100", "10", minute: 1)
+        f.model.reload()
+        async let a: Void = f.model.refreshSubscription()
+        async let b: Void = f.model.refreshSubscription()
+        _ = await (a, b)
+        await waitUntil { f.fake.connectCount >= 1 }
+        #expect(f.fake.connectCount == 1)
+        #expect(await f.hub.activeFeedCount == 1)
+        await f.model.setVisible(false)
+        #expect(await f.hub.activeFeedCount == 0)
+    }
+
+    @Test func theWhatIfPriceMovesByTheGivenShareAndNeverBelowAThousandth() async throws {
+        let f = try Fixture()
+        try f.add(.buy, "100", "10", minute: 1)
+        f.model.reload()
+        await f.model.refreshSubscription()
+        await waitUntil { f.fake.connectCount >= 1 }
+        f.fake.emit(PriceTick(price: 100, eventTime: nowFixed))
+        await waitUntil { f.model.livePrice != nil }
+        f.model.nudgePreview(by: 0.1, ended: false)
+        #expect(f.model.previewPrice == 110)
+        f.model.nudgePreview(by: -0.5, ended: false)
+        #expect(f.model.previewPrice == 55) // from the previous preview, not from the live price
+        f.model.nudgePreview(by: -1, ended: false)
+        #expect(f.model.previewPrice == dec("0.55")) // at most -99 % per step
+        f.model.nudgePreview(by: -1, ended: false)
+        #expect(f.model.previewPrice == dec("0.1")) // the floor: live / 1000
+        f.model.endPreview()
+        #expect(f.model.previewPrice == nil && f.model.currentPrice == 100)
+    }
+
+    @Test func aMenuRowShowsSizeMoneyAndHowLongTheTradeRan() throws {
+        let store = try TradeStore.inMemory()
+        let trade = try store.createTrade(exchange: "binance", base: "GRAM", quote: "USDT", direction: .buyFirst)
+        let t0 = at(0)
+        let open = try TradeCalculator.summarize(direction: .buyFirst, transactions: [Transaction(side: .buy, quantity: 100, amount: 50, occurredAt: t0, sequence: 1)])
+        var row = MenuRow.make(trade: trade, summary: open, times: [t0], now: t0.addingTimeInterval(2 * 86400 + 4 * 3600), icon: nil, shown: true)
+        #expect(row.exchange == "Binance" && row.isBuy && row.shown && row.quantity == "100.00" && row.invested == "50.00")
+        #expect(row.duration == "2d 4h")
+        let closed = try TradeCalculator.summarize(direction: .buyFirst, transactions: [
+            Transaction(side: .buy, quantity: 100, amount: 50, occurredAt: t0, sequence: 1), Transaction(side: .sell, quantity: 100, amount: 60, occurredAt: t0.addingTimeInterval(3600), sequence: 2)])
+        row = MenuRow.make(trade: trade, summary: closed, times: [t0, t0.addingTimeInterval(3600)], now: t0.addingTimeInterval(9 * 86400), icon: nil, shown: false)
+        #expect(row.quantity == "—" && row.duration == "1h") // closed: frozen at the last transaction
+        let empty = MenuRow.make(trade: trade, summary: .empty(.buyFirst), times: [], now: t0, icon: nil, shown: false)
+        #expect(empty.invested == "—" && empty.duration == nil)
+    }
+
+    /// The reason a save was refused stays until the user changes something; a field that merely re-reports its text does not clear it.
+    @Test func aRefusedSaveKeepsItsReasonUntilSomethingChanges() async throws {
+        let f = try Fixture()
+        try f.add(.buy, "100", "10", minute: 1)
+        f.model.reload()
+        f.model.openForm(side: .sell)
+        f.model.edit(.quantity, "500"); f.model.edit(.rate, "0.1")
+        await f.model.submit()
+        #expect(f.model.formError?.hasPrefix("Not enough open quantity") == true)
+        f.model.edit(.quantity, "500") // the same text again
+        #expect(f.model.formError != nil)
+        f.model.edit(.quantity, "50") // a real change
+        #expect(f.model.formError == nil)
+    }
+
+    @Test func aWhatIfPriceNeverReachesTheStore() async throws {
+        let f = try Fixture()
+        try f.add(.buy, "100", "10", minute: 1)
+        f.model.reload()
+        await f.model.refreshSubscription()
+        await waitUntil { f.fake.connectCount >= 1 }
+        f.fake.emit(PriceTick(price: 2, eventTime: nowFixed))
+        await waitUntil { f.model.livePrice != nil }
+        let before = try f.store.transactions(tradeID: f.model.trade.id)
+        f.model.nudgePreview(by: 0.5, ended: true)
+        f.model.endPreview()
+        f.model.reload()
+        #expect(try f.store.transactions(tradeID: f.model.trade.id) == before)
+        #expect(f.model.currentPrice == 2 && f.model.pnl.total == 190) // 100 coins at 2 for a cost of 10
     }
 }

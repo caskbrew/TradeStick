@@ -5,7 +5,7 @@ public enum NumberFormat {
     private static let locale = Locale(identifier: "en_US")
     private static let minus = "\u{2212}"
 
-    private static func plain(_ value: Decimal, min: Int, max: Int, grouping: Bool = false) -> String {
+    private static func plain(_ value: Decimal, min: Int, max: Int) -> String {
         let style = Decimal.FormatStyle(locale: locale)
             .precision(.fractionLength(min...max))
             .grouping(.never) // no thousands separators anywhere
@@ -15,12 +15,7 @@ public enum NumberFormat {
 
     /// Prices and rates always have the same number of decimals for the same magnitude, everywhere on screen
     /// (`1.3400`, `0.055000`, `67432.10`), so a rate never looks longer than the price next to it.
-    public static func price(_ value: Decimal) -> String { price(value, grouping: false) }
-
-    /// `price(_:)` for the screen (no thousands separators, like `price(_:)`).
-    public static func shownPrice(_ value: Decimal) -> String { price(value, grouping: true) }
-
-    private static func price(_ value: Decimal, grouping: Bool) -> String {
+    public static func price(_ value: Decimal) -> String {
         let magnitude = value < 0 ? -value : value
         var decimals = magnitude >= 1000 ? 2 : 4
         if magnitude > 0 && magnitude < 1 {
@@ -29,7 +24,7 @@ public enum NumberFormat {
             while probe < Decimal(string: "0.1")! { probe *= 10; leadingZeros += 1 }
             decimals = min(max(leadingZeros + 4, 6), 10)
         }
-        return plain(value, min: decimals, max: decimals, grouping: grouping)
+        return plain(value, min: decimals, max: decimals)
     }
 
     /// Quote currencies worth cents: always shown with exactly 2 decimals.
@@ -40,12 +35,12 @@ public enum NumberFormat {
     /// Quote-currency amounts: 2 decimals, up to 4 when |x| < 1 (FR-FMT-3). `fixed`: always exactly 2 (USDT and alike).
     public static func quote(_ value: Decimal, fixed: Bool = false) -> String {
         let magnitude = value < 0 ? -value : value
-        return plain(value, min: 2, max: magnitude < 1 && !fixed ? 4 : 2, grouping: true)
+        return plain(value, min: 2, max: magnitude < 1 && !fixed ? 4 : 2)
     }
 
     /// Quote amounts of transactions and totals: up to 6 decimals, trailing zeros dropped but never fewer than 2.
     public static func amount(_ value: Decimal) -> String {
-        plain(value, min: 2, max: 6, grouping: true)
+        plain(value, min: 2, max: 6)
     }
 
     /// The value as `quote(_:)` shows it. Signs and colours must follow this, not the raw value, so that a
@@ -66,9 +61,9 @@ public enum NumberFormat {
         return sign(shown) + quote(shown < 0 ? -shown : shown, fixed: fixed)
     }
 
-    /// Coin quantity: at least 2 and up to 8 decimals, thousands separators (FR-FMT-4).
+    /// Coin quantity: at least 2 and up to 8 decimals, no thousands separators.
     public static func quantity(_ value: Decimal) -> String {
-        plain(value, min: 2, max: 8, grouping: true)
+        plain(value, min: 2, max: 8)
     }
 
     /// Signed coin quantity for a profit or loss in coins: 2 decimals from 1 up, 4 below, zero without a sign.
