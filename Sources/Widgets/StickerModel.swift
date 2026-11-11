@@ -395,6 +395,11 @@ public final class StickerModel {
         }
     }
 
+    /// How many imported transactions a recalculation from these fills would change (0 when it would be refused).
+    public func staleImports(_ trades: [ImportedTrade]) -> Int {
+        (try? store.staleImportCount(tradeID: trade.id, trades)) ?? 0
+    }
+
     public func toggleForm() {
         if form != nil { cancelForm() } else { addTransaction() }
     }
@@ -462,6 +467,15 @@ public final class StickerModel {
         } catch {
             listError = "Could not delete: \(error)"
         }
+    }
+
+    /// Deletes the transaction being edited (the form's trash button, after its confirmation) and closes the form.
+    /// A refusal by the ledger stays in the form, where the user is looking.
+    public func deleteEditing() async {
+        guard let id = editingID else { return }
+        await deleteTransaction(id: id)
+        guard editingID == id else { return } // the user opened another form meanwhile: leave it (a refusal stays in the list)
+        if let message = listError { listError = nil; formError = message } else { cancelForm() }
     }
 
     // MARK: Messages

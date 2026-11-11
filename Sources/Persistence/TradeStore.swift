@@ -147,20 +147,7 @@ public final class TradeStore: Sendable {
     @discardableResult
     public func reimportTrades(tradeID: UUID, _ trades: [ImportedTrade]) throws -> Int {
         try dbQueue.write { db in
-            guard let trade = try Self.fetchTrade(db, tradeID) else { throw StoreError.tradeNotFound(tradeID) }
-            var all = try Self.fetchTransactions(db, tradeID)
-            let wanted = Dictionary(trades.map { ($0.externalID, $0) }, uniquingKeysWith: { a, _ in a })
-            var changed: [Int] = []
-            for row in try Row.fetchAll(db, sql: "SELECT id, externalID FROM tradeTransaction WHERE tradeID = ? AND externalID IS NOT NULL AND edited = 0", arguments: [tradeID.uuidString]) {
-                guard let id = UUID(uuidString: row["id"]), let index = all.firstIndex(where: { $0.id == id }), let t = wanted[row["externalID"] as String] else { continue }
-                let fee = t.feeQuote > 0 ? t.feeQuote : nil
-                let tx = all[index]
-                guard (tx.side, tx.quantity, tx.amount, tx.occurredAt.timeIntervalSince1970, tx.fee) != (t.side, t.netQuantity, t.amount, t.occurredAt.timeIntervalSince1970, fee) else { continue }
-                all[index].side = t.side; all[index].quantity = t.netQuantity; all[index].amount = t.amount
-                all[index].occurredAt = t.occurredAt; all[index].fee = fee
-                changed.append(index)
-            }
-            try Self.validate(trade.direction, all)
+            let (all, changed) = try Self.recalculation(db, tradeID, trades)
             for index in changed {
                 let tx = all[index]
                 try db.execute(
@@ -170,6 +157,30 @@ public final class TradeStore: Sendable {
             }
             return changed.count
         }
+    }
+
+    /// How many imported transactions `reimportTrades` would change; writes nothing. Throws what it would (a rejected result).
+    public func staleImportCount(tradeID: UUID, _ trades: [ImportedTrade]) throws -> Int {
+        try dbQueue.read { try Self.recalculation($0, tradeID, trades).changed.count }
+    }
+
+    /// The transactions as a recalculation from `trades` would leave them, and the indices that differ from what is stored. Validated as a whole.
+    private static func recalculation(_ db: Database, _ tradeID: UUID, _ trades: [ImportedTrade]) throws -> (all: [Transaction], changed: [Int]) {
+        guard let trade = try fetchTrade(db, tradeID) else { throw StoreError.tradeNotFound(tradeID) }
+        var all = try fetchTransactions(db, tradeID)
+        let wanted = Dictionary(trades.map { ($0.externalID, $0) }, uniquingKeysWith: { a, _ in a })
+        var changed: [Int] = []
+        for row in try Row.fetchAll(db, sql: "SELECT id, externalID FROM tradeTransaction WHERE tradeID = ? AND externalID IS NOT NULL AND edited = 0", arguments: [tradeID.uuidString]) {
+            guard let id = UUID(uuidString: row["id"]), let index = all.firstIndex(where: { $0.id == id }), let t = wanted[row["externalID"] as String] else { continue }
+            let fee = t.feeQuote > 0 ? t.feeQuote : nil
+            let tx = all[index]
+            guard (tx.side, tx.quantity, tx.amount, tx.occurredAt.timeIntervalSince1970, tx.fee) != (t.side, t.netQuantity, t.amount, t.occurredAt.timeIntervalSince1970, fee) else { continue }
+            all[index].side = t.side; all[index].quantity = t.netQuantity; all[index].amount = t.amount
+            all[index].occurredAt = t.occurredAt; all[index].fee = fee
+            changed.append(index)
+        }
+        try validate(trade.direction, all)
+        return (all, changed)
     }
 
     // MARK: Saved exchange fills

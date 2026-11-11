@@ -32,11 +32,22 @@ final class StickerPanel: ZoomPanel {
     var onScroll: ((NSEvent) -> Void)?
     var onPress: (() -> Void)?
 
+    private var pressDrag = PressDrag()
+
     override func sendEvent(_ event: NSEvent) {
         switch event.type {
         case .scrollWheel where onScroll != nil: onScroll?(event); return
         case .leftMouseDown, .rightMouseDown: onPress?()
         default: break
+        }
+        // Any part of the card drags the window (text and gaps included, which the views keep for themselves): a press that
+        // travels a few points becomes a drag. A pinned sticker stays where it is.
+        if pressDrag.begins(with: event), isMovableByWindowBackground {
+            performDrag(with: event)
+            // The drag took the release: tell the views it happened outside the window, so a button pressed first is let go, not fired.
+            if let up = NSEvent.mouseEvent(with: .leftMouseUp, location: NSPoint(x: -10_000, y: -10_000), modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+                                           windowNumber: windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 0) { super.sendEvent(up) }
+            return
         }
         super.sendEvent(event)
     }

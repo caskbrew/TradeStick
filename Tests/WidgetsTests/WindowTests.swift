@@ -290,6 +290,29 @@ extension UITests {
         window.snapshot("window-api-keys-keychain-refused")
     }
 
+    @Test func aKeyThatCouldNotBeMovedFromThePreviousVersionIsSaidSoUntilANewOneIsSaved() async throws {
+        let note = "Not moved from the previous version\n(Keychain refused). Enter the key again."
+        let store = InMemoryCredentialStore()
+        let model = APIKeysModel(exchange: "binance", store: store, defaults: UserDefaults(suiteName: UUID().uuidString)!, notice: note, check: { _ in APIKeyCheck() })
+        #expect(model.status == .failed(note) && !model.hasSavedKey)
+        let window = TestWindow(APIKeysView(models: [model], onClose: {}))
+        window.snapshot("window-api-keys-not-moved")
+        try store.save(APICredentials(key: "K", secret: "S"), exchange: "binance")
+        let later = APIKeysModel(exchange: "binance", store: store, defaults: UserDefaults(suiteName: UUID().uuidString)!, notice: note, check: { _ in APIKeyCheck() })
+        #expect(later.status == .idle) // a key is there now: no note
+    }
+
+    @Test func savingOrRemovingAKeyTellsTheOwnerOfTheNotice() async throws {
+        let model = keysModel("binance") { _ in APIKeyCheck() }
+        var changes = 0
+        model.onKeyChange = { changes += 1 }
+        model.keyText = "K"; model.secretText = "S"
+        await model.save()
+        #expect(changes == 1)
+        model.remove()
+        #expect(changes == 2)
+    }
+
     @Test func apiKeysShowsAFailedCheck() async throws {
         let bad = keysModel("poloniex") { _ in throw PoloniexAPIError(status: 401, code: 21001, message: "Invalid API key") }
         let window = TestWindow(APIKeysView(models: [bad], onClose: {}))
@@ -332,6 +355,21 @@ extension UITests {
         window.settle()
         window.snapshot("window-import-new-only")
         #expect(window.size == size)
+    }
+
+    @Test func earlierImportsThatDifferFromTheExchangeAreSaidSoAboveTheButtons() async throws {
+        let rows = fills()
+        nonisolated(unsafe) var stale = 3
+        let model = ImportModel(title: "Import from Binance", pair: "GRAM / USDT", quote: "USDT", fetch: { rows }, existing: { ["1"] }, commit: { _ in nil },
+                                recalculate: { _ in stale = 0; return (3, nil) }, pending: { _ in stale })
+        let window = TestWindow(ImportView(model: model, onClose: {}))
+        try await Task.sleep(for: .milliseconds(300))
+        window.settle()
+        #expect(model.stale == 3)
+        window.snapshot("window-import-stale")
+        model.recalculateImported()
+        window.settle()
+        #expect(model.stale == 0)
     }
 
     @Test func savedTradesShowAtOnceWithASpinnerAndKeepTheWindowSizeOffline() async throws {

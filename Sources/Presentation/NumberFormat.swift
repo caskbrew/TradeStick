@@ -61,6 +61,17 @@ public enum NumberFormat {
         return sign(shown) + quote(shown < 0 ? -shown : shown, fixed: fixed)
     }
 
+    /// The headline result of a sticker: as `signedQuote`, but from a million up shortened (`−122.2M`), because the
+    /// full figure would shrink to a few pixels. Callers show the full value in a tip.
+    public static func headlineQuote(_ value: Decimal, fixed: Bool = false) -> String {
+        let shown = displayedQuote(value, fixed: fixed)
+        var scaled = shown.magnitude / 1_000_000
+        guard scaled >= 1 else { return signedQuote(value, fixed: fixed) }
+        var unit = 0
+        while unit < 2, scaled.rounded(scale: 1) >= 1000 { scaled /= 1000; unit += 1 } // 999.96M is 1.0B, not 1000.0M
+        return sign(shown) + plain(scaled, min: 1, max: 1) + ["M", "B", "T"][unit]
+    }
+
     /// Coin quantity: at least 2 and up to 8 decimals, no thousands separators.
     public static func quantity(_ value: Decimal) -> String {
         plain(value, min: 2, max: 8)

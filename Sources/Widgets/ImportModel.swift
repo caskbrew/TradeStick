@@ -47,6 +47,8 @@ public final class ImportModel {
     public private(set) var offlineDetail = ""
     /// How many imported transactions the last recalculation changed.
     public private(set) var recalculated: Int?
+    /// How many imported transactions differ from the exchange's record now (a recalculation would change them).
+    public private(set) var stale = 0
 
     @ObservationIgnored private let fetch: @Sendable () async throws -> [ImportedTrade]
     @ObservationIgnored private let existing: () -> Set<String>
@@ -55,6 +57,7 @@ public final class ImportModel {
     @ObservationIgnored private let commit: ([ImportedTrade]) -> String?
     @ObservationIgnored private let saved: (() async throws -> [ImportedTrade])?
     @ObservationIgnored private let recalculate: (([ImportedTrade]) -> (changed: Int, error: String?))?
+    @ObservationIgnored private let pending: (([ImportedTrade]) -> Int)?
 
     /// - Parameters:
     ///   - existing: exchange trade ids this trade already has.
@@ -67,10 +70,12 @@ public final class ImportModel {
         existing: @escaping () -> Set<String>,
         commit: @escaping ([ImportedTrade]) -> String?,
         saved: (() async throws -> [ImportedTrade])? = nil,
-        recalculate: (([ImportedTrade]) -> (changed: Int, error: String?))? = nil
+        recalculate: (([ImportedTrade]) -> (changed: Int, error: String?))? = nil,
+        pending: (([ImportedTrade]) -> Int)? = nil
     ) {
         self.saved = saved
         self.recalculate = recalculate
+        self.pending = pending
         self.title = title
         self.pair = pair
         self.fixedQuote = NumberFormat.isTwoDecimalCurrency(quote)
@@ -102,6 +107,7 @@ public final class ImportModel {
         if let saved, let local = try? await saved(), !local.isEmpty { // what was kept from earlier, shown at once
             fills = local
             rebuild()
+            refreshStale()
             state = .loaded
             refreshing = true
         }
@@ -111,6 +117,7 @@ public final class ImportModel {
             guard !Task.isCancelled else { return } // replaced by a retry meanwhile: this answer is stale
             fills = fetched
             rebuild()
+            refreshStale()
             state = .loaded
             hasLoaded = true
         } catch is CancellationError {
@@ -128,7 +135,10 @@ public final class ImportModel {
         guard let recalculate else { return }
         let result = recalculate(ImportedTrade.groupedByOrder(fills) + fills)
         if let message = result.error { error = message } else { error = nil; recalculated = result.changed }
+        refreshStale()
     }
+
+    private func refreshStale() { stale = pending?(ImportedTrade.groupedByOrder(fills) + fills) ?? 0 }
 
     public func setGrouped(_ value: Bool) {
         guard value != grouped else { return }

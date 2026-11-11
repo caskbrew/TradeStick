@@ -36,6 +36,78 @@ extension UITests {
         UserDefaults.standard.removeObject(forKey: "compact.\(model.trade.id.uuidString)")
     }
 
+    /// A long list: the scroller must not take width from the columns (it would cut the last digits off).
+    @Test func aLongListHasANarrowScrollerThatKeepsTheDigits() async throws {
+        let long = UITests.StickerLayoutTests.Case(name: "long", base: "GRAM", quote: "USDT", direction: .buyFirst,
+                                                   txs: (0..<30).map { (.buy, "\(100 + $0 * 37)", "\(5 + $0)") }, price: "0.055", open: "0.05")
+        let (_, model) = try await layout.sticker(long)
+        let window = TestWindow(TransactionList(model: model).frame(width: ListDrawer.width).background(Color(white: 0.12)).environment(\.colorScheme, .dark))
+        window.settle(0.3)
+        let scrollView = try #require(window.allViews().compactMap { $0 as? NSScrollView }.first)
+        #expect(scrollView.scrollerStyle == .overlay && scrollView.contentView.bounds.width == window.size.width)
+        window.snapshot("window-history-long")
+    }
+
+    /// Independent of the system's scroll bar setting: the thin scroller is forced, and forced again after the system's own reset.
+    @Test func theOverlayScrollerIsForcedAndStaysForced() async throws {
+        let scroll = NSScrollView(frame: NSRect(x: 0, y: 0, width: 200, height: 100))
+        scroll.scrollerStyle = .legacy
+        let document = NSView(frame: NSRect(x: 0, y: 0, width: 200, height: 400))
+        document.addSubview(OverlayScroller.Probe())
+        scroll.documentView = document
+        let window = NSWindow(contentRect: scroll.frame, styleMask: [.titled], backing: .buffered, defer: false)
+        window.contentView = scroll
+        #expect(scroll.scrollerStyle == .overlay)
+        scroll.scrollerStyle = .legacy // what AppKit does when a mouse is plugged in
+        NotificationCenter.default.post(name: NSScroller.preferredScrollerStyleDidChangeNotification, object: nil)
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(scroll.scrollerStyle == .overlay)
+    }
+
+    /// Deleting: open the row (a double-click), press the trash, answer the question.
+    @Test func aTransactionIsDeletedFromItsEditFormAfterAnAnswer() async throws {
+        let (_, model) = try await layout.sticker(normal)
+        let first = try #require(model.transactions.first)
+        model.openEditForm(id: first.id)
+        let window = TestWindow(FormWindowView(model: model))
+        window.settle(0.4)
+        window.snapshot("window-form-edit-delete")
+        let (width, height) = (window.size.width, window.size.height)
+        let trash = CGPoint(x: 14 + 15, y: height - 27), cancel = CGPoint(x: width - 14 - 70, y: height - 27), delete = CGPoint(x: width - 14 - 25, y: height - 27)
+        window.click(x: trash.x, y: trash.y)
+        window.settle(0.3)
+        window.snapshot("window-form-delete-confirm")
+        window.click(x: cancel.x, y: cancel.y) // Cancel of the question: back to the form, nothing deleted
+        window.settle(0.3)
+        #expect(model.form != nil && model.editingID == first.id && model.transactions.count == 2)
+        window.click(x: trash.x, y: trash.y)
+        window.click(x: delete.x, y: delete.y)
+        await waitUntil { model.transactions.count == 1 }
+        #expect(model.transactions.count == 1 && model.form == nil && model.editingID == nil)
+    }
+
+    @Test func aDeletionTheLedgerRefusesIsExplainedInTheForm() async throws {
+        let (_, model) = try await layout.sticker(UITests.StickerLayoutTests.Case(
+            name: "x", base: "GRAM", quote: "USDT", direction: .buyFirst, txs: [(.buy, "100", "10"), (.sell, "50", "7")], price: "0.1", open: "0.1"))
+        let buy = try #require(model.transactions.min { $0.occurredAt < $1.occurredAt })
+        model.openEditForm(id: buy.id)
+        let window = TestWindow(FormWindowView(model: model))
+        window.settle(0.4)
+        await model.deleteEditing()
+        window.settle(0.3)
+        #expect(model.transactions.count == 2 && model.form != nil && model.formError != nil)
+        window.snapshot("window-form-delete-refused")
+    }
+
+    @Test func aNewTransactionsFormHasNoTrash() async throws {
+        let (_, model) = try await layout.sticker(normal)
+        model.openForm(side: .buy)
+        let window = TestWindow(FormWindowView(model: model))
+        window.settle(0.4)
+        window.snapshot("window-form-add-no-delete")
+        #expect(model.editingID == nil)
+    }
+
     @Test func theWhatIfPriceOnTheCompactCard() async throws {
         let (_, model) = try await layout.sticker(normal)
         model.toggleCompact()

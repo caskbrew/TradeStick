@@ -73,6 +73,16 @@ let now = Date(timeIntervalSince1970: 1_700_000_000)
         #expect(NumberFormat.signedQuote(dec("-0.05")) == "\u{2212}0.05")
     }
 
+    @Test func theHeadlineResultIsShortenedFromAMillionUp() {
+        #expect(NumberFormat.headlineQuote(dec("-122241974.31"), fixed: true) == "\u{2212}122.2M")
+        #expect(NumberFormat.headlineQuote(dec("1500000"), fixed: true) == "+1.5M")
+        #expect(NumberFormat.headlineQuote(dec("999999.99"), fixed: true) == "+999999.99") // below a million: the full figure
+        #expect(NumberFormat.headlineQuote(dec("999960000")) == "+1.0B") // not 1000.0M
+        #expect(NumberFormat.headlineQuote(dec("-3200000000000")) == "\u{2212}3.2T")
+        #expect(NumberFormat.headlineQuote(dec("9.5")) == NumberFormat.signedQuote(dec("9.5")))
+        #expect(NumberFormat.headlineQuote(0) == "0.00")
+    }
+
     @Test func aTinyValueThatRoundsToZeroHasNoSignAndIsNotColoured() {
         #expect(NumberFormat.signedQuote(dec("0.00004")) == "0.00")
         #expect(NumberFormat.signedQuote(dec("-0.00004")) == "0.00")

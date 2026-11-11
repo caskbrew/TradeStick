@@ -285,6 +285,8 @@ func at(_ minute: Int) -> Date { Date(timeIntervalSince1970: 1_700_000_000 + Dou
         try store.updateTransaction(tradeID: trade.id, id: second.id, side: .buy, quantity: 10, amount: 105, occurredAt: at(1)) // by hand
         var one = fill("1", .buy, 10, 100, 0); one.feeQuote = 0.5
         var two = fill("2", .buy, 10, 100, 1); two.feeQuote = 0.5
+        #expect(try store.staleImportCount(tradeID: trade.id, [one, two]) == 1) // counts, writes nothing
+        #expect(try store.transactions(tradeID: trade.id).map(\.fee) == [nil, nil, nil])
         #expect(try store.reimportTrades(tradeID: trade.id, [one, two]) == 1) // only the untouched one
         let all = try store.transactions(tradeID: trade.id)
         #expect(all.map(\.fee) == [0.5, nil, nil] && all[1].amount == 105)
@@ -364,6 +366,26 @@ func at(_ minute: Int) -> Date { Date(timeIntervalSince1970: 1_700_000_000 + Dou
         try? old.save(APICredentials(key: "OLD", secret: "S"), exchange: "binance")
         LegacyMigration.moveKeys(from: old, to: Refusing(), exchanges: ["binance"])
         #expect(try! old.load(exchange: "binance")?.key == "OLD")
+    }
+
+    @Test func saysWhichKeysTheKeychainRefusedToHandOver() {
+        struct Denying: CredentialStore {
+            func load(exchange: String) throws -> APICredentials? { throw KeychainError(status: -25293) }
+            func save(_ credentials: APICredentials, exchange: String) throws {}
+            func remove(exchange: String) throws {}
+        }
+        let new = InMemoryCredentialStore()
+        try? new.save(APICredentials(key: "N", secret: "S"), exchange: "bybit") // this one already has a key: nothing is missing
+        #expect(LegacyMigration.moveKeys(from: Denying(), to: new, exchanges: ["binance", "bybit"]) == ["binance"])
+        #expect(LegacyMigration.moveKeys(from: InMemoryCredentialStore(), to: new, exchanges: ["binance"]).isEmpty) // nothing old: nothing refused
+    }
+
+    @Test func aNewerKeyOfTheUsersOwnIsNotReportedAsRefused() {
+        let old = InMemoryCredentialStore(), new = InMemoryCredentialStore()
+        try? old.save(APICredentials(key: "OLD", secret: "S"), exchange: "bybit")
+        try? new.save(APICredentials(key: "NEW", secret: "S"), exchange: "bybit")
+        #expect(LegacyMigration.moveKeys(from: old, to: new, exchanges: ["bybit"]).isEmpty)
+        #expect(try! new.load(exchange: "bybit")?.key == "NEW")
     }
 
     @Test func movesKeysBetweenTwoRealKeychainServices() throws {

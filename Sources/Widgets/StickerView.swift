@@ -379,7 +379,8 @@ struct ResultText: View {
 
     var body: some View {
         let total = model.headline.total
-        let text = total.map { NumberFormat.signedQuote($0, fixed: model.quoteFixed) } ?? "—"
+        let full = total.map { NumberFormat.signedQuote($0, fixed: model.quoteFixed) } ?? "—"
+        let text = total.map { NumberFormat.headlineQuote($0, fixed: model.quoteFixed) } ?? "—"
         let fontSize = fill.map { min(max(size * $0 / max(Ruler.width(text, size: size, weight: .bold), 1), size), size * 1.2) }
             ?? room.map { min(size, size * $0 / max(Ruler.width(text, size: size, weight: .bold), 1)) } ?? size
         let margin: CGFloat = 3 // the same on all four sides of the letters (cap height, not line height, vertically)
@@ -397,7 +398,8 @@ struct ResultText: View {
         .frame(height: height)
         .accessibilityElement(children: .ignore) // the number and its tag are one fact, not two fragments
         .accessibilityLabel(model.status == .closed ? "Result" : "Profit or loss")
-        .accessibilityValue("\(text) \(model.trade.quote)")
+        .accessibilityValue("\(full) \(model.trade.quote)")
+        .help(text == full ? "" : "\(full) \(model.trade.quote)") // a shortened number shows its full value
     }
 }
 
@@ -664,6 +666,29 @@ struct WindowDragArea: NSViewRepresentable {
             guard let window, window.isMovableByWindowBackground else { return }
             window.performDrag(with: event)
         }
+    }
+}
+
+/// Tells when a press on a window has turned into a drag: the pointer moved a few points with the button down.
+/// A window feeds it every event; a press that does not travel stays a click for the views under it.
+public struct PressDrag {
+    public static let distance: CGFloat = 4
+    private var start: NSPoint?
+
+    public init() {}
+
+    /// True once per press, at the event that starts the drag.
+    public mutating func begins(with event: NSEvent) -> Bool {
+        switch event.type {
+        case .leftMouseDown: start = event.locationInWindow
+        case .leftMouseUp: start = nil
+        case .leftMouseDragged:
+            guard let from = start, hypot(event.locationInWindow.x - from.x, event.locationInWindow.y - from.y) >= Self.distance else { return false }
+            start = nil
+            return true
+        default: break
+        }
+        return false
     }
 }
 

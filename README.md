@@ -18,7 +18,7 @@ Works with **Binance**, **Bybit** and **Poloniex** (spot). It only ever *reads*:
 
    ![Add Transaction form](docs/readme/add-transaction.png)
 
-3. **Watch it.** The price updates live, PnL follows your average cost. **Show Transactions** unfolds the list under the sticker (double-click a row to edit it, the trash icon deletes it).
+3. **Watch it.** The price updates live, PnL follows your average cost. **Show Transactions** unfolds the list under the sticker (double-click a row to edit it; the trash button in that form deletes it, after a confirmation).
 
    ![Transactions under the sticker](docs/readme/transactions.png)
 

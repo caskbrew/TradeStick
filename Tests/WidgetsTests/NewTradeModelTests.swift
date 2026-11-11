@@ -187,6 +187,17 @@ actor Gate {
         #expect(failing.error == "Sells more than held" && failing.recalculated == nil)
     }
 
+    @Test func itCountsEarlierImportsThatDifferFromTheExchangeAndRefreshesAfterARecalculation() async {
+        nonisolated(unsafe) var stale = 2
+        let m = ImportModel(title: "t", fetch: { [self.fill("1")] }, existing: { ["1"] }, commit: { _ in nil },
+                            recalculate: { _ in stale = 0; return (2, nil) }, pending: { _ in stale })
+        #expect(m.stale == 0)
+        await m.load()
+        #expect(m.stale == 2) // shown as a hint above the buttons
+        m.recalculateImported()
+        #expect(m.stale == 0 && m.recalculated == 2)
+    }
+
     @Test func aFailedLoadIsShown() async {
         let m = ImportModel(title: "t", fetch: { throw BinanceAPIError(status: 401, code: -2015, message: "Invalid API-key") }, existing: { [] }, commit: { _ in nil })
         await m.load()

@@ -230,6 +230,22 @@ struct Fixture {
         #expect(f.model.listError == nil)
     }
 
+    @Test func deletingTheEditedTransactionClosesTheFormAndARefusalStaysInIt() async throws {
+        let f = try Fixture()
+        try f.add(.buy, "100", "10", minute: 1)
+        try f.add(.sell, "50", "6", minute: 2)
+        let buy = try #require(f.model.transactions.first), sell = try #require(f.model.transactions.last)
+        f.model.openEditForm(id: buy.id)
+        await f.model.deleteEditing() // the sell needs this buy
+        #expect(f.model.transactions.count == 2 && f.model.form != nil && f.model.editingID == buy.id)
+        #expect(f.model.formError?.hasPrefix("Not enough open quantity at ") == true && f.model.listError == nil)
+        f.model.openEditForm(id: sell.id)
+        await f.model.deleteEditing()
+        #expect(f.model.transactions.count == 1 && f.model.form == nil && f.model.editingID == nil && f.model.formError == nil)
+        await f.model.deleteEditing() // nothing is being edited: nothing happens
+        #expect(f.model.transactions.count == 1)
+    }
+
     @Test func expandedStateIsPersisted() throws {
         let f = try Fixture()
         f.model.setExpanded(true)

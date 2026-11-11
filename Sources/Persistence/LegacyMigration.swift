@@ -1,3 +1,4 @@
+import Domain
 import Foundation
 
 /// One-time move from the pre-rename names ("TradeStickies") to "TradeStick". Never deletes anything it copied.
@@ -20,12 +21,22 @@ public enum LegacyMigration {
 
     /// Moves the keys stored under the old Keychain service to the new one. An old item is removed only after the
     /// new one reads back identical, so a failed or refused copy never loses a key.
-    public static func moveKeys(from old: CredentialStore, to new: CredentialStore, exchanges: [String]) {
+    /// Returns the exchanges whose old key could not be moved because the Keychain refused (the user pressed Deny).
+    @discardableResult
+    public static func moveKeys(from old: CredentialStore, to new: CredentialStore, exchanges: [String]) -> [String] {
+        var refused: [String] = []
         for exchange in exchanges {
-            guard let keys = (try? old.load(exchange: exchange)) ?? nil else { continue }
-            if ((try? new.load(exchange: exchange)) ?? nil) == nil { try? new.save(keys, exchange: exchange) }
-            if let stored = (try? new.load(exchange: exchange)) ?? nil, stored == keys { try? old.remove(exchange: exchange) }
+            let found: APICredentials?
+            do { found = try old.load(exchange: exchange) } catch {
+                if ((try? new.load(exchange: exchange)) ?? nil) == nil { refused.append(exchange) } // nothing to fall back on
+                continue
+            }
+            guard let keys = found else { continue }
+            let hadKey = ((try? new.load(exchange: exchange)) ?? nil) != nil // a newer key of the user's own wins and stays
+            if !hadKey { try? new.save(keys, exchange: exchange) }
+            if let stored = (try? new.load(exchange: exchange)) ?? nil, stored == keys { try? old.remove(exchange: exchange) } else if !hadKey { refused.append(exchange) }
         }
+        return refused
     }
 
     /// UserDefaults are stored per bundle id: after the id changed, bring the old values over (never overwriting a value already set).

@@ -43,6 +43,10 @@ public struct ImportView: View {
                     Button("Retry") { model.retry() }.buttonStyle(PillStyle(fill: Theme.field, flexible: false, minHeight: 26))
                 }.foregroundStyle(Theme.warning).font(.system(size: 12))
             }
+            if model.stale > 0 {
+                Label("\(model.stale) earlier import\(model.stale == 1 ? "" : "s") differ\(model.stale == 1 ? "s" : "") from the exchange's record (e.g. a fee paid in the coin shortens a bought quantity). Press Recalculate to update \(model.stale == 1 ? "it" : "them").", systemImage: "arrow.triangle.2.circlepath")
+                    .foregroundStyle(Theme.warning).font(.system(size: 12)).fixedSize(horizontal: false, vertical: true)
+            }
             if let error = model.error {
                 Label(error, systemImage: "xmark.octagon.fill").foregroundStyle(Theme.negative).font(.system(size: 12))
                     .fixedSize(horizontal: false, vertical: true)

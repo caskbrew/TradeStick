@@ -109,6 +109,9 @@ final class AppController: NSObject, NSApplicationDelegate {
     private var windows: [UUID: StickerWindow] = [:]
     private var newTradeWindow: NSWindow?
     private var apiKeysWindow: NSWindow?
+    /// Exchanges whose key of the previous version the Keychain would not hand over (Deny): the API Keys window says so.
+    private var unmovedKeys: Set<String> = []
+    private var offerLaunchAtLogin = false
     /// The installed app and dev builds keep their keys apart, like their data.
     private let credentials: any CredentialStore = KeychainCredentialStore(service: AppController.isInstalled ? AppController.bundleID : "com.caskbrew.tradestick.dev")
 
@@ -122,10 +125,13 @@ final class AppController: NSObject, NSApplicationDelegate {
             // Older names of the keychain service (the bundle id, before it was renamed twice).
             let legacy = Self.isInstalled ? ["com.caskbrew.TradeStick", "com.caskbrew.tradestick", "com.caskbrew.tradestickies"] : ["com.caskbrew.tradestickies.dev"]
             for service in legacy {
-                LegacyMigration.moveKeys(from: KeychainCredentialStore(service: service), to: credentials, exchanges: adapters.map(\.id))
+                unmovedKeys.formUnion(LegacyMigration.moveKeys(from: KeychainCredentialStore(service: service), to: credentials, exchanges: adapters.map(\.id)))
             }
             // Pins, sticker size: once, so a setting the user later resets does not come back from the old domain.
             if Self.isInstalled, !UserDefaults.standard.bool(forKey: "legacyDefaultsCopied") {
+                // The first launch under the new bundle id with data already there is an upgrade: Launch at Login may be off now.
+                offerLaunchAtLogin = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+                    .map { FileManager.default.fileExists(atPath: $0.appending(path: Self.dataFolder).path) } ?? false
                 for domain in ["com.caskbrew.TradeStick", "com.caskbrew.tradestick"] { LegacyMigration.copyDefaults(fromDomain: domain) }
                 UserDefaults.standard.set(true, forKey: "legacyDefaultsCopied")
             }
@@ -169,6 +175,7 @@ final class AppController: NSObject, NSApplicationDelegate {
         statusItem.button?.action = #selector(togglePopover)
 
         for trade in (try? store.trades()) ?? [] where trade.isVisible { open(trade, activate: false) }
+        if offerLaunchAtLogin, SMAppService.mainApp.status != .enabled { Task { offerLaunchAtLoginAfterUpgrade() } }
         if CommandLine.arguments.contains("--selftest-window") { Task { await selfTestWindow() } }
     }
 
@@ -431,6 +438,17 @@ final class AppController: NSObject, NSApplicationDelegate {
         }
     }
 
+    /// The bundle id changed, which can switch Launch at Login off: ask once, on the first launch after the upgrade.
+    private func offerLaunchAtLoginAfterUpgrade() {
+        let alert = NSAlert()
+        alert.messageText = "Start TradeStick at login?"
+        alert.informativeText = "This update gave the app a new identifier, so macOS may have forgotten that it starts at login."
+        alert.addButton(withTitle: "Turn On")
+        alert.addButton(withTitle: "Not Now")
+        NSApp.activate()
+        if alert.runModal() == .alertFirstButtonReturn { toggleLaunchAtLogin() }
+    }
+
     @objc private func toggleLaunchAtLogin() {
         let service = SMAppService.mainApp
         do {
@@ -505,7 +523,11 @@ final class AppController: NSObject, NSApplicationDelegate {
             existing.close() // reopen on the requested exchange
         }
         let models = accounts.map { account in
-            APIKeysModel(exchange: account.id, store: credentials, check: { try await account.check($0) })
+            let model = APIKeysModel(exchange: account.id, store: credentials,
+                                     notice: unmovedKeys.contains(account.id) ? "Not moved from the previous version\n(Keychain refused). Enter the key again." : nil,
+                                     check: { try await account.check($0) })
+            model.onKeyChange = { [weak self] in self?.unmovedKeys.remove(account.id) } // the user dealt with it: the notice must not come back
+            return model
         }
         let close = { [weak self] in self?.apiKeysWindow?.close(); self?.apiKeysWindow = nil }
         let view = APIKeysView(models: models, initial: exchange, onClose: close)
@@ -534,7 +556,8 @@ final class AppController: NSObject, NSApplicationDelegate {
             existing: { (try? store.externalIDs(tradeID: trade.id)) ?? [] },
             commit: { sticker.importTrades($0) },
             saved: { try await history.saved() },
-            recalculate: { sticker.reimportTrades($0) }
+            recalculate: { sticker.reimportTrades($0) },
+            pending: { sticker.staleImports($0) }
         )
         let host = NSHostingController(rootView: ImportView(model: model, onClose: { [weak self] in
             self?.importWindows[trade.id]?.close()

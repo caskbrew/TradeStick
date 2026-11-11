@@ -12,6 +12,8 @@ struct TransactionForm: View {
     /// The text of a transaction being edited, as first shown: left alone, its exact time (with seconds) is kept.
     @State private var shownText = ""
     @State private var shownDate: Date?
+    /// The trash button was pressed: the buttons ask first.
+    @State private var confirmingDelete = false
     @FocusState private var focus: TransactionDraft.Field?
 
     var body: some View {
@@ -36,11 +38,30 @@ struct TransactionForm: View {
                 Text(message).font(.system(size: 12)).foregroundStyle(Theme.negative) // errors may be red (FR-UI-8)
             }
             Spacer(minLength: 0)
-            HStack(spacing: 6) {
-                Button("Cancel") { model.cancelForm() }
-                    .buttonStyle(PillStyle(fill: Theme.field, minHeight: 26)).keyboardShortcut(.cancelAction)
-                Button(model.editingID == nil ? "Add" : "Save") { Task { await model.submit() } }
-                    .buttonStyle(PillStyle(fill: (form?.side ?? .buy) == .buy ? Theme.positive : Theme.negative, minHeight: 26)).keyboardShortcut(.defaultAction).disabled(!model.canSave)
+            if confirmingDelete {
+                HStack(spacing: 6) {
+                    Text("Delete it?").font(.system(size: 12)).lineLimit(1)
+                    Spacer(minLength: 0)
+                    Button("Cancel") { confirmingDelete = false }
+                        .buttonStyle(PillStyle(fill: Theme.field, flexible: false, minHeight: 26)).keyboardShortcut(.cancelAction)
+                    // No Return shortcut: a stray key must not delete. The question closes at once, so a refusal shows only its own message.
+                    Button("Delete") { confirmingDelete = false; Task { await model.deleteEditing() } }
+                        .buttonStyle(PillStyle(fill: Theme.negative, flexible: false, minHeight: 26))
+                }
+            } else {
+                HStack(spacing: 6) {
+                    if model.editingID != nil { // only an existing transaction can be deleted
+                        Button { confirmingDelete = true } label: {
+                            Image(systemName: "trash").font(.system(size: 12)).foregroundStyle(Theme.negative).frame(width: 30, height: 26)
+                                .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Theme.field)).contentShape(Rectangle())
+                        }
+                        .buttonStyle(DimOnPress()).accessibilityLabel("Delete transaction").help("Delete this transaction")
+                    }
+                    Button("Cancel") { model.cancelForm() }
+                        .buttonStyle(PillStyle(fill: Theme.field, minHeight: 26)).keyboardShortcut(.cancelAction)
+                    Button(model.editingID == nil ? "Add" : "Save") { Task { await model.submit() } }
+                        .buttonStyle(PillStyle(fill: (form?.side ?? .buy) == .buy ? Theme.positive : Theme.negative, minHeight: 26)).keyboardShortcut(.defaultAction).disabled(!model.canSave)
+                }
             }
         }
         .background { Button("") { model.toggleForm() }.keyboardShortcut("b").opacity(0).frame(width: 0, height: 0).allowsHitTesting(false) }
@@ -138,10 +159,10 @@ struct TransactionForm: View {
     }
 }
 
-/// Transactions, newest first; up to 8 rows visible, then scrolling (FR-TX-5, FR-TX-7).
+/// Transactions, newest first; up to 24 rows visible, then scrolling (FR-TX-5, FR-TX-7). A double-click opens a row in the
+/// form, where it is edited or deleted.
 struct TransactionList: View {
     let model: StickerModel
-    @State private var confirming: UUID?
     @State private var hovering: UUID?
 
     private static let rowHeight = StickerModel.listRowHeight
@@ -159,8 +180,7 @@ struct TransactionList: View {
             }
             Group {
                 if scrolls {
-                    // The scroller sits in the margin at the window's edge, not over the rows (and their trash button).
-                    ScrollView { rowsStack(rows, columns).padding(.horizontal, ListColumns.inset) }.frame(height: CGFloat(Self.maxRows) * Self.rowHeight)
+                    ScrollView { rowsStack(rows, columns).padding(.horizontal, ListColumns.inset).background(OverlayScroller()) }.frame(height: CGFloat(Self.maxRows) * Self.rowHeight)
                 } else {
                     rowsStack(rows, columns).padding(.horizontal, ListColumns.inset)
                 }
@@ -207,50 +227,59 @@ struct TransactionList: View {
         let value = model.pnl(of: tx).map { NumberFormat.displayedQuote($0, fixed: model.quoteFixed) }
         let grey = value.map { $0 == 0 ? Theme.secondaryText : Theme.secondaryText.mix(with: Theme.pnl($0), by: 0.16) } ?? Theme.secondaryText
         return HStack(spacing: ListColumns.spacing) {
-            if confirming == tx.id {
-                Text("Delete this transaction?").font(.system(size: 12))
-                Spacer()
-                Button("Cancel") { confirming = nil }.buttonStyle(.plain).foregroundStyle(Theme.secondaryText)
-                Button("Delete") {
-                    confirming = nil
-                    Task { await model.deleteTransaction(id: tx.id) }
-                }
-                .buttonStyle(.plain).foregroundStyle(Theme.negative)
-            } else {
-                Text(tx.rate.map(NumberFormat.price) ?? "—").foregroundStyle(grey).minimumScaleFactor(0.3).frame(width: columns.rate, alignment: .leading)
-                Text(NumberFormat.quote(tx.amount, fixed: model.quoteFixed)).foregroundStyle(grey).minimumScaleFactor(0.3).frame(width: columns.amount, alignment: .leading)
-                Text(NumberFormat.quantity(tx.quantity)).foregroundStyle(grey).frame(width: columns.qty, alignment: .leading)
-                    .minimumScaleFactor(0.3)
-                Text(tx.fee.map { NumberFormat.quote($0, fixed: model.quoteFixed) } ?? "—").foregroundStyle(grey).minimumScaleFactor(0.3)
-                    .frame(width: columns.fee, alignment: .leading).help("Fee, included in the amount")
-                Text(tx.side == .buy ? "B" : "S") // buy green, sell red; the letter keeps colour from being the only cue
-                    .font(.system(size: 10)).fixedSize()
-                    .frame(width: 14, height: 14)
-                    .background(Circle().fill(tx.side == .buy ? Color(red: 0.063, green: 0.286, blue: 0.212) : Color(red: 0.30, green: 0.10, blue: 0.13)))
-                    .foregroundStyle(tx.side == .buy ? Color(red: 0.41, green: 0.98, blue: 0.84) : Color(red: 1.0, green: 0.48, blue: 0.52))
-                    .frame(width: ListColumns.side, alignment: .leading)
-                    .accessibilityLabel(tx.side == .buy ? "Buy" : "Sell")
-                pnl(model.pnl(of: tx), columns)
-            }
+            Text(tx.rate.map(NumberFormat.price) ?? "—").foregroundStyle(grey).minimumScaleFactor(0.3).frame(width: columns.rate, alignment: .leading)
+            Text(NumberFormat.quote(tx.amount, fixed: model.quoteFixed)).foregroundStyle(grey).minimumScaleFactor(0.3).frame(width: columns.amount, alignment: .leading)
+            Text(NumberFormat.quantity(tx.quantity)).foregroundStyle(grey).frame(width: columns.qty, alignment: .leading)
+                .minimumScaleFactor(0.3)
+            Text(tx.fee.map { NumberFormat.quote($0, fixed: model.quoteFixed) } ?? "—").foregroundStyle(grey).minimumScaleFactor(0.3)
+                .frame(width: columns.fee, alignment: .leading).help("Fee, included in the amount")
+            Text(tx.side == .buy ? "B" : "S") // buy green, sell red; the letter keeps colour from being the only cue
+                .font(.system(size: 10)).fixedSize()
+                .frame(width: 14, height: 14)
+                .background(Circle().fill(tx.side == .buy ? Color(red: 0.063, green: 0.286, blue: 0.212) : Color(red: 0.30, green: 0.10, blue: 0.13)))
+                .foregroundStyle(tx.side == .buy ? Color(red: 0.41, green: 0.98, blue: 0.84) : Color(red: 1.0, green: 0.48, blue: 0.52))
+                .frame(width: ListColumns.side, alignment: .leading)
+                .accessibilityLabel(tx.side == .buy ? "Buy" : "Sell")
+            pnl(model.pnl(of: tx), columns)
         }
-        .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(.white.opacity(hovering == tx.id && confirming == nil ? 0.06 : 0)))
-        .overlay(alignment: .trailing) { // over the end of the PnL while hovering, so the row keeps equal margins
-            if hovering == tx.id && confirming == nil {
-                Button { confirming = tx.id } label: { Image(systemName: "trash") }
-                    .buttonStyle(.plain).foregroundStyle(Theme.negative).accessibilityLabel("Delete transaction")
-                    .padding(.horizontal, 6).frame(maxHeight: .infinity).background(Color.black.opacity(0.75), in: RoundedRectangle(cornerRadius: 6))
-                    .offset(x: scrolls ? 0 : ListColumns.inset - 1) // out into the margin, against the window edge; the scroller takes the margin
-            }
-        }
+        .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(.white.opacity(hovering == tx.id ? 0.06 : 0)))
         .contentShape(Rectangle())
         .onHover { inside in if inside { hovering = tx.id } else if hovering == tx.id { hovering = nil } }
         .onTapGesture(count: 2) { model.openEditForm(id: tx.id) }
-        .contextMenu {
-            Button("Edit…") { model.openEditForm(id: tx.id) }
-            Button("Delete…", role: .destructive) { confirming = tx.id }
-        }
+        .contextMenu { Button("Edit or delete…") { model.openEditForm(id: tx.id) } }
         .font(.system(size: 12.5)).monospacedDigit().lineLimit(1)
-        .help(tx.occurredAt.formatted(date: .complete, time: .standard) + "\nDouble-click the row to edit") // the Ago column is gone: the time is in the tooltip
+        .help(tx.occurredAt.formatted(date: .complete, time: .standard) + "\nDouble-click the row to edit or delete it") // the Ago column is gone: the time is in the tooltip
         .frame(height: Self.rowHeight - 1)
     }
+}
+
+/// Makes the scroll view it sits in use the thin overlay scroller whatever the system setting is. A permanent track
+/// (the "always show scroll bars" style) takes 17 pt of the width the columns are fitted to and cuts the last digits off.
+struct OverlayScroller: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView { Probe() }
+    func updateNSView(_ view: NSView, context: Context) {}
+
+    final class Probe: NSView {
+        private var observing = false
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            apply()
+            // AppKit puts the system's style back when it changes (a mouse is plugged in): override it again.
+            // Registered here, after the scroll view's own observer, and once; it goes with the view.
+            guard !observing, window != nil else { return }
+            observing = true
+            NotificationCenter.default.addObserver(self, selector: #selector(preferredStyleChanged), name: NSScroller.preferredScrollerStyleDidChangeNotification, object: nil)
+        }
+
+        /// At once, and again one turn later: whichever of AppKit's own handling of the same notification and ours runs last, ours wins.
+        @objc private func preferredStyleChanged() { apply(); DispatchQueue.main.async { [weak self] in self?.apply() } }
+
+        private func apply() { enclosingScrollView?.scrollerStyle = .overlay }
+    }
+}
+
+/// A button that only dims while it is pressed, like `PillStyle`.
+struct DimOnPress: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View { configuration.label.opacity(configuration.isPressed ? 0.7 : 1) }
 }

@@ -1,3 +1,4 @@
+import AppKit
 import Domain
 import Foundation
 import MarketData
@@ -142,5 +143,30 @@ import Testing
         f.model.reload()
         #expect(try f.store.transactions(tradeID: f.model.trade.id) == before)
         #expect(f.model.currentPrice == 2 && f.model.pnl.total == 190) // 100 coins at 2 for a cost of 10
+    }
+}
+
+@Suite struct PressDragTests {
+    private func event(_ type: NSEvent.EventType, _ x: CGFloat, _ y: CGFloat) -> NSEvent {
+        NSEvent.mouseEvent(with: type, location: NSPoint(x: x, y: y), modifierFlags: [], timestamp: 0, windowNumber: 0, context: nil, eventNumber: 0, clickCount: 1, pressure: 1)!
+    }
+
+    @Test func aPressBecomesADragOnlyAfterItTravelsAFewPointsAndOnlyOnce() {
+        var drag = PressDrag()
+        func feed(_ e: NSEvent) -> Bool { drag.begins(with: e) }
+        #expect(!feed(event(.leftMouseDown, 50, 50)))
+        #expect(!feed(event(.leftMouseDragged, 52, 51))) // a wobble of a click
+        #expect(feed(event(.leftMouseDragged, 55, 50)))
+        #expect(!feed(event(.leftMouseDragged, 90, 90))) // the drag has begun already
+    }
+
+    @Test func aClickAndADragThatNeverWentDownDoNotMoveAnything() {
+        var drag = PressDrag()
+        func feed(_ e: NSEvent) -> Bool { drag.begins(with: e) }
+        #expect(!feed(event(.leftMouseDragged, 90, 90))) // no press first
+        #expect(!feed(event(.leftMouseDown, 10, 10)))
+        #expect(!feed(event(.leftMouseUp, 10, 10)))
+        #expect(!feed(event(.leftMouseDragged, 90, 90))) // after the release
+        #expect(!feed(event(.mouseMoved, 90, 90)))
     }
 }

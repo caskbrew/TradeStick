@@ -25,6 +25,8 @@ public final class APIKeysModel {
     /// Nil until a check could tell.
     public private(set) var readOnly: Bool?
     public private(set) var warnings: [String] = []
+    /// Called after the saved key was replaced or removed.
+    @ObservationIgnored public var onKeyChange: (() -> Void)?
 
     @ObservationIgnored private let store: any CredentialStore
     @ObservationIgnored private let check: @Sendable (APICredentials) async throws -> APIKeyCheck
@@ -39,6 +41,7 @@ public final class APIKeysModel {
         store: any CredentialStore,
         defaults: UserDefaults = .standard,
         clock: @escaping () -> Date = { Date() },
+        notice: String? = nil,
         check: @escaping @Sendable (APICredentials) async throws -> APIKeyCheck
     ) {
         self.exchange = exchange
@@ -50,6 +53,7 @@ public final class APIKeysModel {
         let saved: APICredentials?
         do { saved = try store.load(exchange: exchange) } catch { saved = nil; loadError = "\(error)" }
         if loadError != nil { status = .failed("Keychain refused access to the saved key.\nEnter it again and press Save.") }
+        else if saved == nil, let notice { status = .failed(notice) } // e.g. the key of the previous version could not be moved
         keyText = saved?.key ?? ""
         hasSavedKey = saved != nil
         let when = saved == nil ? nil : defaults.object(forKey: "apiKeyChecked.\(exchange)") as? Date
@@ -105,6 +109,7 @@ public final class APIKeysModel {
             secretText = ""
             record(result, saved: true)
             status = .ok("Saved")
+            onKeyChange?()
         } catch {
             connected = false
             status = .failed("Not saved: \(error)")
@@ -119,6 +124,7 @@ public final class APIKeysModel {
             defaults.removeObject(forKey: checkedKey); defaults.removeObject(forKey: readOnlyKey)
             keyText = ""; secretText = ""
             status = .ok("Removed")
+            onKeyChange?()
         } catch {
             status = .failed("\(error)")
         }
